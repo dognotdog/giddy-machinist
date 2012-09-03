@@ -1,0 +1,7 @@
+//
+// Prefix header for all source files of the 'Giddy Machinist' target in the 'Giddy Machinist' project
+//
+
+#ifdef __OBJC__
+	#import <Cocoa/Cocoa.h>
+#endif

@@ -1,0 +1,517 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		DA3F68DA15F4F050002EC2C6 /* PathView2D.m in Sources */ = {isa = PBXBuildFile; fileRef = DA3F68D915F4F050002EC2C6 /* PathView2D.m */; };
+		DA50F02415F0BE930047CEF9 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA50F02315F0BE930047CEF9 /* Cocoa.framework */; };
+		DA50F02E15F0BE930047CEF9 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = DA50F02C15F0BE930047CEF9 /* InfoPlist.strings */; };
+		DA50F03015F0BE930047CEF9 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F02F15F0BE930047CEF9 /* main.m */; };
+		DA50F03415F0BE930047CEF9 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = DA50F03215F0BE930047CEF9 /* Credits.rtf */; };
+		DA50F03715F0BE930047CEF9 /* GMDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F03615F0BE930047CEF9 /* GMDocument.m */; };
+		DA50F03A15F0BE930047CEF9 /* GMDocument.xib in Resources */ = {isa = PBXBuildFile; fileRef = DA50F03815F0BE930047CEF9 /* GMDocument.xib */; };
+		DA50F03D15F0BE930047CEF9 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = DA50F03B15F0BE930047CEF9 /* MainMenu.xib */; };
+		DA50F05115F0F78A0047CEF9 /* RS274Parser.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F05015F0F78A0047CEF9 /* RS274Parser.m */; };
+		DA50F07A15F0F8230047CEF9 /* ColladaImport.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F05615F0F8230047CEF9 /* ColladaImport.m */; };
+		DA50F07B15F0F8230047CEF9 /* FloatArray.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F05815F0F8230047CEF9 /* FloatArray.m */; };
+		DA50F07C15F0F8230047CEF9 /* FoundationExtensions.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F05A15F0F8230047CEF9 /* FoundationExtensions.m */; };
+		DA50F07D15F0F8230047CEF9 /* gfx.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F05C15F0F8230047CEF9 /* gfx.m */; };
+		DA50F07E15F0F8230047CEF9 /* GfxShader.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F05E15F0F8230047CEF9 /* GfxShader.m */; };
+		DA50F07F15F0F8230047CEF9 /* GfxStateStack.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F06015F0F8230047CEF9 /* GfxStateStack.m */; };
+		DA50F08015F0F8230047CEF9 /* GfxTexture.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F06215F0F8230047CEF9 /* GfxTexture.m */; };
+		DA50F08115F0F8230047CEF9 /* GLBaseView.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F06415F0F8230047CEF9 /* GLBaseView.m */; };
+		DA50F08215F0F8230047CEF9 /* GLDrawableBuffer.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F06615F0F8230047CEF9 /* GLDrawableBuffer.m */; };
+		DA50F08315F0F8230047CEF9 /* GLString.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F06815F0F8230047CEF9 /* GLString.m */; };
+		DA50F08415F0F8230047CEF9 /* HIDManagement.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F06A15F0F8230047CEF9 /* HIDManagement.m */; };
+		DA50F08615F0F8230047CEF9 /* MersenneTwister.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F06E15F0F8230047CEF9 /* MersenneTwister.m */; };
+		DA50F08715F0F8230047CEF9 /* MeshOctree.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F07015F0F8230047CEF9 /* MeshOctree.m */; };
+		DA50F08915F0F8230047CEF9 /* simple.fs in Resources */ = {isa = PBXBuildFile; fileRef = DA50F07315F0F8230047CEF9 /* simple.fs */; };
+		DA50F08A15F0F8230047CEF9 /* simple.vs in Resources */ = {isa = PBXBuildFile; fileRef = DA50F07415F0F8230047CEF9 /* simple.vs */; };
+		DA50F08B15F0F8230047CEF9 /* SimplexNoise.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F07615F0F8230047CEF9 /* SimplexNoise.m */; };
+		DA50F08C15F0F8230047CEF9 /* VectorMath.c in Sources */ = {isa = PBXBuildFile; fileRef = DA50F07715F0F8230047CEF9 /* VectorMath.c */; };
+		DA50F08D15F0F8230047CEF9 /* VectorMath.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F07915F0F8230047CEF9 /* VectorMath.m */; };
+		DA50F09215F185410047CEF9 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA50F08E15F185410047CEF9 /* Accelerate.framework */; };
+		DA50F09415F185410047CEF9 /* OpenCL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA50F09015F185410047CEF9 /* OpenCL.framework */; };
+		DA50F09515F185410047CEF9 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA50F09115F185410047CEF9 /* OpenGL.framework */; };
+		DA50F09815F223410047CEF9 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA50F09615F223410047CEF9 /* CoreVideo.framework */; };
+		DA50F09915F223410047CEF9 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA50F09715F223410047CEF9 /* QuartzCore.framework */; };
+		DA50F09B15F223610047CEF9 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA50F09A15F223610047CEF9 /* IOKit.framework */; };
+		DA50F0A315F24A870047CEF9 /* RS274Interpreter.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F0A215F24A870047CEF9 /* RS274Interpreter.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXBuildRule section */
+		DA50F09C15F223C20047CEF9 /* PBXBuildRule */ = {
+			isa = PBXBuildRule;
+			compilerSpec = "com.apple.build-tasks.copy-plist-file";
+			fileType = sourcecode.glsl;
+			isEditable = 1;
+			outputFiles = (
+			);
+		};
+/* End PBXBuildRule section */
+
+/* Begin PBXFileReference section */
+		DA3F68D815F4F04F002EC2C6 /* PathView2D.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PathView2D.h; sourceTree = "<group>"; };
+		DA3F68D915F4F050002EC2C6 /* PathView2D.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PathView2D.m; sourceTree = "<group>"; };
+		DA50F01F15F0BE930047CEF9 /* Giddy Machinist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Giddy Machinist.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DA50F02315F0BE930047CEF9 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		DA50F02615F0BE930047CEF9 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		DA50F02715F0BE930047CEF9 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
+		DA50F02815F0BE930047CEF9 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		DA50F02B15F0BE930047CEF9 /* Giddy Machinist-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "Giddy Machinist-Info.plist"; path = "project/Giddy Machinist-Info.plist"; sourceTree = "<group>"; };
+		DA50F02D15F0BE930047CEF9 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		DA50F02F15F0BE930047CEF9 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		DA50F03115F0BE930047CEF9 /* Giddy Machinist-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Giddy Machinist-Prefix.pch"; path = "source/Giddy Machinist-Prefix.pch"; sourceTree = "<group>"; };
+		DA50F03315F0BE930047CEF9 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/Credits.rtf; sourceTree = "<group>"; };
+		DA50F03515F0BE930047CEF9 /* GMDocument.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GMDocument.h; sourceTree = "<group>"; };
+		DA50F03615F0BE930047CEF9 /* GMDocument.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GMDocument.m; sourceTree = "<group>"; };
+		DA50F03915F0BE930047CEF9 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/GMDocument.xib; sourceTree = "<group>"; };
+		DA50F03C15F0BE930047CEF9 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		DA50F04F15F0F78A0047CEF9 /* RS274Parser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RS274Parser.h; sourceTree = "<group>"; };
+		DA50F05015F0F78A0047CEF9 /* RS274Parser.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RS274Parser.m; sourceTree = "<group>"; };
+		DA50F05415F0F8230047CEF9 /* CGGeometryExtensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CGGeometryExtensions.h; sourceTree = "<group>"; };
+		DA50F05515F0F8230047CEF9 /* ColladaImport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ColladaImport.h; sourceTree = "<group>"; };
+		DA50F05615F0F8230047CEF9 /* ColladaImport.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ColladaImport.m; sourceTree = "<group>"; };
+		DA50F05715F0F8230047CEF9 /* FloatArray.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FloatArray.h; sourceTree = "<group>"; };
+		DA50F05815F0F8230047CEF9 /* FloatArray.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FloatArray.m; sourceTree = "<group>"; };
+		DA50F05915F0F8230047CEF9 /* FoundationExtensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FoundationExtensions.h; sourceTree = "<group>"; };
+		DA50F05A15F0F8230047CEF9 /* FoundationExtensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FoundationExtensions.m; sourceTree = "<group>"; };
+		DA50F05B15F0F8230047CEF9 /* gfx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gfx.h; sourceTree = "<group>"; };
+		DA50F05C15F0F8230047CEF9 /* gfx.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = gfx.m; sourceTree = "<group>"; };
+		DA50F05D15F0F8230047CEF9 /* GfxShader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GfxShader.h; sourceTree = "<group>"; };
+		DA50F05E15F0F8230047CEF9 /* GfxShader.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GfxShader.m; sourceTree = "<group>"; };
+		DA50F05F15F0F8230047CEF9 /* GfxStateStack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GfxStateStack.h; sourceTree = "<group>"; };
+		DA50F06015F0F8230047CEF9 /* GfxStateStack.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GfxStateStack.m; sourceTree = "<group>"; };
+		DA50F06115F0F8230047CEF9 /* GfxTexture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GfxTexture.h; sourceTree = "<group>"; };
+		DA50F06215F0F8230047CEF9 /* GfxTexture.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GfxTexture.m; sourceTree = "<group>"; };
+		DA50F06315F0F8230047CEF9 /* GLBaseView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GLBaseView.h; sourceTree = "<group>"; };
+		DA50F06415F0F8230047CEF9 /* GLBaseView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GLBaseView.m; sourceTree = "<group>"; };
+		DA50F06515F0F8230047CEF9 /* GLDrawableBuffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GLDrawableBuffer.h; sourceTree = "<group>"; };
+		DA50F06615F0F8230047CEF9 /* GLDrawableBuffer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GLDrawableBuffer.m; sourceTree = "<group>"; };
+		DA50F06715F0F8230047CEF9 /* GLString.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GLString.h; sourceTree = "<group>"; };
+		DA50F06815F0F8230047CEF9 /* GLString.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GLString.m; sourceTree = "<group>"; };
+		DA50F06915F0F8230047CEF9 /* HIDManagement.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HIDManagement.h; sourceTree = "<group>"; };
+		DA50F06A15F0F8230047CEF9 /* HIDManagement.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HIDManagement.m; sourceTree = "<group>"; };
+		DA50F06B15F0F8230047CEF9 /* LineTriangulator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LineTriangulator.h; sourceTree = "<group>"; };
+		DA50F06C15F0F8230047CEF9 /* LineTriangulator.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LineTriangulator.m; sourceTree = "<group>"; };
+		DA50F06D15F0F8230047CEF9 /* MersenneTwister.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MersenneTwister.h; sourceTree = "<group>"; };
+		DA50F06E15F0F8230047CEF9 /* MersenneTwister.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MersenneTwister.m; sourceTree = "<group>"; };
+		DA50F06F15F0F8230047CEF9 /* MeshOctree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MeshOctree.h; sourceTree = "<group>"; };
+		DA50F07015F0F8230047CEF9 /* MeshOctree.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MeshOctree.m; sourceTree = "<group>"; };
+		DA50F07115F0F8230047CEF9 /* NSString_tokenizer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSString_tokenizer.h; sourceTree = "<group>"; };
+		DA50F07215F0F8230047CEF9 /* NSString_tokenizer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NSString_tokenizer.m; sourceTree = "<group>"; };
+		DA50F07315F0F8230047CEF9 /* simple.fs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.glsl; path = simple.fs; sourceTree = "<group>"; };
+		DA50F07415F0F8230047CEF9 /* simple.vs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.glsl; path = simple.vs; sourceTree = "<group>"; };
+		DA50F07515F0F8230047CEF9 /* SimplexNoise.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SimplexNoise.h; sourceTree = "<group>"; };
+		DA50F07615F0F8230047CEF9 /* SimplexNoise.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SimplexNoise.m; sourceTree = "<group>"; };
+		DA50F07715F0F8230047CEF9 /* VectorMath.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = VectorMath.c; sourceTree = "<group>"; };
+		DA50F07815F0F8230047CEF9 /* VectorMath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VectorMath.h; sourceTree = "<group>"; };
+		DA50F07915F0F8230047CEF9 /* VectorMath.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VectorMath.m; sourceTree = "<group>"; };
+		DA50F08E15F185410047CEF9 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
+		DA50F09015F185410047CEF9 /* OpenCL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenCL.framework; path = System/Library/Frameworks/OpenCL.framework; sourceTree = SDKROOT; };
+		DA50F09115F185410047CEF9 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
+		DA50F09615F223410047CEF9 /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = /System/Library/Frameworks/CoreVideo.framework; sourceTree = "<absolute>"; };
+		DA50F09715F223410047CEF9 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = /System/Library/Frameworks/QuartzCore.framework; sourceTree = "<absolute>"; };
+		DA50F09A15F223610047CEF9 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = /System/Library/Frameworks/IOKit.framework; sourceTree = "<absolute>"; };
+		DA50F0A115F24A870047CEF9 /* RS274Interpreter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RS274Interpreter.h; sourceTree = "<group>"; };
+		DA50F0A215F24A870047CEF9 /* RS274Interpreter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RS274Interpreter.m; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DA50F01C15F0BE930047CEF9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DA50F09B15F223610047CEF9 /* IOKit.framework in Frameworks */,
+				DA50F09815F223410047CEF9 /* CoreVideo.framework in Frameworks */,
+				DA50F09915F223410047CEF9 /* QuartzCore.framework in Frameworks */,
+				DA50F09215F185410047CEF9 /* Accelerate.framework in Frameworks */,
+				DA50F09415F185410047CEF9 /* OpenCL.framework in Frameworks */,
+				DA50F09515F185410047CEF9 /* OpenGL.framework in Frameworks */,
+				DA50F02415F0BE930047CEF9 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		DA50F01415F0BE930047CEF9 = {
+			isa = PBXGroup;
+			children = (
+				DA50F05215F0F80A0047CEF9 /* common */,
+				DA50F02915F0BE930047CEF9 /* Giddy Machinist */,
+				DA50F02215F0BE930047CEF9 /* Frameworks */,
+				DA50F02015F0BE930047CEF9 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DA50F02015F0BE930047CEF9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				DA50F01F15F0BE930047CEF9 /* Giddy Machinist.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		DA50F02215F0BE930047CEF9 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				DA50F02315F0BE930047CEF9 /* Cocoa.framework */,
+				DA50F02515F0BE930047CEF9 /* Other Frameworks */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		DA50F02515F0BE930047CEF9 /* Other Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				DA50F09A15F223610047CEF9 /* IOKit.framework */,
+				DA50F09615F223410047CEF9 /* CoreVideo.framework */,
+				DA50F09715F223410047CEF9 /* QuartzCore.framework */,
+				DA50F08E15F185410047CEF9 /* Accelerate.framework */,
+				DA50F09015F185410047CEF9 /* OpenCL.framework */,
+				DA50F09115F185410047CEF9 /* OpenGL.framework */,
+				DA50F02615F0BE930047CEF9 /* AppKit.framework */,
+				DA50F02715F0BE930047CEF9 /* CoreData.framework */,
+				DA50F02815F0BE930047CEF9 /* Foundation.framework */,
+			);
+			name = "Other Frameworks";
+			sourceTree = "<group>";
+		};
+		DA50F02915F0BE930047CEF9 /* Giddy Machinist */ = {
+			isa = PBXGroup;
+			children = (
+				DA50F04915F0BF800047CEF9 /* source */,
+				DA50F04715F0BF690047CEF9 /* resources */,
+				DA50F02A15F0BE930047CEF9 /* Supporting Files */,
+			);
+			name = "Giddy Machinist";
+			path = ..;
+			sourceTree = "<group>";
+		};
+		DA50F02A15F0BE930047CEF9 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				DA50F02B15F0BE930047CEF9 /* Giddy Machinist-Info.plist */,
+				DA50F03115F0BE930047CEF9 /* Giddy Machinist-Prefix.pch */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		DA50F04715F0BF690047CEF9 /* resources */ = {
+			isa = PBXGroup;
+			children = (
+				DA50F03215F0BE930047CEF9 /* Credits.rtf */,
+				DA50F02C15F0BE930047CEF9 /* InfoPlist.strings */,
+				DA50F03815F0BE930047CEF9 /* GMDocument.xib */,
+				DA50F03B15F0BE930047CEF9 /* MainMenu.xib */,
+			);
+			path = resources;
+			sourceTree = "<group>";
+		};
+		DA50F04915F0BF800047CEF9 /* source */ = {
+			isa = PBXGroup;
+			children = (
+				DA50F02F15F0BE930047CEF9 /* main.m */,
+				DA50F03515F0BE930047CEF9 /* GMDocument.h */,
+				DA50F03615F0BE930047CEF9 /* GMDocument.m */,
+				DA50F04F15F0F78A0047CEF9 /* RS274Parser.h */,
+				DA50F05015F0F78A0047CEF9 /* RS274Parser.m */,
+				DA50F0A115F24A870047CEF9 /* RS274Interpreter.h */,
+				DA50F0A215F24A870047CEF9 /* RS274Interpreter.m */,
+				DA3F68D815F4F04F002EC2C6 /* PathView2D.h */,
+				DA3F68D915F4F050002EC2C6 /* PathView2D.m */,
+			);
+			path = source;
+			sourceTree = "<group>";
+		};
+		DA50F05215F0F80A0047CEF9 /* common */ = {
+			isa = PBXGroup;
+			children = (
+				DA50F05315F0F8230047CEF9 /* source */,
+			);
+			name = common;
+			path = ../../common;
+			sourceTree = "<group>";
+		};
+		DA50F05315F0F8230047CEF9 /* source */ = {
+			isa = PBXGroup;
+			children = (
+				DA50F05415F0F8230047CEF9 /* CGGeometryExtensions.h */,
+				DA50F05515F0F8230047CEF9 /* ColladaImport.h */,
+				DA50F05615F0F8230047CEF9 /* ColladaImport.m */,
+				DA50F05715F0F8230047CEF9 /* FloatArray.h */,
+				DA50F05815F0F8230047CEF9 /* FloatArray.m */,
+				DA50F05915F0F8230047CEF9 /* FoundationExtensions.h */,
+				DA50F05A15F0F8230047CEF9 /* FoundationExtensions.m */,
+				DA50F05B15F0F8230047CEF9 /* gfx.h */,
+				DA50F05C15F0F8230047CEF9 /* gfx.m */,
+				DA50F05D15F0F8230047CEF9 /* GfxShader.h */,
+				DA50F05E15F0F8230047CEF9 /* GfxShader.m */,
+				DA50F05F15F0F8230047CEF9 /* GfxStateStack.h */,
+				DA50F06015F0F8230047CEF9 /* GfxStateStack.m */,
+				DA50F06115F0F8230047CEF9 /* GfxTexture.h */,
+				DA50F06215F0F8230047CEF9 /* GfxTexture.m */,
+				DA50F06315F0F8230047CEF9 /* GLBaseView.h */,
+				DA50F06415F0F8230047CEF9 /* GLBaseView.m */,
+				DA50F06515F0F8230047CEF9 /* GLDrawableBuffer.h */,
+				DA50F06615F0F8230047CEF9 /* GLDrawableBuffer.m */,
+				DA50F06715F0F8230047CEF9 /* GLString.h */,
+				DA50F06815F0F8230047CEF9 /* GLString.m */,
+				DA50F06915F0F8230047CEF9 /* HIDManagement.h */,
+				DA50F06A15F0F8230047CEF9 /* HIDManagement.m */,
+				DA50F06B15F0F8230047CEF9 /* LineTriangulator.h */,
+				DA50F06C15F0F8230047CEF9 /* LineTriangulator.m */,
+				DA50F06D15F0F8230047CEF9 /* MersenneTwister.h */,
+				DA50F06E15F0F8230047CEF9 /* MersenneTwister.m */,
+				DA50F06F15F0F8230047CEF9 /* MeshOctree.h */,
+				DA50F07015F0F8230047CEF9 /* MeshOctree.m */,
+				DA50F07115F0F8230047CEF9 /* NSString_tokenizer.h */,
+				DA50F07215F0F8230047CEF9 /* NSString_tokenizer.m */,
+				DA50F07315F0F8230047CEF9 /* simple.fs */,
+				DA50F07415F0F8230047CEF9 /* simple.vs */,
+				DA50F07515F0F8230047CEF9 /* SimplexNoise.h */,
+				DA50F07615F0F8230047CEF9 /* SimplexNoise.m */,
+				DA50F07715F0F8230047CEF9 /* VectorMath.c */,
+				DA50F07815F0F8230047CEF9 /* VectorMath.h */,
+				DA50F07915F0F8230047CEF9 /* VectorMath.m */,
+			);
+			path = source;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		DA50F01E15F0BE930047CEF9 /* Giddy Machinist */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DA50F04015F0BE930047CEF9 /* Build configuration list for PBXNativeTarget "Giddy Machinist" */;
+			buildPhases = (
+				DA50F01B15F0BE930047CEF9 /* Sources */,
+				DA50F01C15F0BE930047CEF9 /* Frameworks */,
+				DA50F01D15F0BE930047CEF9 /* Resources */,
+			);
+			buildRules = (
+				DA50F09C15F223C20047CEF9 /* PBXBuildRule */,
+			);
+			dependencies = (
+			);
+			name = "Giddy Machinist";
+			productName = "Giddy Machinist";
+			productReference = DA50F01F15F0BE930047CEF9 /* Giddy Machinist.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		DA50F01615F0BE930047CEF9 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0450;
+				ORGANIZATIONNAME = "Dömötör Gulyás";
+			};
+			buildConfigurationList = DA50F01915F0BE930047CEF9 /* Build configuration list for PBXProject "Giddy Machinist" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = DA50F01415F0BE930047CEF9;
+			productRefGroup = DA50F02015F0BE930047CEF9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DA50F01E15F0BE930047CEF9 /* Giddy Machinist */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		DA50F01D15F0BE930047CEF9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DA50F08915F0F8230047CEF9 /* simple.fs in Resources */,
+				DA50F08A15F0F8230047CEF9 /* simple.vs in Resources */,
+				DA50F02E15F0BE930047CEF9 /* InfoPlist.strings in Resources */,
+				DA50F03415F0BE930047CEF9 /* Credits.rtf in Resources */,
+				DA50F03A15F0BE930047CEF9 /* GMDocument.xib in Resources */,
+				DA50F03D15F0BE930047CEF9 /* MainMenu.xib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DA50F01B15F0BE930047CEF9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DA50F03015F0BE930047CEF9 /* main.m in Sources */,
+				DA50F03715F0BE930047CEF9 /* GMDocument.m in Sources */,
+				DA50F05115F0F78A0047CEF9 /* RS274Parser.m in Sources */,
+				DA50F07A15F0F8230047CEF9 /* ColladaImport.m in Sources */,
+				DA50F07B15F0F8230047CEF9 /* FloatArray.m in Sources */,
+				DA50F07C15F0F8230047CEF9 /* FoundationExtensions.m in Sources */,
+				DA50F07D15F0F8230047CEF9 /* gfx.m in Sources */,
+				DA50F07E15F0F8230047CEF9 /* GfxShader.m in Sources */,
+				DA50F07F15F0F8230047CEF9 /* GfxStateStack.m in Sources */,
+				DA50F08015F0F8230047CEF9 /* GfxTexture.m in Sources */,
+				DA50F08115F0F8230047CEF9 /* GLBaseView.m in Sources */,
+				DA50F08215F0F8230047CEF9 /* GLDrawableBuffer.m in Sources */,
+				DA50F08315F0F8230047CEF9 /* GLString.m in Sources */,
+				DA50F08415F0F8230047CEF9 /* HIDManagement.m in Sources */,
+				DA50F08615F0F8230047CEF9 /* MersenneTwister.m in Sources */,
+				DA50F08715F0F8230047CEF9 /* MeshOctree.m in Sources */,
+				DA50F08B15F0F8230047CEF9 /* SimplexNoise.m in Sources */,
+				DA50F08C15F0F8230047CEF9 /* VectorMath.c in Sources */,
+				DA50F08D15F0F8230047CEF9 /* VectorMath.m in Sources */,
+				DA50F0A315F24A870047CEF9 /* RS274Interpreter.m in Sources */,
+				DA3F68DA15F4F050002EC2C6 /* PathView2D.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		DA50F02C15F0BE930047CEF9 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				DA50F02D15F0BE930047CEF9 /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		DA50F03215F0BE930047CEF9 /* Credits.rtf */ = {
+			isa = PBXVariantGroup;
+			children = (
+				DA50F03315F0BE930047CEF9 /* en */,
+			);
+			name = Credits.rtf;
+			sourceTree = "<group>";
+		};
+		DA50F03815F0BE930047CEF9 /* GMDocument.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				DA50F03915F0BE930047CEF9 /* en */,
+			);
+			name = GMDocument.xib;
+			path = ../resources;
+			sourceTree = "<group>";
+		};
+		DA50F03B15F0BE930047CEF9 /* MainMenu.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				DA50F03C15F0BE930047CEF9 /* en */,
+			);
+			name = MainMenu.xib;
+			path = ../resources;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		DA50F03E15F0BE930047CEF9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = "";
+			};
+			name = Debug;
+		};
+		DA50F03F15F0BE930047CEF9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				SDKROOT = "";
+			};
+			name = Release;
+		};
+		DA50F04115F0BE930047CEF9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "../source/Giddy Machinist-Prefix.pch";
+				INFOPLIST_FILE = "Giddy Machinist-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Debug;
+		};
+		DA50F04215F0BE930047CEF9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "../source/Giddy Machinist-Prefix.pch";
+				INFOPLIST_FILE = "Giddy Machinist-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		DA50F01915F0BE930047CEF9 /* Build configuration list for PBXProject "Giddy Machinist" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DA50F03E15F0BE930047CEF9 /* Debug */,
+				DA50F03F15F0BE930047CEF9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DA50F04015F0BE930047CEF9 /* Build configuration list for PBXNativeTarget "Giddy Machinist" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DA50F04115F0BE930047CEF9 /* Debug */,
+				DA50F04215F0BE930047CEF9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = DA50F01615F0BE930047CEF9 /* Project object */;
+}
