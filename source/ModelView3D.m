@@ -170,7 +170,7 @@
 	
 	matrix_t R = mCreateFromBases(vSetLength(camRight, 1.0), vSetLength(camUp, 1.0), vSetLength(camDelta, 1.0));
 	
-	matrix_t viewMatrix = mTransform(mTranspose(R), mTranslationMatrix(vSub3D(camLookAt, camPos)));
+	matrix_t viewMatrix = mTransform(mTranspose(R), mTranslationMatrix(vNegate(camPos)));
 
 	
 	range3d_t modelsRange = rCreateFromMinMax(vCreatePos(0.0, 0.0, 0.0), vCreatePos(200.0, 200.0, 200.0));
@@ -266,16 +266,24 @@
 	float dy = [event deltaY];
 	
 	vector_t camDelta = vSub3D(camLookAt, camPos);
+	vector_t right = vCross(camDelta, vCreateDir(0.0, 0.0, 1.0));
+	vector_t up = vCross(right, camDelta);
 
 	if (flags & NSShiftKeyMask)
 	{
-		vector_t right = vCross(camDelta, vCreateDir(0.0, 1.0, 0.0));
-		vector_t up = vCross(right, camDelta);
-		matrix_t MX = mRotationMatrixAxisAngle(up, dx*0.01);
-		matrix_t MY = mRotationMatrixAxisAngle(right, dy*0.01);
+		matrix_t MX = mRotationMatrixAxisAngle(up, -dx*0.01);
+		matrix_t MY = mRotationMatrixAxisAngle(right, -dy*0.01);
 		
 		vector_t newDelta = mTransformDir(mTransform(MX, MY), camDelta);
 		camPos = v3Sub(camLookAt, newDelta);
+	}
+	else if (flags & NSControlKeyMask)
+	{
+		vector_t planarForward = v3Sub(camDelta, vProjectAOnB(camDelta, vCreateDir(0.0, 0.0, 1.0)));
+		vector_t planarRight = vCross(planarForward, vCreateDir(0.0, 0.0, 1.0));
+		vector_t move = v3Add(vSetLength(planarForward, dy*0.1), vSetLength(planarRight, dx*0.1));
+		camPos = v3Add(camPos, move);
+		camLookAt = v3Add(camLookAt, move);
 	}
 	else
 	{

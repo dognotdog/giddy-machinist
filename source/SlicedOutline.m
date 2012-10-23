@@ -7,10 +7,94 @@
 //
 
 #import "SlicedOutline.h"
+#import "Slicer.h"
 
 @implementation SlicedOutline
 
 @synthesize outline, holes;
+
+- (id) init
+{
+	if (!(self = [super init]))
+		return nil;
+	
+	holes = [[NSArray alloc] init];
+	
+	return self;
+}
+
+- (void) fixHoleWindings
+{
+	for (SlicedOutline* hole in holes)
+	{
+		if (hole.outline.isCCW == outline.isCCW)
+		{
+			//NSLog(@"reversing hole");
+			[hole.outline reverse];
+			[hole.outline analyzeSegment];
+			[hole fixHoleWindings];
+		}
+	}
+}
+
+- (NSArray*) allNestedPaths
+{
+	NSMutableArray* ary = [NSMutableArray array];
+	for (SlicedOutline* hole in holes)
+		[ary addObjectsFromArray: [hole allNestedPaths]];
+	[ary addObject: outline];
+	return ary;
+}
+
+- (void) recursivelyNestPaths
+{
+	
+	NSMutableArray* unprocessedHoles = [holes mutableCopy];
+	NSMutableArray* outerHoles = [NSMutableArray array];
+	while ([unprocessedHoles count])
+	{
+		SlicedOutline* hole = [unprocessedHoles lastObject];
+		[unprocessedHoles removeLastObject];
+		BOOL outerHole = YES;
+		
+		for (SlicedOutline* hole2 in unprocessedHoles)
+		{
+			if ([hole2.outline containsPath: hole.outline])
+			{
+				hole2.holes = [hole2.holes arrayByAddingObject: hole];
+				outerHole = NO;
+				break;
+			}
+			else if ([hole.outline containsPath: hole2.outline])
+			{
+				[unprocessedHoles insertObject: hole atIndex: 0];
+				outerHole = NO;
+				break;
+			}
+		}
+		
+		if (outerHole)
+			[outerHoles addObject: hole];
+	}
+	holes = outerHoles;
+	
+	for (SlicedOutline* hole in holes)
+		[hole recursivelyNestPaths];
+	
+	[self fixHoleWindings];
+}
+
+- (id) description
+{
+	NSMutableArray* descs = [NSMutableArray array];
+	
+	for (SlicedOutline* hole in holes)
+		[descs addObject: hole];
+	
+	return [NSString stringWithFormat: @"Holes (%@): %@", (outline.isCCW ? @"CCW" : @"---"), descs];
+}
+
+
 
 @end
 
@@ -128,6 +212,23 @@ static inline long xLineSegments2D(vector_t p0, vector_t p1, vector_t p2, vector
 	return ((ta >= 0.0) && (ta < 1.0) && (tb >= 0.0) && (tb < 1.0));
 }
 
+static inline vector_t xRays2D(vector_t p0, vector_t r0, vector_t p2, vector_t r2)
+{
+	vmfloat_t d = vCross(r0, r2).farr[2];
+	
+	if (d == 0.0)
+		return vCreateDir(INFINITY, INFINITY, 0.0);
+	
+	vmfloat_t a = vCross(v3Sub(p2,p0), r2).farr[2];
+	vmfloat_t b = vCross(v3Sub(p2,p0), r0).farr[2];
+	
+	vmfloat_t ta = a/d;
+	vmfloat_t tb = b/d;
+	
+	return vCreateDir(tb, ta, 0.0);
+}
+
+
 - (BOOL) checkSelfIntersection
 {
 	long count = vertexCount + isClosed-1;
@@ -158,7 +259,7 @@ static inline long xLineSegments2D(vector_t p0, vector_t p1, vector_t p2, vector
 	if (isSelfIntersecting || !isClosed)
 		return;
 	
-	for (long i = 0; i < vertexCount; ++i)
+	for (long i = 0; i+1 < vertexCount; ++i)
 	{
 		vector_t a = vertices[i];
 		vector_t b = vertices[(i+1)%vertexCount];
@@ -170,9 +271,82 @@ static inline long xLineSegments2D(vector_t p0, vector_t p1, vector_t p2, vector
 	
 	if (crossSum.farr[2] > 0.0)
 		isCCW = YES;
+	else
+		isCCW = NO;
 	
 	if (ABS(signCounter) == vertexCount)
 		isConvex = YES;
+	
+}
+
+- (vector_t) centroid
+{
+	vector_t c = vZero();
+	for (long i = 0; i < vertexCount; ++i)
+		c = v3Add(c, vertices[i]);
+	return v3MulScalar(c, 1.0/vertexCount);
+}
+
+- (range3d_t) bounds
+{
+	range3d_t r = rInfRange();
+	for (long i = 0; i < vertexCount; ++i)
+	{
+		r.minv = vMin(r.minv, vertices[i]);
+		r.maxv = vMax(r.maxv, vertices[i]);
+	}
+	return r;
+}
+
+- (double) area
+{
+	assert(isClosed);
+	
+	vector_t crossSum = vZero();
+		
+	for (long i = 0; i+1 < vertexCount; ++i)
+	{
+		vector_t a = vertices[i];
+		vector_t b = vertices[(i+1)%vertexCount];
+		vector_t cross = vCross(a, b);
+		
+		crossSum = v3Add(crossSum, cross);
+	}
+	return 0.5*crossSum.farr[2];
+}
+
+- (BOOL) containsPath: (SlicedLineSegment*) segment
+{
+	assert(isCCW && segment.isCCW);
+	assert(isClosed);
+	
+	vector_t sc = segment.begin;
+	range3d_t bounds = self.bounds;
+	
+//	if (!rRangeContainsPointXYInclusiveMinExclusiveMax(bounds, sc))
+//		return NO;
+	
+	
+	vector_t ray = vCreateDir(bounds.maxv.farr[0]+1.0, 1.0, 0.0);
+	
+	long windingCounter = 0;
+	
+	for (long i = 0; i < vertexCount; ++i)
+	{
+		vector_t d = v3Sub(vertices[(i+1) % vertexCount], vertices[i]);
+		vector_t t = xRays2D(vertices[i], d, sc, ray);
+		if ((t.farr[0] >= 0.0) && (t.farr[1] >= 0.0) && (t.farr[0] < 1.0) && (t.farr[1] < 1.0))
+		{
+			double f = vCross(ray, d).farr[2];
+			assert(f != 0.0);
+			windingCounter += (f > 0.0 ? 1 : -1);
+		}
+	}
+	assert(ABS(windingCounter) < 2);
+	if (windingCounter > 0)
+		return YES;
+	else
+		return NO;
 	
 }
 
@@ -184,6 +358,40 @@ static inline long xLineSegments2D(vector_t p0, vector_t p1, vector_t p2, vector
 		vector_t b = vertices[vertexCount-i-1];
 		vertices[i] = b;
 		vertices[vertexCount-i-1] = a;
+	}
+}
+
+- (void) optimizeToThreshold: (double) threshold
+{
+	size_t smallestIndex = NSNotFound;
+	BOOL foundOne = YES;
+	while (foundOne)
+	{
+		double smallestLengthSqr = threshold*threshold;
+		foundOne = NO;
+		for (size_t i = 0; i < vertexCount; ++i)
+		{
+			vector_t a = vertices[i];
+			vector_t b = vertices[(i+1) % vertexCount];
+			vector_t d = v3Sub(b, a);
+			double l = vDot(d, d);
+			if (l < smallestLengthSqr)
+			{
+				foundOne = YES;
+				smallestLengthSqr = l;
+				smallestIndex = i;
+			}
+		}
+		if (foundOne)
+		{
+			size_t ia = smallestIndex, ib = (smallestIndex+1)%vertexCount;
+			vector_t a = vertices[ia];
+			vector_t b = vertices[ib];
+			vector_t c = v3MulScalar(v3Add(a, b), 0.5);
+			vertices[ib] = c;
+			memmove(vertices + ia, vertices + ia + 1, sizeof(*vertices)*(vertexCount-ia-1));
+			vertexCount--;
+		}
 	}
 }
 

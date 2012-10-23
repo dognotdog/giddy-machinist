@@ -222,9 +222,7 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	{
 		for (SlicedOutline* outline in layer.outlinePaths)
 		{
-			NSArray* segments = [NSArray arrayWithObject: outline.outline];
-			if (outline.holes)
-				segments = [segments arrayByAddingObjectsFromArray: outline.holes];
+			NSArray* segments = [outline allNestedPaths];
 			for (SlicedLineSegment* segment in segments)
 				vertexCount += ([segment vertexCount])*2;
 		}
@@ -247,9 +245,7 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	{
 		for (SlicedOutline* outline in layer.outlinePaths)
 		{
-			NSArray* segments = [NSArray arrayWithObject: outline.outline];
-			if (outline.holes)
-				segments = [segments arrayByAddingObjectsFromArray: outline.holes];
+			NSArray* segments = [outline allNestedPaths];
 			for (SlicedLineSegment* segment in segments)
 			{
 				vector_t color = vCreate(1.0, 0.5+0.5*(segment.isCCW), segment.isSelfIntersecting, 1.0);

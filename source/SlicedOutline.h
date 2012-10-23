@@ -18,6 +18,9 @@
 @property(nonatomic,readonly) BOOL isConvex;
 @property(nonatomic,readonly) BOOL isCCW;
 @property(nonatomic,readonly) BOOL isSelfIntersecting;
+@property(nonatomic,readonly) vector_t centroid;
+@property(nonatomic,readonly) range3d_t	bounds;
+@property(nonatomic,readonly) double	area;
 
 - (void) insertVertexAtBeginning: (vector_t) v;
 - (void) insertVertexAtEnd: (vector_t) v;
@@ -27,9 +30,8 @@
 - (BOOL) closePolygonByMergingEndpoints: (double) threshold;
 - (void) analyzeSegment;
 - (void) reverse;
+- (void) optimizeToThreshold: (double) threshold;
 
-- (vector_t) centroid;
-- (range3d_t) bounds;
 
 - (BOOL) intersectsPath: (SlicedLineSegment*) segment;
 - (BOOL) containsPath: (SlicedLineSegment*) segment;
@@ -39,4 +41,9 @@
 @interface SlicedOutline : NSObject
 @property(nonatomic, strong) SlicedLineSegment* outline;
 @property(nonatomic, strong) NSArray* holes;
+
+@property(nonatomic, strong) NSArray* allNestedPaths;
+
+- (void) recursivelyNestPaths;
+
 @end

@@ -91,22 +91,49 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 		return [self nestPaths: obj];
 	}];
 	
+//	NSLog([workingLayers description]);
+	
 	return workingLayers;
 }
 
 - (SlicedLayer*) nestPaths: (SlicedLayer* ) inLayer
 {
-	for (SlicedLineSegment* path in inLayer.outlinePaths)
+	NSMutableArray* inPaths = [inLayer.outlinePaths mutableCopy];
+	NSMutableArray* outerPaths = [NSMutableArray array];
+	while ([inPaths count])
 	{
-	}
-	
-	
-	
-	for (SlicedLineSegment* path in inLayer.outlinePaths)
-	{
+		SlicedOutline* outline = [inPaths lastObject];
+		[inPaths removeLastObject];
+		BOOL outerPath = YES;
+		for (SlicedOutline* outline2 in inPaths)
+		{			
+			if ([outline2.outline containsPath: outline.outline])
+			{
+				outerPath = NO;
+				
+				outline2.holes = [outline2.holes arrayByAddingObject: outline];
+				
+				break;
+			}
+			else if ([outline.outline containsPath: outline2.outline])
+			{
+				[inPaths insertObject: outline atIndex: 0];
+				outerPath = NO;
+				break;
+			}
+
+		}
 		
+		if (outerPath)
+			[outerPaths addObject: outline];
 	}
 	
+	for (SlicedOutline* outline in outerPaths)
+	{
+		[outline recursivelyNestPaths];
+	}
+	
+	inLayer.outlinePaths = outerPaths;
 	
 	return inLayer;
 
@@ -166,7 +193,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 				++si;
 			}
 				
-			if (foundDistanceSqr < mergeThreshold*mergeThreshold)
+			if ((foundDistanceSqr) < mergeThreshold*mergeThreshold)
 			{
 				foundMerge = YES;
 				
@@ -182,7 +209,11 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 			{
 				if ([referenceSegment closePolygonByMergingEndpoints: mergeThreshold])
 				{
-					[closedPaths addObject: referenceSegment];
+					double area = [referenceSegment area];
+					if (fabs(area) > mergeThreshold*mergeThreshold) // discard triangle if its too bloody small
+						[closedPaths addObject: referenceSegment];
+					//else
+					//	NSLog(@"discarding polygon %f: %@", area, referenceSegment);
 				}
 				else
 				{
@@ -207,6 +238,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 			{
 				[segment reverse];
 				[segment analyzeSegment];
+				[segment optimizeToThreshold: mergeThreshold];
 			}
 			SlicedOutline* outline = [[SlicedOutline alloc] init];
 			outline.outline = segment;
@@ -231,6 +263,17 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 @implementation SlicedLayer
 
 @synthesize outlinePaths, openPaths;
+
+- (id) description
+{
+	NSMutableArray* descs = [NSMutableArray array];
+	
+	for (SlicedOutline* path in outlinePaths)
+		[descs addObject: path];
+	
+	return [NSString stringWithFormat: @"Outlines: %@", descs];
+}
+
 
 @end
 
