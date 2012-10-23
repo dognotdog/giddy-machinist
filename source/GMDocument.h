@@ -8,12 +8,13 @@
 
 #import <Cocoa/Cocoa.h>
 
-@class PathView2D;
+@class PathView2D, ModelView3D;
 
 @interface GMDocument : NSDocument
 
 @property(strong) IBOutlet NSTextView* statusTextView;
 @property(strong) IBOutlet PathView2D* pathView;
+@property(strong) IBOutlet ModelView3D* modelView;
 
 - (IBAction) importGCode: (id) sender;
 

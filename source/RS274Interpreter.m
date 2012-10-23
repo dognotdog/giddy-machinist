@@ -18,6 +18,8 @@ enum
 	kRS274InputUnitInch,
 	kRS274MotionModeRapid,
 	kRS274MotionModeFeed,
+	kRS274DistanceModeAbsolute,
+	kRS274DistanceModeIncremental,
 };
 
 
@@ -25,12 +27,12 @@ enum
 
 @implementation RS274Interpreter
 {
-	long			modalInputUnit, modalMotionMode;
+	long			modalInputUnit, modalMotionMode, modalDistanceMode;
 
 	NSMutableArray* machineParameters;
 	
 	double xAxis, yAxis, zAxis, aAxis, bAxis, cAxis;
-	double fastFeedRate, feedRate;
+	double feedRate;
 	
 	NSMutableArray* machineCommands;
 }
@@ -44,6 +46,7 @@ enum
 	
 	modalInputUnit = kRS274InputUnitMilliMeter;
 	modalMotionMode = kRS274MotionModeRapid;
+	modalDistanceMode = kRS274DistanceModeAbsolute;
 	
 	machineParameters = [[NSMutableArray alloc] initWithCapacity: 5400];
 	
@@ -128,6 +131,26 @@ enum
 
 - (NSArray*) interpretLengthUnitCommands: (NSArray*) commands
 {
+	long i = 0;
+	for (id obj in commands)
+	{
+		if ([obj isKindOfClass: [RS274Command class]])
+		{
+			RS274Command* cmd = obj;
+			if ((cmd.commandLetter == 'G') && ([cmd.value isEqual: @20]))
+			{
+				modalInputUnit = kRS274InputUnitInch;
+				break;
+			}
+			else if ((cmd.commandLetter == 'G') && ([cmd.value isEqual: @21]))
+			{
+				modalInputUnit = kRS274InputUnitMilliMeter;
+				break;
+			}
+		}
+		++i;
+	}
+	commands = [commands arrayByRemovingObjectsAtIndexes: [NSIndexSet indexSetWithIndexesInRange: NSMakeRange(i, 1)]];
 	return commands;
 }
 
@@ -153,6 +176,26 @@ enum
 
 - (NSArray*) interpretDistanceModeCommands: (NSArray*) commands
 {
+	long i = 0;
+	for (id obj in commands)
+	{
+		if ([obj isKindOfClass: [RS274Command class]])
+		{
+			RS274Command* cmd = obj;
+			if ((cmd.commandLetter == 'G') && ([cmd.value isEqual: @90]))
+			{
+				modalDistanceMode = kRS274DistanceModeAbsolute;
+				break;
+			}
+			else if ((cmd.commandLetter == 'G') && ([cmd.value isEqual: @91]))
+			{
+				modalDistanceMode = kRS274DistanceModeIncremental;
+				break;
+			}
+		}
+		++i;
+	}
+	commands = [commands arrayByRemovingObjectsAtIndexes: [NSIndexSet indexSetWithIndexesInRange: NSMakeRange(i, 1)]];
 	return commands;
 }
 
@@ -228,7 +271,7 @@ enum
 	
 	switch (modalMotionMode) {
 		case kRS274MotionModeRapid:
-			speed = fastFeedRate;
+			speed = -1;
 			break;
 		case kRS274MotionModeFeed:
 			speed = feedRate;
@@ -255,32 +298,72 @@ enum
 		id obj = [commands objectAtIndex: i];
 		if ([obj isKindOfClass: [RS274Command class]])
 		{
+			double scale = 0.0;
+			if (modalInputUnit == kRS274InputUnitInch)
+				scale = 25.4;
+			else if (modalInputUnit == kRS274InputUnitMilliMeter)
+				scale = 1.0;
+			else
+				assert(0);
+			
 			int cmdLetter = [obj commandLetter];
-			double value = [[obj value] doubleValue];
-			switch (cmdLetter)
+			double value = scale*[[obj value] doubleValue];
+			if (modalDistanceMode == kRS274DistanceModeAbsolute)
 			{
-				case 'A':
-					aAxis = value;
-					break;
-				case 'B':
-					bAxis = value;
-					break;
-				case 'C':
-					cAxis = value;
-					break;
-				case 'X':
-					xAxis = value;
-					break;
-				case 'Y':
-					yAxis = value;
-					break;
-				case 'Z':
-					zAxis = value;
-					break;
-				default:
-					removeCommand = NO;
-					break;
+				switch (cmdLetter)
+				{
+					case 'A':
+						aAxis = value;
+						break;
+					case 'B':
+						bAxis = value;
+						break;
+					case 'C':
+						cAxis = value;
+						break;
+					case 'X':
+						xAxis = value;
+						break;
+					case 'Y':
+						yAxis = value;
+						break;
+					case 'Z':
+						zAxis = value;
+						break;
+					default:
+						removeCommand = NO;
+						break;
+				}
 			}
+			else if (modalDistanceMode == kRS274DistanceModeIncremental)
+			{
+				switch (cmdLetter)
+				{
+					case 'A':
+						aAxis += value;
+						break;
+					case 'B':
+						bAxis += value;
+						break;
+					case 'C':
+						cAxis += value;
+						break;
+					case 'X':
+						xAxis += value;
+						break;
+					case 'Y':
+						yAxis += value;
+						break;
+					case 'Z':
+						zAxis += value;
+						break;
+					default:
+						removeCommand = NO;
+						break;
+				}
+			}
+			else
+				assert(0);
 		}
 		else
 			removeCommand = NO;

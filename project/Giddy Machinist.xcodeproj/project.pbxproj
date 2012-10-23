@@ -7,6 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DA239D2D163615040035200F /* flat.fs in Resources */ = {isa = PBXBuildFile; fileRef = DA239D2A163614F80035200F /* flat.fs */; };
+		DA239D2E163615050035200F /* flat.vs in Resources */ = {isa = PBXBuildFile; fileRef = DA239D2B163614F80035200F /* flat.vs */; };
+		DA239D311636C27F0035200F /* SlicedOutline.m in Sources */ = {isa = PBXBuildFile; fileRef = DA239D301636C27F0035200F /* SlicedOutline.m */; };
+		DA2E5E7516359B630047CD0A /* Slicer.m in Sources */ = {isa = PBXBuildFile; fileRef = DA2E5E7416359B630047CD0A /* Slicer.m */; };
+		DA2F148C163309C2008BC99F /* ModelView3D.m in Sources */ = {isa = PBXBuildFile; fileRef = DA2F148B163309C2008BC99F /* ModelView3D.m */; };
+		DA2F149B16330C0F008BC99F /* white.png in Resources */ = {isa = PBXBuildFile; fileRef = DA2F149A16330C02008BC99F /* white.png */; };
+		DA2F14A4163559A5008BC99F /* model.vs in Resources */ = {isa = PBXBuildFile; fileRef = DA2F149C16330ED0008BC99F /* model.vs */; };
+		DA2F14A6163559A9008BC99F /* model.fs in Resources */ = {isa = PBXBuildFile; fileRef = DA2F149E16330EDF008BC99F /* model.fs */; };
 		DA3F68DA15F4F050002EC2C6 /* PathView2D.m in Sources */ = {isa = PBXBuildFile; fileRef = DA3F68D915F4F050002EC2C6 /* PathView2D.m */; };
 		DA50F02415F0BE930047CEF9 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA50F02315F0BE930047CEF9 /* Cocoa.framework */; };
 		DA50F02E15F0BE930047CEF9 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = DA50F02C15F0BE930047CEF9 /* InfoPlist.strings */; };
@@ -41,6 +49,10 @@
 		DA50F09915F223410047CEF9 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA50F09715F223410047CEF9 /* QuartzCore.framework */; };
 		DA50F09B15F223610047CEF9 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA50F09A15F223610047CEF9 /* IOKit.framework */; };
 		DA50F0A315F24A870047CEF9 /* RS274Interpreter.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F0A215F24A870047CEF9 /* RS274Interpreter.m */; };
+		DA88D7411618DD44001CE353 /* motion_control_fixp32.c in Sources */ = {isa = PBXBuildFile; fileRef = DA88D73F1618DD44001CE353 /* motion_control_fixp32.c */; };
+		DA88D7451618E324001CE353 /* MachineSimulator.m in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7441618E324001CE353 /* MachineSimulator.m */; };
+		DA88D7481618E3E5001CE353 /* MotionPlanner.m in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7471618E3E4001CE353 /* MotionPlanner.m */; };
+		DA88D74A1618F63E001CE353 /* motion_planner_fixp32.c in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7491618F63E001CE353 /* motion_planner_fixp32.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -55,6 +67,19 @@
 /* End PBXBuildRule section */
 
 /* Begin PBXFileReference section */
+		DA23560016222F2700F3DC24 /* motion_planner_fixp32.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = motion_planner_fixp32.h; sourceTree = "<group>"; };
+		DA239D2A163614F80035200F /* flat.fs */ = {isa = PBXFileReference; explicitFileType = sourcecode.glsl; path = flat.fs; sourceTree = "<group>"; };
+		DA239D2B163614F80035200F /* flat.vs */ = {isa = PBXFileReference; explicitFileType = sourcecode.glsl; path = flat.vs; sourceTree = "<group>"; };
+		DA239D2F1636C27F0035200F /* SlicedOutline.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SlicedOutline.h; sourceTree = "<group>"; };
+		DA239D301636C27F0035200F /* SlicedOutline.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SlicedOutline.m; sourceTree = "<group>"; };
+		DA2E5E7316359B630047CD0A /* Slicer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Slicer.h; sourceTree = "<group>"; };
+		DA2E5E7416359B630047CD0A /* Slicer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Slicer.m; sourceTree = "<group>"; };
+		DA2F148A163309C2008BC99F /* ModelView3D.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ModelView3D.h; sourceTree = "<group>"; };
+		DA2F148B163309C2008BC99F /* ModelView3D.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ModelView3D.m; sourceTree = "<group>"; };
+		DA2F149916330C02008BC99F /* HIDControlWindow.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = HIDControlWindow.xib; sourceTree = "<group>"; };
+		DA2F149A16330C02008BC99F /* white.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = white.png; sourceTree = "<group>"; };
+		DA2F149C16330ED0008BC99F /* model.vs */ = {isa = PBXFileReference; explicitFileType = sourcecode.glsl; fileEncoding = 4; path = model.vs; sourceTree = "<group>"; };
+		DA2F149E16330EDF008BC99F /* model.fs */ = {isa = PBXFileReference; explicitFileType = sourcecode.glsl; fileEncoding = 4; path = model.fs; sourceTree = "<group>"; };
 		DA3F68D815F4F04F002EC2C6 /* PathView2D.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PathView2D.h; sourceTree = "<group>"; };
 		DA3F68D915F4F050002EC2C6 /* PathView2D.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PathView2D.m; sourceTree = "<group>"; };
 		DA50F01F15F0BE930047CEF9 /* Giddy Machinist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Giddy Machinist.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -104,8 +129,8 @@
 		DA50F07015F0F8230047CEF9 /* MeshOctree.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MeshOctree.m; sourceTree = "<group>"; };
 		DA50F07115F0F8230047CEF9 /* NSString_tokenizer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSString_tokenizer.h; sourceTree = "<group>"; };
 		DA50F07215F0F8230047CEF9 /* NSString_tokenizer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NSString_tokenizer.m; sourceTree = "<group>"; };
-		DA50F07315F0F8230047CEF9 /* simple.fs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.glsl; path = simple.fs; sourceTree = "<group>"; };
-		DA50F07415F0F8230047CEF9 /* simple.vs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.glsl; path = simple.vs; sourceTree = "<group>"; };
+		DA50F07315F0F8230047CEF9 /* simple.fs */ = {isa = PBXFileReference; explicitFileType = sourcecode.glsl; fileEncoding = 4; path = simple.fs; sourceTree = "<group>"; };
+		DA50F07415F0F8230047CEF9 /* simple.vs */ = {isa = PBXFileReference; explicitFileType = sourcecode.glsl; fileEncoding = 4; path = simple.vs; sourceTree = "<group>"; };
 		DA50F07515F0F8230047CEF9 /* SimplexNoise.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SimplexNoise.h; sourceTree = "<group>"; };
 		DA50F07615F0F8230047CEF9 /* SimplexNoise.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SimplexNoise.m; sourceTree = "<group>"; };
 		DA50F07715F0F8230047CEF9 /* VectorMath.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = VectorMath.c; sourceTree = "<group>"; };
@@ -119,6 +144,14 @@
 		DA50F09A15F223610047CEF9 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = /System/Library/Frameworks/IOKit.framework; sourceTree = "<absolute>"; };
 		DA50F0A115F24A870047CEF9 /* RS274Interpreter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RS274Interpreter.h; sourceTree = "<group>"; };
 		DA50F0A215F24A870047CEF9 /* RS274Interpreter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RS274Interpreter.m; sourceTree = "<group>"; };
+		DA88D73F1618DD44001CE353 /* motion_control_fixp32.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = motion_control_fixp32.c; sourceTree = "<group>"; };
+		DA88D7401618DD44001CE353 /* motion_control_fixp32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = motion_control_fixp32.h; sourceTree = "<group>"; };
+		DA88D7431618E324001CE353 /* MachineSimulator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MachineSimulator.h; sourceTree = "<group>"; };
+		DA88D7441618E324001CE353 /* MachineSimulator.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MachineSimulator.m; sourceTree = "<group>"; };
+		DA88D7461618E3E4001CE353 /* MotionPlanner.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MotionPlanner.h; sourceTree = "<group>"; };
+		DA88D7471618E3E4001CE353 /* MotionPlanner.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MotionPlanner.m; sourceTree = "<group>"; };
+		DA88D7491618F63E001CE353 /* motion_planner_fixp32.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = motion_planner_fixp32.c; sourceTree = "<group>"; };
+		DA88D74B1618F661001CE353 /* fixp32.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fixp32.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -139,9 +172,19 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		DA2F149816330C02008BC99F /* resources */ = {
+			isa = PBXGroup;
+			children = (
+				DA2F149916330C02008BC99F /* HIDControlWindow.xib */,
+				DA2F149A16330C02008BC99F /* white.png */,
+			);
+			path = resources;
+			sourceTree = "<group>";
+		};
 		DA50F01415F0BE930047CEF9 = {
 			isa = PBXGroup;
 			children = (
+				DA88D73E1618DD44001CE353 /* stepper-control-FIXP32 */,
 				DA50F05215F0F80A0047CEF9 /* common */,
 				DA50F02915F0BE930047CEF9 /* Giddy Machinist */,
 				DA50F02215F0BE930047CEF9 /* Frameworks */,
@@ -225,6 +268,20 @@
 				DA50F0A215F24A870047CEF9 /* RS274Interpreter.m */,
 				DA3F68D815F4F04F002EC2C6 /* PathView2D.h */,
 				DA3F68D915F4F050002EC2C6 /* PathView2D.m */,
+				DA88D7431618E324001CE353 /* MachineSimulator.h */,
+				DA88D7441618E324001CE353 /* MachineSimulator.m */,
+				DA88D7461618E3E4001CE353 /* MotionPlanner.h */,
+				DA88D7471618E3E4001CE353 /* MotionPlanner.m */,
+				DA2F148A163309C2008BC99F /* ModelView3D.h */,
+				DA2F148B163309C2008BC99F /* ModelView3D.m */,
+				DA239D2A163614F80035200F /* flat.fs */,
+				DA239D2B163614F80035200F /* flat.vs */,
+				DA2F149C16330ED0008BC99F /* model.vs */,
+				DA2F149E16330EDF008BC99F /* model.fs */,
+				DA2E5E7316359B630047CD0A /* Slicer.h */,
+				DA2E5E7416359B630047CD0A /* Slicer.m */,
+				DA239D2F1636C27F0035200F /* SlicedOutline.h */,
+				DA239D301636C27F0035200F /* SlicedOutline.m */,
 			);
 			path = source;
 			sourceTree = "<group>";
@@ -232,6 +289,7 @@
 		DA50F05215F0F80A0047CEF9 /* common */ = {
 			isa = PBXGroup;
 			children = (
+				DA2F149816330C02008BC99F /* resources */,
 				DA50F05315F0F8230047CEF9 /* source */,
 			);
 			name = common;
@@ -281,6 +339,19 @@
 				DA50F07915F0F8230047CEF9 /* VectorMath.m */,
 			);
 			path = source;
+			sourceTree = "<group>";
+		};
+		DA88D73E1618DD44001CE353 /* stepper-control-FIXP32 */ = {
+			isa = PBXGroup;
+			children = (
+				DA88D73F1618DD44001CE353 /* motion_control_fixp32.c */,
+				DA88D7491618F63E001CE353 /* motion_planner_fixp32.c */,
+				DA23560016222F2700F3DC24 /* motion_planner_fixp32.h */,
+				DA88D7401618DD44001CE353 /* motion_control_fixp32.h */,
+				DA88D74B1618F661001CE353 /* fixp32.h */,
+			);
+			name = "stepper-control-FIXP32";
+			path = "../../../embedded/projects/stepper-control-FIXP32";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -335,12 +406,17 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DA2F14A6163559A9008BC99F /* model.fs in Resources */,
+				DA2F14A4163559A5008BC99F /* model.vs in Resources */,
 				DA50F08915F0F8230047CEF9 /* simple.fs in Resources */,
+				DA239D2D163615040035200F /* flat.fs in Resources */,
+				DA239D2E163615050035200F /* flat.vs in Resources */,
 				DA50F08A15F0F8230047CEF9 /* simple.vs in Resources */,
 				DA50F02E15F0BE930047CEF9 /* InfoPlist.strings in Resources */,
 				DA50F03415F0BE930047CEF9 /* Credits.rtf in Resources */,
 				DA50F03A15F0BE930047CEF9 /* GMDocument.xib in Resources */,
 				DA50F03D15F0BE930047CEF9 /* MainMenu.xib in Resources */,
+				DA2F149B16330C0F008BC99F /* white.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -372,6 +448,13 @@
 				DA50F08D15F0F8230047CEF9 /* VectorMath.m in Sources */,
 				DA50F0A315F24A870047CEF9 /* RS274Interpreter.m in Sources */,
 				DA3F68DA15F4F050002EC2C6 /* PathView2D.m in Sources */,
+				DA88D7411618DD44001CE353 /* motion_control_fixp32.c in Sources */,
+				DA88D7451618E324001CE353 /* MachineSimulator.m in Sources */,
+				DA88D7481618E3E5001CE353 /* MotionPlanner.m in Sources */,
+				DA88D74A1618F63E001CE353 /* motion_planner_fixp32.c in Sources */,
+				DA2F148C163309C2008BC99F /* ModelView3D.m in Sources */,
+				DA2E5E7516359B630047CD0A /* Slicer.m in Sources */,
+				DA239D311636C27F0035200F /* SlicedOutline.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

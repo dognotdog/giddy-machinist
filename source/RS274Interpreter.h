@@ -23,6 +23,7 @@
 
 @end
 
+
 @interface GMachineCommandMove : GMachineCommand
 
 - (id) initWithSpeed: (double) speed x: (double) x y: (double) y z: (double) z a: (double) a b: (double) b c: (double) c;
