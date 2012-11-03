@@ -11,7 +11,7 @@
 #import "gfx.h"
 #import "FoundationExtensions.h"
 #import "SlicedOutline.h"
-
+#import "PolygonSkeletizer.h"
 
 static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMutableArray* outSegments)
 {
@@ -68,6 +68,38 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 	return self;
 }
 
+- (void) asyncSliceModel: (GfxMesh*) model intoLayers: (NSArray*) layers layersWithCallbackOnQueue: (dispatch_queue_t) queue block: (void (^)(id)) callback;
+{
+	dispatch_queue_t workQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+	
+	MeshOctree* octree = [[MeshOctree alloc] init];
+	[model addTrianglesToOctree: octree];
+	MeshOctree_generateTree(octree);
+
+	for (NSNumber* layerZ in layers)
+	{
+		double height = [layerZ doubleValue];
+		
+		dispatch_async(workQueue, ^{
+			NSMutableArray* segments = [NSMutableArray array];
+			
+			_sliceZLayer(octree->baseNode, octree->vertices, height, segments);
+			
+			SlicedLayer* layer = [self connectSegments: segments];
+			layer = [self nestPaths: layer];
+			
+			
+			dispatch_async(queue, ^{
+				callback(layer);
+			});
+		});
+		
+		
+		
+	}
+
+}
+
 - (NSArray*) sliceModel: (GfxMesh*) model intoLayers: (NSArray*) layers
 {
 	MeshOctree* octree = [[MeshOctree alloc] init];
@@ -85,7 +117,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 		[segmentedLayers addObject: segments];
 	}
 	
-	NSArray* workingLayers = [self connectSegments: segmentedLayers];
+	NSArray* workingLayers = [self connectAllSegments: segmentedLayers];
 	
 	workingLayers = [workingLayers map:^id(id obj) {
 		return [self nestPaths: obj];
@@ -131,6 +163,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 	for (SlicedOutline* outline in outerPaths)
 	{
 		[outline recursivelyNestPaths];
+		[outline generateSkeleton];
 	}
 	
 	inLayer.outlinePaths = outerPaths;
@@ -139,115 +172,122 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 
 }
 
-- (NSArray*) connectSegments: (NSArray* ) inLayers
+- (SlicedLayer*) connectSegments: (NSArray* ) segments
+{
+	SlicedLayer* layer = [[SlicedLayer alloc] init];
+	
+	if (![segments count])
+		return layer;
+	
+	NSMutableArray* openPaths = [NSMutableArray array];
+	
+	NSMutableArray* closedPaths = [NSMutableArray array];
+	
+	NSMutableArray* unprocessedSegments = [segments mutableCopy];
+	
+	while ([unprocessedSegments count])
+	{
+		BOOL foundMerge = NO;
+		SlicedLineSegment* referenceSegment = [unprocessedSegments lastObject];
+		[unprocessedSegments removeLastObject];
+		
+		
+		double foundDistanceSqr = INFINITY;
+		size_t foundIndex = NSNotFound, foundCombo;
+		
+		BOOL atEnd[4] = {NO, NO, YES, YES};
+		BOOL reverse[4] = {NO, YES, NO, YES};
+		
+		size_t si = 0;
+		for (SlicedLineSegment* segment in unprocessedSegments)
+		{
+			vector_t delta[4] = {
+				v3Sub(referenceSegment.begin, segment.begin),
+				v3Sub(referenceSegment.begin, segment.end),
+				v3Sub(referenceSegment.end, segment.begin),
+				v3Sub(referenceSegment.end, segment.end),
+			};
+			
+			double distance[4];
+			
+			for (size_t i = 0; i < 4; ++i)
+			{
+				distance[i] = vDot(delta[i], delta[i]);
+				if (distance[i] < foundDistanceSqr)
+				{
+					foundDistanceSqr = distance[i];
+					foundIndex = si;
+					foundCombo = i;
+				}
+			}
+			++si;
+		}
+		
+		if ((foundDistanceSqr) < mergeThreshold*mergeThreshold)
+		{
+			foundMerge = YES;
+			
+			//NSLog(@"merging: %@, %@", referenceSegment, [unprocessedSegments objectAtIndex: foundIndex]);
+			
+			referenceSegment = [referenceSegment joinSegment: [unprocessedSegments objectAtIndex: foundIndex] atEnd: atEnd[foundCombo] reverse: reverse[foundCombo]];
+			[unprocessedSegments removeObjectAtIndex: foundIndex];
+		}
+		
+		
+		
+		if (foundMerge)
+		{
+			if ([referenceSegment closePolygonByMergingEndpoints: mergeThreshold])
+			{
+				double area = [referenceSegment area];
+				if (fabs(area) > mergeThreshold*mergeThreshold) // discard triangle if its too bloody small
+					[closedPaths addObject: referenceSegment];
+				//else
+				//	NSLog(@"discarding polygon %f: %@", area, referenceSegment);
+			}
+			else
+			{
+				[unprocessedSegments addObject: referenceSegment];
+			}
+		}
+		else
+			[openPaths addObject: referenceSegment];
+		
+		
+		
+	}
+	
+	//		assert(![openPaths count]);
+	
+	//		NSLog(@"Layer generated with %zd, %zd paths", [closedPaths count], [openPaths count]);
+	
+	layer.outlinePaths = [closedPaths map:^id(SlicedLineSegment* segment) {
+		[segment analyzeSegment];
+		[segment analyzeSegment];
+		if (!segment.isCCW)
+		{
+			[segment reverse];
+			[segment analyzeSegment];
+			[segment optimizeToThreshold: mergeThreshold];
+			[segment optimizeColinears: mergeThreshold];
+		}
+		SlicedOutline* outline = [[SlicedOutline alloc] init];
+		outline.outline = segment;
+		return outline;
+	}];
+	
+	layer.openPaths = openPaths;
+	
+	return layer;
+}
+
+
+- (NSArray*) connectAllSegments: (NSArray* ) inLayers
 {
 
 	NSArray* outLayers = [inLayers map: ^id(NSArray* segments)
 	{
-		SlicedLayer* layer = [[SlicedLayer alloc] init];
-		
-		if (![segments count])
-			return layer;
-
-		NSMutableArray* openPaths = [NSMutableArray array];
-		
-		NSMutableArray* closedPaths = [NSMutableArray array];
-		
-		NSMutableArray* unprocessedSegments = [segments mutableCopy];
-		
-		while ([unprocessedSegments count])
-		{
-			BOOL foundMerge = NO;
-			SlicedLineSegment* referenceSegment = [unprocessedSegments lastObject];
-			[unprocessedSegments removeLastObject];
-
-			
-			double foundDistanceSqr = INFINITY;
-			size_t foundIndex = NSNotFound, foundCombo;
-			
-			BOOL atEnd[4] = {NO, NO, YES, YES};
-			BOOL reverse[4] = {NO, YES, NO, YES};
-
-			size_t si = 0;
-			for (SlicedLineSegment* segment in unprocessedSegments)
-			{
-				vector_t delta[4] = {
-					v3Sub(referenceSegment.begin, segment.begin),
-					v3Sub(referenceSegment.begin, segment.end),
-					v3Sub(referenceSegment.end, segment.begin),
-					v3Sub(referenceSegment.end, segment.end),
-				};
-
-				double distance[4];
-				
-				for (size_t i = 0; i < 4; ++i)
-				{
-					distance[i] = vDot(delta[i], delta[i]);
-					if (distance[i] < foundDistanceSqr)
-					{
-						foundDistanceSqr = distance[i];
-						foundIndex = si;
-						foundCombo = i;
-					}
-				}
-				++si;
-			}
-				
-			if ((foundDistanceSqr) < mergeThreshold*mergeThreshold)
-			{
-				foundMerge = YES;
-				
-				//NSLog(@"merging: %@, %@", referenceSegment, [unprocessedSegments objectAtIndex: foundIndex]);
-				
-				referenceSegment = [referenceSegment joinSegment: [unprocessedSegments objectAtIndex: foundIndex] atEnd: atEnd[foundCombo] reverse: reverse[foundCombo]];
-				[unprocessedSegments removeObjectAtIndex: foundIndex];
-			}
-
-				
-			
-			if (foundMerge)
-			{
-				if ([referenceSegment closePolygonByMergingEndpoints: mergeThreshold])
-				{
-					double area = [referenceSegment area];
-					if (fabs(area) > mergeThreshold*mergeThreshold) // discard triangle if its too bloody small
-						[closedPaths addObject: referenceSegment];
-					//else
-					//	NSLog(@"discarding polygon %f: %@", area, referenceSegment);
-				}
-				else
-				{
-					[unprocessedSegments addObject: referenceSegment];
-				}
-			}
-			else
-				[openPaths addObject: referenceSegment];
-			
-			
-			
-		}
-		
-//		assert(![openPaths count]);
-		
-//		NSLog(@"Layer generated with %zd, %zd paths", [closedPaths count], [openPaths count]);
-		
-		layer.outlinePaths = [closedPaths map:^id(SlicedLineSegment* segment) {
-			[segment analyzeSegment];
-			[segment analyzeSegment];
-			if (!segment.isCCW)
-			{
-				[segment reverse];
-				[segment analyzeSegment];
-				[segment optimizeToThreshold: mergeThreshold];
-			}
-			SlicedOutline* outline = [[SlicedOutline alloc] init];
-			outline.outline = segment;
-			return outline;
-		}];
-		
-		layer.openPaths = openPaths;
-
-		return layer;
+		return [self connectSegments: segments];
 	}];
 	
 	
@@ -263,6 +303,79 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 @implementation SlicedLayer
 
 @synthesize outlinePaths, openPaths;
+
+- (GfxMesh*) layerMesh
+{
+	GfxMesh* layerMesh = [[GfxMesh alloc] init];
+	
+	size_t vertexCount = 0;
+	
+	for (SlicedOutline* path in outlinePaths)
+	{
+		NSArray* segments = [path allNestedPaths];
+		for (SlicedLineSegment* segment in segments)
+			vertexCount += ([segment vertexCount])*2;
+	}
+	for (SlicedLineSegment* line in openPaths)
+		vertexCount += ([line vertexCount]-1)*2;
+	
+	if (!vertexCount)
+		return layerMesh;
+	
+	vector_t* vertices = calloc(vertexCount, sizeof(*vertices));
+	vector_t* colors = calloc(vertexCount, sizeof(*colors));
+	uint32_t* indices = calloc(vertexCount, sizeof(*indices));
+	
+	for (size_t i = 0; i < vertexCount; ++i)
+		indices[i] = i;
+	for (size_t i = 0; i < vertexCount; ++i)
+		colors[i] = vCreate(1.0, 1.0, 0.0, 1.0);
+	
+	size_t k = 0;
+	
+	for (SlicedOutline* outline in outlinePaths)
+	{
+		NSArray* segments = [outline allNestedPaths];
+		for (SlicedLineSegment* segment in segments)
+		{
+			vector_t color = vCreate(0.0, 0.5+0.5*(segment.isCCW), segment.isSelfIntersecting, 1.0);
+			for (size_t i = 0; i < segment.vertexCount; ++i)
+			{
+				double fa = (double)i/segment.vertexCount;
+				double fb = (double)(i+1)/segment.vertexCount;
+				
+				colors[k] = (vCreate(fa, 1.0-fa, 0.0, 0.0));
+				vertices[k++] = segment.vertices[i];
+				colors[k] = (vCreate(fb, 1.0-fb, 0.0, 0.0));
+				vertices[k++] = segment.vertices[(i+1)%segment.vertexCount];
+			}
+		}
+	}
+	for (SlicedLineSegment* segment in openPaths)
+	{
+		for (size_t i = 0; i+1 < segment.vertexCount; ++i)
+		{
+			colors[k] = vCreate(1.0, 0.0, 0.0, 1.0);
+			vertices[k++] = segment.vertices[i];
+			colors[k] = vCreate(1.0, 0.0, 0.0, 1.0);
+			vertices[k++] = segment.vertices[i+1];
+		}
+	}
+	
+	assert(k==vertexCount);
+	
+	
+	[layerMesh setVertices: vertices count: vertexCount copy: NO];
+	[layerMesh setColors: colors count: vertexCount copy: NO];
+	[layerMesh addDrawArrayIndices: indices count: vertexCount withMode: GL_LINES];
+	
+	free(indices);
+	
+	for (SlicedOutline* outline in outlinePaths)
+		[layerMesh appendMesh: [outline.skeleton skeletonMesh]];
+	
+	return layerMesh;
+}
 
 - (id) description
 {

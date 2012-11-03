@@ -10,6 +10,8 @@
 
 #import "VectorMath.h"
 
+@class PolygonSkeletizer, GfxMesh;
+
 @interface SlicedLineSegment : NSObject
 @property(nonatomic) vector_t begin, end;
 @property(nonatomic,readonly) vector_t* vertices;
@@ -31,6 +33,7 @@
 - (void) analyzeSegment;
 - (void) reverse;
 - (void) optimizeToThreshold: (double) threshold;
+- (void) optimizeColinears: (double) threshold;
 
 
 - (BOOL) intersectsPath: (SlicedLineSegment*) segment;
@@ -41,9 +44,13 @@
 @interface SlicedOutline : NSObject
 @property(nonatomic, strong) SlicedLineSegment* outline;
 @property(nonatomic, strong) NSArray* holes;
+@property(nonatomic, strong) PolygonSkeletizer* skeleton;
 
 @property(nonatomic, strong) NSArray* allNestedPaths;
 
 - (void) recursivelyNestPaths;
+
+- (void) generateSkeleton;
+
 
 @end

@@ -16,6 +16,7 @@
 #import "gfx.h"
 #import "Slicer.h"
 #import "SlicedOutline.h"
+#import "PolygonSkeletizer.h"
 
 #import "FoundationExtensions.h"
 
@@ -90,17 +91,27 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 @implementation GMDocument
 {
 	NSArray* machineCommands;
+	
+	dispatch_queue_t processingQueue;
 }
 
 @synthesize statusTextView, modelView, pathView;
 
 - (id)init
 {
-    self = [super init];
-    if (self) {
-		// Add your subclass-specific initialization here.
-    }
-    return self;
+    if (!(self = [super init]))
+		return nil;
+
+	processingQueue = dispatch_queue_create("gmdocument.processing", DISPATCH_QUEUE_SERIAL);
+	
+	
+	
+	return self;
+}
+
+- (void) dealloc
+{
+	dispatch_release(processingQueue);
 }
 
 - (NSString *)windowNibName
@@ -207,79 +218,24 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	
 	range3d_t bounds = [mesh vertexBounds];
 	
-	for (double i = bounds.minv.farr[2]; i < bounds.maxv.farr[2]; i += 0.5)
+	for (double i = bounds.minv.farr[2]+0.5; i < bounds.maxv.farr[2]; i += 1.0)
 	{
 		[heights addObject: [NSNumber numberWithDouble: i]];
 	}
 	
+	[slicer asyncSliceModel: mesh intoLayers: heights layersWithCallbackOnQueue: dispatch_get_main_queue() block: ^(SlicedLayer* layer) {
+		
+		modelView.models = [modelView.models arrayByAddingObject: [layer layerMesh]];
+		
+	}];
+	
+	/*
 	NSArray* layers = [slicer sliceModel: mesh intoLayers: heights];
 	
-	GfxMesh* layerMesh = [[GfxMesh alloc] init];
-	
-	size_t vertexCount = 0;
 	
 	for (SlicedLayer* layer in layers)
-	{
-		for (SlicedOutline* outline in layer.outlinePaths)
-		{
-			NSArray* segments = [outline allNestedPaths];
-			for (SlicedLineSegment* segment in segments)
-				vertexCount += ([segment vertexCount])*2;
-		}
-		for (SlicedLineSegment* line in layer.openPaths)
-			vertexCount += ([line vertexCount]-1)*2;
-	}
-	
-	vector_t* vertices = calloc(vertexCount, sizeof(*vertices));
-	vector_t* colors = calloc(vertexCount, sizeof(*colors));
-	uint32_t* indices = calloc(vertexCount, sizeof(*indices));
-
-	for (size_t i = 0; i < vertexCount; ++i)
-		indices[i] = i;
-	for (size_t i = 0; i < vertexCount; ++i)
-		colors[i] = vCreate(1.0, 1.0, 0.0, 1.0);
-
-	size_t k = 0;
-	
-	for (SlicedLayer* layer in layers)
-	{
-		for (SlicedOutline* outline in layer.outlinePaths)
-		{
-			NSArray* segments = [outline allNestedPaths];
-			for (SlicedLineSegment* segment in segments)
-			{
-				vector_t color = vCreate(1.0, 0.5+0.5*(segment.isCCW), segment.isSelfIntersecting, 1.0);
-				for (size_t i = 0; i < segment.vertexCount; ++i)
-				{
-					colors[k] = color;
-					vertices[k++] = segment.vertices[i];
-					colors[k] = color;
-					vertices[k++] = segment.vertices[(i+1)%segment.vertexCount];
-				}
-			}
-		}
-		for (SlicedLineSegment* segment in layer.openPaths)
-		{
-			for (size_t i = 0; i+1 < segment.vertexCount; ++i)
-			{
-				colors[k] = vCreate(1.0, 0.0, 0.0, 1.0);
-				vertices[k++] = segment.vertices[i];
-				colors[k] = vCreate(1.0, 0.0, 0.0, 1.0);
-				vertices[k++] = segment.vertices[i+1];
-			}
-		}
-	}
-	
-	assert(k==vertexCount);
-	
-	[layerMesh setVertices: vertices count: vertexCount copy: NO];
-	[layerMesh setColors: colors count: vertexCount copy: NO];
-	[layerMesh addDrawArrayIndices: indices count: vertexCount withMode: GL_LINES];
-	
-	free(indices);
-	
-	
-	modelView.models = [modelView.models arrayByAddingObject: layerMesh];
+		[layerMesh appendMesh: [layer layerMesh]];
+	*/
 	
 }
 

@@ -8,10 +8,12 @@
 
 #import "SlicedOutline.h"
 #import "Slicer.h"
+#import "PolygonSkeletizer.h"
+#import "gfx.h"
 
 @implementation SlicedOutline
 
-@synthesize outline, holes;
+@synthesize outline, holes, skeleton;
 
 - (id) init
 {
@@ -32,6 +34,7 @@
 			//NSLog(@"reversing hole");
 			[hole.outline reverse];
 			[hole.outline analyzeSegment];
+			assert(hole.outline.isCCW != outline.isCCW);
 			[hole fixHoleWindings];
 		}
 	}
@@ -83,6 +86,24 @@
 	
 	[self fixHoleWindings];
 }
+
+- (void) addPathsToSkeletizer: (PolygonSkeletizer*) sk
+{
+	[sk addClosedPolygonWithVertices: outline.vertices count: outline.vertexCount];
+	for (SlicedOutline* hole in holes)
+		[hole addPathsToSkeletizer: sk];
+
+}
+
+- (void) generateSkeleton
+{
+	skeleton = [[PolygonSkeletizer alloc] init];
+	
+	[self addPathsToSkeletizer: skeleton];
+	
+	[skeleton generateSkeleton];
+}
+
 
 - (id) description
 {
@@ -196,38 +217,6 @@
 		return NO;
 }
 
-static inline long xLineSegments2D(vector_t p0, vector_t p1, vector_t p2, vector_t p3)
-{
-	vmfloat_t d = vCross(v3Sub(p1,p0), v3Sub(p3,p2)).farr[2];
-	
-	if (d == 0.0)
-		return 0;
-	
-	vmfloat_t a = vCross(v3Sub(p2,p0), v3Sub(p3,p2)).farr[2];
-	vmfloat_t b = vCross(v3Sub(p2,p0), v3Sub(p1,p0)).farr[2];
-	
-	vmfloat_t ta = a/d;
-	vmfloat_t tb = b/d;
-	
-	return ((ta >= 0.0) && (ta < 1.0) && (tb >= 0.0) && (tb < 1.0));
-}
-
-static inline vector_t xRays2D(vector_t p0, vector_t r0, vector_t p2, vector_t r2)
-{
-	vmfloat_t d = vCross(r0, r2).farr[2];
-	
-	if (d == 0.0)
-		return vCreateDir(INFINITY, INFINITY, 0.0);
-	
-	vmfloat_t a = vCross(v3Sub(p2,p0), r2).farr[2];
-	vmfloat_t b = vCross(v3Sub(p2,p0), r0).farr[2];
-	
-	vmfloat_t ta = a/d;
-	vmfloat_t tb = b/d;
-	
-	return vCreateDir(tb, ta, 0.0);
-}
-
 
 - (BOOL) checkSelfIntersection
 {
@@ -259,7 +248,7 @@ static inline vector_t xRays2D(vector_t p0, vector_t r0, vector_t p2, vector_t r
 	if (isSelfIntersecting || !isClosed)
 		return;
 	
-	for (long i = 0; i+1 < vertexCount; ++i)
+	for (long i = 0; i < vertexCount; ++i)
 	{
 		vector_t a = vertices[i];
 		vector_t b = vertices[(i+1)%vertexCount];
@@ -304,7 +293,7 @@ static inline vector_t xRays2D(vector_t p0, vector_t r0, vector_t p2, vector_t r
 	
 	vector_t crossSum = vZero();
 		
-	for (long i = 0; i+1 < vertexCount; ++i)
+	for (long i = 0; i < vertexCount; ++i)
 	{
 		vector_t a = vertices[i];
 		vector_t b = vertices[(i+1)%vertexCount];
@@ -363,10 +352,10 @@ static inline vector_t xRays2D(vector_t p0, vector_t r0, vector_t p2, vector_t r
 
 - (void) optimizeToThreshold: (double) threshold
 {
-	size_t smallestIndex = NSNotFound;
 	BOOL foundOne = YES;
 	while (foundOne)
 	{
+		size_t smallestIndex = NSNotFound;
 		double smallestLengthSqr = threshold*threshold;
 		foundOne = NO;
 		for (size_t i = 0; i < vertexCount; ++i)
@@ -394,6 +383,39 @@ static inline vector_t xRays2D(vector_t p0, vector_t r0, vector_t p2, vector_t r
 		}
 	}
 }
+
+- (void) optimizeColinears: (double) threshold
+{
+	BOOL foundOne = YES;
+	while (foundOne)
+	{
+		size_t smallestIndex = NSNotFound;
+		double smallestArea = threshold;
+		foundOne = NO;
+		for (size_t i = 0; i < vertexCount; ++i)
+		{
+			vector_t p = vertices[(vertexCount+i-1) % vertexCount];
+			vector_t c = vertices[i];
+			vector_t n = vertices[(i+1) % vertexCount];
+			vector_t e0 = v3Sub(c, p);
+			vector_t e1 = v3Sub(n, c);
+			double a = fabs(vCross(e0, e1).farr[2]);
+			if (a < smallestArea)
+			{
+				foundOne = YES;
+				smallestArea = a;
+				smallestIndex = i;
+			}
+		}
+		if (foundOne)
+		{
+			size_t ia = smallestIndex;
+			memmove(vertices + ia, vertices + ia + 1, sizeof(*vertices)*(vertexCount-ia-1));
+			vertexCount--;
+		}
+	}
+}
+
 
 - (id) description
 {
