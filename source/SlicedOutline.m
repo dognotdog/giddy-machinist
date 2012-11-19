@@ -417,6 +417,89 @@
 }
 
 
+static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, vector_t e1)
+{
+	double lv0 = vLength(v0);
+	double lv1 = vLength(v1);
+	double vx = vCross(v0, v1).farr[2]/(lv0*lv1);
+	
+	vector_t s = vCreateDir(0.0, 0.0, 0.0);
+	
+	
+	if (fabs(vx) < 1.0*sqrt(FLT_EPSILON))// nearly parallel, threshold is a guess
+	{
+		s = v3MulScalar(v3Add(v0, v1), 0.5);
+		//NSLog(@"nearly parallel %g, %g / %g, %g", v0.x, v0.y, v1.x, v1.y);
+	}
+	else
+	{
+		s = v3Add(vReverseProject(v0, e1), vReverseProject(v1, e0));
+	}
+	
+	return s;
+	
+}
+
+- (NSArray*) splitAtSelfIntersectionWithThreshold: (double) mergeThreshold
+{
+	if (!isClosed)
+		return  nil;
+	
+	
+	long count = vertexCount;
+	for (long i = 0; i < count; ++i)
+	{
+		vector_t a0 = vertices[i];
+		vector_t b0 = vertices[(i+1)%vertexCount];
+		for (long j = i+2; j < count; ++j)
+		{
+			vector_t a1 = vertices[j];
+			vector_t b1 = vertices[(j+1)%vertexCount];
+			if (xLineSegments2D(a0, b0, a1, b1))
+			{
+				
+			};
+			
+			
+		}
+	}
+
+}
+
+- (NSArray*) offsetOutline: (double) offset withThreshold: (double) mergeThreshold
+{
+	if (!isClosed)
+		return nil;
+	
+	vector_t* newVertices = calloc(sizeof(*newVertices), vertexCount);
+	
+	for (size_t i = 0; i < vertexCount; ++i)
+	{
+		vector_t a = vertices[(vertexCount + i - 1) % vertexCount];
+		vector_t b = vertices[i];
+		vector_t c = vertices[(i + 1) % vertexCount];
+		
+		vector_t e0 = v3Sub(b, a);
+		vector_t e1 = v3Sub(c, b);
+		
+		vector_t n0 = vSetLength(vCreateDir(-e0.farr[1], e0.farr[0], 0.0), offset);
+		vector_t n1 = vSetLength(vCreateDir(-e0.farr[1], e0.farr[0], 0.0), offset);
+		
+		vector_t r = bisectorVelocity(n0, n1, e0, e1);
+		
+		newVertices[i] = v3Add(b, r);
+	}
+	
+	
+	SlicedLineSegment* offsetLine = [[SlicedLineSegment alloc] init];
+	[offsetLine addVertices: newVertices count: vertexCount];
+	[offsetLine analyzeSegment];
+	
+	free(newVertices);
+	
+	return [offsetLine splitAtSelfIntersectionWithThreshold: mergeThreshold];
+}
+
 - (id) description
 {
 	NSMutableArray* descs = [NSMutableArray array];

@@ -24,6 +24,7 @@
 @property(nonatomic,readonly) range3d_t	bounds;
 @property(nonatomic,readonly) double	area;
 
+- (void) addVertices: (vector_t*) v count: (size_t) count;
 - (void) insertVertexAtBeginning: (vector_t) v;
 - (void) insertVertexAtEnd: (vector_t) v;
 

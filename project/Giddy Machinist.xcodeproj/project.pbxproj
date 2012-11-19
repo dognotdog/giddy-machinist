@@ -54,6 +54,7 @@
 		DA88D7451618E324001CE353 /* MachineSimulator.m in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7441618E324001CE353 /* MachineSimulator.m */; };
 		DA88D7481618E3E5001CE353 /* MotionPlanner.m in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7471618E3E4001CE353 /* MotionPlanner.m */; };
 		DA88D74A1618F63E001CE353 /* motion_planner_fixp32.c in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7491618F63E001CE353 /* motion_planner_fixp32.c */; };
+		DAE47E25164818F00036AACF /* PolygonExtender.m in Sources */ = {isa = PBXBuildFile; fileRef = DAE47E24164818F00036AACF /* PolygonExtender.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -155,6 +156,8 @@
 		DA88D7471618E3E4001CE353 /* MotionPlanner.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MotionPlanner.m; sourceTree = "<group>"; };
 		DA88D7491618F63E001CE353 /* motion_planner_fixp32.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = motion_planner_fixp32.c; sourceTree = "<group>"; };
 		DA88D74B1618F661001CE353 /* fixp32.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fixp32.h; sourceTree = "<group>"; };
+		DAE47E23164818F00036AACF /* PolygonExtender.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolygonExtender.h; sourceTree = "<group>"; };
+		DAE47E24164818F00036AACF /* PolygonExtender.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PolygonExtender.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -285,6 +288,8 @@
 				DA2E5E7416359B630047CD0A /* Slicer.m */,
 				DA239D2F1636C27F0035200F /* SlicedOutline.h */,
 				DA239D301636C27F0035200F /* SlicedOutline.m */,
+				DAE47E23164818F00036AACF /* PolygonExtender.h */,
+				DAE47E24164818F00036AACF /* PolygonExtender.m */,
 				DA58E5661637031100AA4F8C /* PolygonSkeletizer.h */,
 				DA58E5671637031100AA4F8C /* PolygonSkeletizer.m */,
 			);
@@ -461,6 +466,7 @@
 				DA2E5E7516359B630047CD0A /* Slicer.m in Sources */,
 				DA239D311636C27F0035200F /* SlicedOutline.m in Sources */,
 				DA58E5681637031100AA4F8C /* PolygonSkeletizer.m in Sources */,
+				DAE47E25164818F00036AACF /* PolygonExtender.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -529,7 +535,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = "";
+				SDKROOT = macosx;
 			};
 			name = Debug;
 		};
@@ -551,7 +557,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
-				SDKROOT = "";
+				SDKROOT = macosx;
 			};
 			name = Release;
 		};
