@@ -163,7 +163,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 	for (SlicedOutline* outline in outerPaths)
 	{
 		[outline recursivelyNestPaths];
-		[outline generateSkeleton];
+		[outline generateSkeletonWithMergeThreshold: 0.5*mergeThreshold];
 	}
 	
 	inLayer.outlinePaths = outerPaths;
@@ -262,18 +262,24 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 	//		NSLog(@"Layer generated with %zd, %zd paths", [closedPaths count], [openPaths count]);
 	
 	layer.outlinePaths = [closedPaths map:^id(SlicedLineSegment* segment) {
+		assert(segment.vertexCount);
 		[segment analyzeSegment];
-		[segment analyzeSegment];
+
 		if (!segment.isCCW)
 		{
 			[segment reverse];
 			[segment analyzeSegment];
-			[segment optimizeToThreshold: mergeThreshold];
-			[segment optimizeColinears: mergeThreshold];
 		}
+		[segment optimizeColinears: mergeThreshold];
+		[segment optimizeToThreshold: mergeThreshold];
+
 		SlicedOutline* outline = [[SlicedOutline alloc] init];
 		outline.outline = segment;
 		return outline;
+	}];
+	
+	layer.outlinePaths = [layer.outlinePaths select: ^BOOL(SlicedOutline* obj) {
+		return 0 != obj.outline.vertexCount;
 	}];
 	
 	layer.openPaths = openPaths;
@@ -344,9 +350,9 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 				double fa = (double)i/segment.vertexCount;
 				double fb = (double)(i+1)/segment.vertexCount;
 				
-				colors[k] = (vCreate(fa, 1.0-fa, 0.0, 0.0));
+				colors[k] = (vCreate(fa, 1.0-fa, 0.0, 1.0));
 				vertices[k++] = segment.vertices[i];
-				colors[k] = (vCreate(fb, 1.0-fb, 0.0, 0.0));
+				colors[k] = (vCreate(fb, 1.0-fb, 0.0, 1.0));
 				vertices[k++] = segment.vertices[(i+1)%segment.vertexCount];
 			}
 		}

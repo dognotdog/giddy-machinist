@@ -51,7 +51,7 @@
 
 - (void) recursivelyNestPaths;
 
-- (void) generateSkeleton;
+- (void) generateSkeletonWithMergeThreshold: (double) mergeThreshold;
 
 
 @end

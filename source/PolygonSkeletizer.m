@@ -128,6 +128,7 @@
 		return nil;
 	
 	extensionLimit = 50.0;
+	mergeThreshold = 0.001;
 	
 	vertices = [NSArray array];
 	edges = [NSArray array];
@@ -179,6 +180,7 @@ static inline vector_t _normalToEdge(vector_t n)
 		edge.normal = _edgeToNormal(e);
 		edge.edge = e;
 
+		assert(vLength(e) >= mergeThreshold);
 		
 		[newEdges addObject: edge];
 	}
@@ -232,11 +234,13 @@ static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, v
 			// skip edges motorcycle started from
 			if ((edge.startVertex == cycle.sourceVertex) || (edge.endVertex == cycle.sourceVertex))
 				continue;
+			
+			
 			vector_t delta = v3Sub(motorp, edge.startVertex.position);
 			vector_t tx = xRays2D(motorp, motorv, edge.startVertex.position, edge.edge);
 			double t = tx.farr[0] + cycle.start;
 			
-			assert(vCross(edge.edge, delta).farr[2] >= 0.0);
+			//assert(vCross(edge.edge, delta).farr[2] >= 0.0);
 			
 			if ((t > cycle.start) && (t < extensionLimit))
 			{
@@ -284,6 +288,24 @@ static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, v
 				BOOL merge = (vDot(dx, dx) < mergeThreshold*mergeThreshold);
 				
 				id crash = @[[NSNumber numberWithDouble: hitTime], cycle, cycle1, [NSNumber numberWithDouble: tx.farr[0]], [NSNumber numberWithDouble: tx.farr[1]], [NSNumber numberWithBool: merge]];
+				[crashes addObject: crash];
+			}
+			
+			
+		}
+		for (PSMotorcycle* cycle1 in terminatedMotorcycles)
+		{
+			vector_t tx = xRays2D(motorp, motorv, cycle1.sourceVertex.position, v3Sub(cycle1.terminalVertex.position, cycle1.sourceVertex.position));
+			
+			double ta = tx.farr[0] + cycle.start;
+			double tb = tx.farr[1];
+			
+			if ((ta > cycle.start) && (ta < extensionLimit) && (tb > 0.0) && (tb < 1.0))
+			{
+				double hitTime = ta;
+				
+				
+				id crash = @[[NSNumber numberWithDouble: hitTime], cycle, cycle1, [NSNumber numberWithDouble: tx.farr[0]], [NSNumber numberWithDouble: tx.farr[1]], [NSNumber numberWithBool: NO]];
 				[crashes addObject: crash];
 			}
 			
@@ -351,6 +373,39 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 	}
 }
 
+static void _locateExternalCycles(NSArray* crashes, NSArray** internalCyclesPtr, NSArray** externalCyclesPtr)
+{
+	
+	NSMutableSet* crashedCycles = [NSMutableSet set];
+	
+	for (NSArray* crashInfo in crashes)
+	{
+		PSMotorcycle* cycle0 = [crashInfo objectAtIndex: 1];
+		PSMotorcycle* cycle1 = [crashInfo objectAtIndex: 2];
+		[crashedCycles addObjectsFromArray: @[cycle0, cycle1]];
+	}
+	
+	NSMutableSet* leftNeighbours = [NSMutableSet set];
+	NSMutableSet* rightNeighbours = [NSMutableSet set];
+
+	for (PSMotorcycle* cycle in crashedCycles)
+	{
+		if ([crashedCycles containsObject: cycle.leftNeighbour])
+			[leftNeighbours addObject: cycle.leftNeighbour];
+		if ([crashedCycles containsObject: cycle.rightNeighbour])
+			[rightNeighbours addObject: cycle.rightNeighbour];
+	}
+	
+	NSSet* difference = [leftNeighbours xorSetWithSet: rightNeighbours];
+	NSMutableSet* internals = [crashedCycles mutableCopy];
+	[internals minusSet: difference];
+	
+	assert((difference.count == 2) || (difference.count == 0));
+	
+	*externalCyclesPtr = [difference allObjects];
+	*internalCyclesPtr = [internals allObjects];
+}
+
 - (void) runMotorcycles
 {
 	
@@ -363,9 +418,10 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 	for (PSSourceEdge* edge0 in edges)
 	{
 		PSSourceEdge* edge1 = edge0.next;
+		assert(edge0.next);
 		
 		vector_t v = bisectorVelocity(edge0.normal, edge1.normal, edge0.edge, edge1.edge);
-		double area = vCross(edge0.edge, edge1.edge).farr[0];
+		double area = vCross(edge0.edge, edge1.edge).farr[2];
 		
 		if (area < 0.0)
 		{
@@ -376,6 +432,16 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 			
 			[motorcycles addObject: cycle];
 		}
+	}
+	
+	[motorcycles enumerateObjectsUsingBlock:^(PSMotorcycle* obj, NSUInteger idx, BOOL *stop) {
+		obj.leftNeighbour = [motorcycles objectAtIndex: (motorcycles.count + idx-1) % motorcycles.count];
+		obj.rightNeighbour = [motorcycles objectAtIndex: (idx+1) % motorcycles.count];
+	}];
+	
+	if (motorcycles.count)
+	{
+		NSLog(@"some motorcycles!");
 	}
 	
 	// next up: figure out collisions
@@ -406,10 +472,13 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 			return [[obj objectAtIndex: 0] doubleValue] < tmin + mergeThreshold;
 		}];
 		
+		if (!crashes.count)
+			break;
+		
 		NSArray* initialCrashInfo = [crashes lastObject];
 		crashes = [crashes arrayByRemovingLastObject];
 		
-		NSMutableArray* simultaneousCrashes = [NSArray arrayWithObject: initialCrashInfo];
+		NSMutableArray* simultaneousCrashes = [NSMutableArray arrayWithObject: initialCrashInfo];
 		
 		for (NSArray* crashInfo in [crashes reverseObjectEnumerator])
 		{
@@ -479,6 +548,7 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 						cycle.leftNeighbour.rightNeighbour = cycle.rightNeighbour;
 						cycle.rightNeighbour.leftNeighbour = cycle.leftNeighbour;
 
+						/*
 						PSMotorcycleEdge* edge = [[PSMotorcycleEdge alloc] init];
 						edge.startVertex = cycle.sourceVertex;
 						edge.endVertex = vertex;
@@ -491,7 +561,7 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 						edge.start = cycle.start;
 
 						edges = [edges arrayByAddingObject: edge];
-						
+						*/
 					}
 					
 					[motorcycles removeObjectsInArray: [cycles allObjects]];
@@ -517,7 +587,9 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 				vertices = [vertices arrayByAddingObject: vertex];
 				
 				NSMutableSet* crashedCycles = [NSMutableSet set];
-				NSMutableSet* survivorCycles = [NSMutableSet set];
+				double survivorTime = INFINITY;
+				PSMotorcycle* survivor = nil;
+				
 				for (NSArray* crashInfo in simultaneousCrashes)
 				{
 					PSMotorcycle* cycle0 = [crashInfo objectAtIndex: 1];
@@ -533,19 +605,22 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 					double t0 = [[crashInfo objectAtIndex: 3] doubleValue] + cycle0.start;
 					double t1 = [[crashInfo objectAtIndex: 4] doubleValue] + cycle1.start;
 					
-					if (t0 < t1)
+					[crashedCycles addObject: cycle0];
+					[crashedCycles addObject: cycle1];
+					if (t0 < survivorTime)
 					{
-						[crashedCycles addObject: cycle1];
-						[survivorCycles addObject: cycle0];
+						survivor = cycle0;
+						survivorTime = t0;
 					}
-					else
+					if (t1 < survivorTime)
 					{
-						[crashedCycles addObject: cycle0];
-						[survivorCycles addObject: cycle1];
+						survivor = cycle1;
+						survivorTime = t1;
 					}
 				}
 				
-				assert(survivorCycles.count == 1);
+				assert(survivor);
+				[crashedCycles removeObject: survivor];
 				
 				
 				
@@ -556,6 +631,7 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 					cycle.leftNeighbour.rightNeighbour = cycle.rightNeighbour;
 					cycle.rightNeighbour.leftNeighbour = cycle.leftNeighbour;
 					
+					/*
 					PSMotorcycleEdge* edge = [[PSMotorcycleEdge alloc] init];
 					edge.startVertex = cycle.sourceVertex;
 					edge.endVertex = vertex;
@@ -568,6 +644,7 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 					edge.start = cycle.start;
 					
 					edges = [edges arrayByAddingObject: edge];
+					 */
 				}
 				
 				[motorcycles removeObjectsInArray: [crashedCycles allObjects]];
@@ -588,56 +665,72 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 			}
 			else if (mergeCrash)
 			{
-				assert(simultaneousCrashes.count < 2); // TODO: allow star merge
-				// TODO: populate left/right normals of generated edge
+				NSArray* externalCycles = nil;
+				NSArray* internalCycles = nil;
+				_locateExternalCycles(simultaneousCrashes, &internalCycles, &externalCycles);
 				
-				PSMotorcycle* cycle0 = [initialCrashInfo objectAtIndex: 1];
-				PSMotorcycle* cycle1 = [initialCrashInfo objectAtIndex: 2];
+				//assert(simultaneousCrashes.count < 2); // TODO: allow star merge
 				
 				PSVertex* vertex = [[PSVertex alloc] init];
 				vertex.position = x;
 				vertices = [vertices arrayByAddingObject: vertex];
 				
-				assert((cycle0.leftNeighbour == cycle1) || (cycle1.leftNeighbour == cycle0));
-				
-				PSMotorcycle* leftCycle = ( (cycle0.leftNeighbour == cycle1) ? cycle1 : cycle0);
-				PSMotorcycle* rightCycle = ( (cycle0.leftNeighbour == cycle1) ? cycle0 : cycle1);
-				PSMotorcycle* leftNeighbour = leftCycle.leftNeighbour;
-				PSMotorcycle* rightNeighbour = rightCycle.rightNeighbour;
-
-				for (PSMotorcycle* cycle in @[cycle0, cycle1])
+				for (PSMotorcycle* cycle in internalCycles)
 				{
 					cycle.terminalVertex = vertex;
 					cycle.leftNeighbour.rightNeighbour = cycle.rightNeighbour;
 					cycle.rightNeighbour.leftNeighbour = cycle.leftNeighbour;
-
-					PSMotorcycleEdge* edge = [[PSMotorcycleEdge alloc] init];
-					edge.startVertex = cycle.sourceVertex;
-					edge.endVertex = vertex;
-					edge.edge = v3Sub(edge.endVertex.position, edge.startVertex.position);
-					[edge.startVertex addEdge: edge];
-					[edge.endVertex addEdge: edge];
-					
-					edge.leftNormal = cycle.leftNormal;
-					edge.rightNormal = cycle.rightNormal;
-					edge.start = cycle.start;
-
-					edges = [edges arrayByAddingObject: edge];
 				}
-
-				[motorcycles removeObjectsInArray: @[cycle0, cycle1]];
-				terminatedMotorcycles = [terminatedMotorcycles arrayByAddingObjectsFromArray: @[cycle0, cycle1]];
 				
-				
-				PSMotorcycle* newCycle = [[PSMotorcycle alloc] init];
-				newCycle.sourceVertex = vertex;
-				newCycle.start = tmin;
-				newCycle.velocity = bisectorVelocity(leftCycle.leftNormal, rightCycle.rightNormal, _normalToEdge(leftCycle.leftNormal), _normalToEdge(rightCycle.rightNormal));
-				newCycle.leftNeighbour = leftNeighbour;
-				newCycle.rightNeighbour = rightNeighbour;
+				if (externalCycles.count)
+				{
+					PSMotorcycle* cycle0 = [externalCycles objectAtIndex: 0];
+					PSMotorcycle* cycle1 = [externalCycles objectAtIndex: 1];
+					
+					assert((cycle0.leftNeighbour == cycle1) || (cycle1.leftNeighbour == cycle0));
+					
+					PSMotorcycle* leftCycle = ( (cycle0.leftNeighbour == cycle1) ? cycle1 : cycle0);
+					PSMotorcycle* rightCycle = ( (cycle0.leftNeighbour == cycle1) ? cycle0 : cycle1);
+					PSMotorcycle* leftNeighbour = leftCycle.leftNeighbour;
+					PSMotorcycle* rightNeighbour = rightCycle.rightNeighbour;
 
-				[motorcycles addObject: newCycle];
-				 
+					for (PSMotorcycle* cycle in externalCycles)
+					{
+						cycle.terminalVertex = vertex;
+						cycle.leftNeighbour.rightNeighbour = cycle.rightNeighbour;
+						cycle.rightNeighbour.leftNeighbour = cycle.leftNeighbour;
+	/*
+						PSMotorcycleEdge* edge = [[PSMotorcycleEdge alloc] init];
+						edge.startVertex = cycle.sourceVertex;
+						edge.endVertex = vertex;
+						edge.edge = v3Sub(edge.endVertex.position, edge.startVertex.position);
+						[edge.startVertex addEdge: edge];
+						[edge.endVertex addEdge: edge];
+						
+						edge.leftNormal = cycle.leftNormal;
+						edge.rightNormal = cycle.rightNormal;
+						edge.start = cycle.start;
+
+						edges = [edges arrayByAddingObject: edge];
+	 */
+					}
+
+					
+					PSMotorcycle* newCycle = [[PSMotorcycle alloc] init];
+					newCycle.sourceVertex = vertex;
+					newCycle.start = tmin;
+					newCycle.velocity = bisectorVelocity(leftCycle.leftNormal, rightCycle.rightNormal, _normalToEdge(leftCycle.leftNormal), _normalToEdge(rightCycle.rightNormal));
+					newCycle.leftNeighbour = leftNeighbour;
+					newCycle.rightNeighbour = rightNeighbour;
+
+					[motorcycles addObject: newCycle];
+				}
+				
+				[motorcycles removeObjectsInArray: internalCycles];
+				[motorcycles removeObjectsInArray: externalCycles];
+				terminatedMotorcycles = [terminatedMotorcycles arrayByAddingObjectsFromArray: internalCycles];
+				terminatedMotorcycles = [terminatedMotorcycles arrayByAddingObjectsFromArray: externalCycles];
+				
 			}
 		}
 		
@@ -654,126 +747,10 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 	 TODO: holes need to be treated specially, best by removing the respective source edges from the walk lists appropriately (source edges may only be walked forward)
 	 */
 	
-	
-	NSMutableSet* forwardWalkableEdges = [NSSet setWithArray: edges];
-	NSMutableSet* backwardWalkableEdges = [NSSet setWithArray: [edges select:^BOOL(id obj) {
-		return ![obj isKindOfClass: [PSSourceEdge class]];
-	}]];
-	
-	
-	NSMutableArray* convexRegions = [NSMutableArray array];
-	
-	
-	while ([forwardWalkableEdges count])
-	{
-		PSEdge* edge0 = [forwardWalkableEdges anyObject];
-		[forwardWalkableEdges removeObject: edge0];
-		NSMutableArray* region = [NSMutableArray arrayWithObject: edge0];
 		
-		PSVertex* pivot = edge0.endVertex;
-		PSEdge* edge = [pivot nextEdgeFromEdgeCCW: edge0];
-		while (edge != edge0)
-		{
-			if (edge.startVertex == pivot)
-			{
-				[forwardWalkableEdges removeObject: edge0];
-				pivot = edge.endVertex;
-			}
-			else if (edge.endVertex == pivot)
-			{
-				[backwardWalkableEdges removeObject: edge0];
-				pivot = edge.startVertex;
-			}
-			else
-				assert(0);
-			
-			[region addObject: @[edge, [NSNumber numberWithBool: (pivot == edge.startVertex)]]];
-			
-			edge = [pivot nextEdgeFromEdgeCCW: edge];
-		}
-		
-		[convexRegions addObject: region];
-	}
-	
-	
-	/*
-	 got some convex regions, which we now need to sort out.
-	 spokes can now be run for the final stages of generating the insetting features.
-	 */
-	
-	for (NSArray* _region in convexRegions)
-	{
-		// build source and rail lists
-		NSMutableArray* region = [_region mutableCopy];
-		assert(region.count > 2);
-		
-		__block BOOL allSameClass = YES;
-		Class regionClass = [[region lastObject] class];
-		[region enumerateObjectsUsingBlock: ^(NSArray* obj, NSUInteger idx, BOOL *stop) {
-			if (![[[obj objectAtIndex: 0] class] isEqual: regionClass])
-			{
-				allSameClass = NO;
-				*stop = YES;
-			}
-		}];
-
-		if (!allSameClass) // if we have source edges and motorcycle edges both, rotate until first and last segment are of different class
-			while ([[[[region lastObject] objectAtIndex: 0] class] isEqual: [[[region objectAtIndex: 0] objectAtIndex: 0] class]])
-			{
-				id tmp = [region lastObject];
-				[region removeLastObject];
-				[region insertObject: tmp atIndex: 0];
-			}
-		
-		PSConvexRegion* convexRegion = [[PSConvexRegion alloc] initWithRegionArray: region];
-		
-	}
-	
 }
 
-- (void) generateWalls
-{
-	assert(numVertices == numEdges);
-	
-	size_t* spokeIds = calloc(sizeof(*spokeIds), numVertices);
-	[self allocateSpokesTo: spokeIds count: numVertices];
-	size_t* wallIds = calloc(sizeof(*wallIds), numEdges);
-	[self allocateWallsTo: wallIds count: numEdges];
-	
-	
-	
-	
-	for (size_t i = 0; i < numEdges; ++i)
-	{
-		ps_edge_t* edge1 = edges+i;
-		ps_edge_t* edge0 = edges+((numEdges+i-1) % numEdges);
-		
-		vector_t r0 = v3Sub(vertices[edge0->vertices[1]].position, vertices[edge0->vertices[0]].position);
-		vector_t r1 = v3Sub(vertices[edge1->vertices[1]].position, vertices[edge1->vertices[0]].position);
-		vector_t n0 = edge0->normal;
-		vector_t n1 = edge1->normal;
-		
-		vector_t spokeN = bisectorVelocity(n0, n1, r0, r1);
-		
-		ps_spoke_t* spoke = spokes + spokeIds[i];
-		spoke->start = 0.0;
-		spoke->velocity = spokeN;
-		spoke->sourceVertex = edge0->vertices[1];
-		spoke->finalVertex = NSNotFound;
-		spoke->walls[0] = (numEdges+i-1) % numEdges;
-		spoke->walls[1] = i;
-		spoke->active = YES;
-		
-		ps_wall_t* wall = walls+wallIds[i];
-
-		wall->normal = n1;
-		wall->sourceEdge = i;
-		wall->spokes[0] = i;
-		wall->spokes[1] = (i+1) % numEdges;
-		wall->active = YES;
-	}
-}
-
+/*
 static vector_t _spokeVertexAtTime(ps_spoke_t spoke, ps_vertex_t* vertices, double t)
 {
 	vector_t v = spoke.velocity;
@@ -805,6 +782,7 @@ static size_t _findBigger(ps_event_t* events, size_t start, size_t end, double r
 	else
 		return _findBigger(events, pivot, end, refTime);
 }
+ */
 
 - (NSArray*) insertEvent: (PSEvent*) event intoArray: (NSArray*) events
 {
@@ -821,261 +799,13 @@ static size_t _findBigger(ps_event_t* events, size_t start, size_t end, double r
 }
 
 
-- (NSArray*) generateEventsForSpoke: (ps_spoke_t) spoke afterTime: (double) minTime
+
+- (void) generateSkeleton
 {
-	vector_t spokeSourcePos = vertices[spoke.sourceVertex].position;
-	NSArray* events = [NSArray array];
-	
-	for (size_t j = 0; j < numWalls; ++j)
-	{
-		// magic to skip the two regions adjacent to the spoke
-		if ((j == spoke.walls[0]) || (j == spoke.walls[1]))
-			continue;
-		
-		//wall, spoke0, spoke1 intersection times
-		double tx[3][2] = {{INFINITY, -INFINITY}, {INFINITY, -INFINITY}, {INFINITY, -INFINITY}};
-
-		ps_wall_t wall = walls[j];
-		
-		// wall check
-		{
-			vector_t wallSourcePos = vertices[edges[wall.sourceEdge].vertices[0]].position;
-			
-			
-			vector_t vdiff = v3Sub(spoke.velocity, wall.normal);
-			double approachSpeed = -vDot(wall.normal, vdiff);
-			double wdistance = vDot(wall.normal, v3Sub(spokeSourcePos, wallSourcePos));
-			double tw = wdistance/approachSpeed + spoke.start;
-			
-			
-			if (approachSpeed > 0.0)
-			{
-				tx[0][0] = tw;
-				tx[0][1] = INFINITY;
-			}
-			else
-			{
-				tx[0][0] = -INFINITY;
-				tx[0][1] = tw;
-			}
-		}
-		
-		// spoke[0] check
-		{
-			ps_spoke_t spoke0 = spokes[wall.spokes[0]];
-			vector_t spoke0SourcePos = vertices[spoke0.sourceVertex].position;
-			vector_t t = xRays2D(spokeSourcePos, spoke.velocity, spoke0SourcePos, spoke0.velocity);
-			
-			BOOL startsInside = 0.0 > vCross(spoke0.velocity, v3Sub(spokeSourcePos, spoke0SourcePos)).farr[2];
-			
-			if (startsInside)
-			{
-				tx[1][0] = -INFINITY;
-				tx[1][1] = t.farr[0] + spoke.start;
-			}
-			else
-			{
-				tx[1][0] = t.farr[0] + spoke.start;
-				tx[1][1] = INFINITY;
-			}
-
-		}
-		// spoke[1] check
-		{
-			ps_spoke_t spoke1 = spokes[wall.spokes[1]];
-			vector_t spoke1SourcePos = vertices[spoke1.sourceVertex].position;
-			vector_t t = xRays2D(spokeSourcePos, spoke.velocity, spoke1SourcePos, spoke1.velocity);
-			
-			BOOL startsInside = 0.0 < vCross(spoke1.velocity, v3Sub(spokeSourcePos, spoke1SourcePos)).farr[2];
-			
-			if (startsInside)
-			{
-				tx[2][0] = -INFINITY;
-				tx[2][1] = t.farr[0] + spoke.start;
-			}
-			else
-			{
-				tx[2][0] = t.farr[0] + spoke.start;
-				tx[2][1] = INFINITY;
-			}
-			
-		}
-		
-		double entryTime = fmax(tx[0][0], fmax(tx[1][0], tx[2][0]));
-		
-		if ((entryTime > minTime) && (entryTime < extensionLimit))
-		{
-			PSEvent* event = [[PSEvent alloc] init];
-			assert(wall.wallId != NSNotFound);
-			event.time = entryTime;
-			event.location = v3Add(spokeSourcePos, v3MulScalar(spoke.velocity, entryTime - spoke.start));
-			event.wall = wall.wallId;
-			event.spoke = spoke.spokeId;
-			events = [self insertEvent: event intoArray: events];
-			
-		}
-	}
-	
-	return events;
+	[self runMotorcycles];
 }
 
-
-- (NSArray*) initializeEvents
-{
-	NSArray* events = [NSArray array];
-	
-	for (size_t i = 0; i < numSpokes; ++i)
-	{
-		ps_spoke_t spoke = spokes[i];
-		[events arrayByAddingObjectsFromArray: [self generateEventsForSpoke: spoke afterTime: 0.0]];
-	}
-
-	return events;
-}
-
-
-- (void) allocateSpokesTo: (size_t*) dst count: (size_t) n
-{
-	spokes = realloc(spokes, sizeof(*spokes)*(numSpokes+n));
-	
-	for (size_t i = 0; i < n; ++i)
-	{
-		size_t k = numSpokes+i;
-		dst[i] = k;
-		spokes[k].spokeId = k;
-		spokes[k].sourceVertex = NSNotFound;
-		spokes[k].finalVertex = NSNotFound;
-		spokes[k].walls[0] = NSNotFound;
-		spokes[k].walls[1] = NSNotFound;
-		spokes[k].velocity = vCreateDir(NAN, NAN, NAN);
-		spokes[k].start = NAN;
-		spokes[k].active = NO;
-	}
-	
-	numSpokes += n;
-}
-
-- (void) allocateWallsTo: (size_t*) dst count: (size_t) n
-{
-	walls = realloc(walls, sizeof(*walls)*(numWalls+n));
-	
-	for (size_t i = 0; i < n; ++i)
-	{
-		size_t k = numWalls+i;
-		dst[i] = k;
-		walls[k].wallId = k;
-		walls[k].sourceEdge = NSNotFound;
-		walls[k].spokes[0] = NSNotFound;
-		walls[k].spokes[1] = NSNotFound;
-		walls[k].normal = vCreateDir(NAN, NAN, NAN);
-		walls[k].active = NO;
-	}
-	
-	numWalls += n;
-}
-
-- (NSArray*) mergeChain: (NSArray*) chain0 andChain: (NSArray*) chain1
-{
-	ps_spoke_t* A0 = spokes+[[chain0 objectAtIndex: 0] spoke];
-	ps_spoke_t* A1 = spokes+[[chain0 lastObject] spoke];
-	ps_spoke_t* B0 = spokes+[[chain1 objectAtIndex: 0] spoke];
-	ps_spoke_t* B1 = spokes+[[chain1 lastObject] spoke];
-	
-	if (walls[A0->walls[0]].spokes[0] == B1->spokeId)
-	{
-		return [chain0 arrayByAddingObjectsFromArray: chain1];
-	}
-	else if (walls[A1->walls[1]].spokes[1] == B0->spokeId)
-	{
-		return [chain1 arrayByAddingObjectsFromArray: chain0];
-	}
-	else
-		return nil;
-}
-
-- (NSArray*) buildEventChains: (PSEventGroup*) group
-{
-	NSMutableArray* pieces = [[group.events map:^id(id obj) {
-		return [NSArray arrayWithObject: obj];
-	}] mutableCopy];
-	
-	NSMutableArray* finishedPieces = [NSMutableArray array];
-	
-	BOOL foundReduction = !!pieces.count;
-	
-	while (foundReduction)
-	{
-		foundReduction = NO;
-		
-		id piece = [pieces lastObject];
-		[pieces removeLastObject];
-		
-		for (id otherPiece in pieces)
-		{
-			NSArray* merged = [self mergeChain: piece andChain: otherPiece];
-			if (merged)
-			{
-				foundReduction = YES;
-				[pieces removeObject: otherPiece];
-				[pieces insertObject: piece atIndex: 0];
-				break;
-			}
-		}
-		
-		if (!foundReduction)
-			[finishedPieces addObject: piece];
-		foundReduction = !!pieces.count;
-		
-	}
-	
-	return finishedPieces;
-}
-
-- (BOOL) isEventChainClosed: (NSArray*) chain
-{
-	if (chain.count < 2)
-		return NO;
-	
-	ps_spoke_t* A = spokes+[[chain objectAtIndex: 0] spoke];
-	ps_spoke_t* B = spokes+[[chain lastObject] spoke];
-	
-	if (walls[A->walls[0]].spokes[0] == B->spokeId)
-	{
-		assert(walls[B->walls[1]].spokes[1] == A->spokeId);
-		return YES;
-	}
-
-	return NO;
-}
-
-- (NSArray*) retireInteriorEvents: (NSArray*) chains
-{
-	for (NSArray* _chain in chains)
-	{
-		NSArray* chain = _chain;
-		
-		if ([chain count] < 3)
-			continue;
-		
-		if (![self isEventChainClosed: chain])
-		{
-			chain = [chain arrayByRemovingObjectsAtIndexes: [NSIndexSet indexSetWithIndex: 0]];
-			chain = [chain arrayByRemovingObjectsAtIndexes: [NSIndexSet indexSetWithIndex: chain.count - 1]];
-		}
-		
-		for (PSEvent* event in chain)
-		{
-			ps_spoke_t* spoke = spokes + event.spoke;
-			ps_wall_t* wall = walls  + event.wall;
-			
-			spoke->active = NO;
-			wall->active = NO;
-		}
-	}
-	
-	return chains;
-}
-
+#if 0
 - (void) generateSkeleton2
 {
 	// start by generating the spokes for each edge
@@ -1291,27 +1021,31 @@ static size_t _findBigger(ps_event_t* events, size_t start, size_t end, double r
 	}
 	
 }
+#endif
 
 - (GfxMesh*) skeletonMesh
 {
-	uint32_t* indices = calloc(sizeof(*spokes), numSpokes*2);
+	size_t numCycles = terminatedMotorcycles.count;
+	size_t numVertices = vertices.count;
+	
+	uint32_t* indices = calloc(sizeof(*indices), numCycles*2);
 	vector_t* positions = calloc(sizeof(*positions), numVertices*2);
 	vector_t* colors = calloc(sizeof(*colors), numVertices*2);
 	
-	for (size_t i = 0; i < numVertices; ++i)
+	size_t vi = 0;
+	for (PSVertex* vertex in vertices)
 	{
-		positions[i] = vertices[i].position;
-		colors[i] = vCreate(0.0, 0.5, 1.0, 1.0);
+		positions[vi] = vertex.position;
+		colors[vi] = vCreate(0.0, 0.5, 1.0, 1.0);
+		++vi;
 	}
 
 	size_t ni = 0;
 	
-	for (size_t i = 0; i < numSpokes; ++i)
+	for (PSMotorcycle* cycle in terminatedMotorcycles)
 	{
-		if (spokes[i].finalVertex == NSNotFound)
-			continue;
-		indices[ni++] = spokes[i].sourceVertex;
-		indices[ni++] = spokes[i].finalVertex;
+		indices[ni++] = [vertices indexOfObject: cycle.sourceVertex];
+		indices[ni++] = [vertices indexOfObject: cycle.terminalVertex];
 	}
 	
 	GfxMesh* mesh = [[GfxMesh alloc] init];
@@ -1502,4 +1236,62 @@ static double _maxBoundsDimension(NSArray* vertices)
 }
 
 @end
+
+@implementation PSEdge
+
+
+
+@end
+
+@implementation PSMotorcycle
+
+
+@end
+
+@implementation PSMotorcycleEdge
+
+
+@end
+
+@implementation PSSourceEdge
+
+
+@end
+
+@implementation PSVertex
+
+@synthesize edges;
+
+- (id) init
+{
+	if (!(self = [super init]))
+		return nil;
+	
+	edges = [NSArray array];
+	
+	return self;
+}
+
+- (void) addEdge:(PSEdge *)edge
+{
+	edges = [edges arrayByAddingObject: edge];
+}
+
+- (void) removeEdge:(PSEdge *)edge
+{
+	edges = [edges arrayByRemovingObject: edge];
+
+}
+
+@end
+
+
+
+
+
+
+
+
+
+
 

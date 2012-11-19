@@ -95,9 +95,10 @@
 
 }
 
-- (void) generateSkeleton
+- (void) generateSkeletonWithMergeThreshold: (double) mergeThreshold
 {
 	skeleton = [[PolygonSkeletizer alloc] init];
+	skeleton.mergeThreshold = mergeThreshold;
 	
 	[self addPathsToSkeletizer: skeleton];
 	
@@ -194,6 +195,10 @@
 		for (size_t i = 1; i < seg->vertexCount; ++i)
 			newSegment->vertices[vi++] = seg->vertices[i];
 	
+	vector_t v0 = newSegment->vertices[vertexCount-1];
+	vector_t v1 = newSegment->vertices[vertexCount];
+	assert(!v3Equal(v0, v1));
+
 	return newSegment;
 }
 
@@ -373,12 +378,28 @@
 		}
 		if (foundOne)
 		{
-			size_t ia = smallestIndex, ib = (smallestIndex+1)%vertexCount;
-			vector_t a = vertices[ia];
-			vector_t b = vertices[ib];
-			vector_t c = v3MulScalar(v3Add(a, b), 0.5);
-			vertices[ib] = c;
-			memmove(vertices + ia, vertices + ia + 1, sizeof(*vertices)*(vertexCount-ia-1));
+			size_t ia0 = (vertexCount+smallestIndex-1) % vertexCount;
+			size_t ia1 = smallestIndex;
+			size_t ib0 = (smallestIndex+1) % vertexCount;
+			size_t ib1 = (smallestIndex+2) % vertexCount;
+			vector_t a0 = vertices[ia0];
+			vector_t a1 = vertices[ia1];
+			vector_t b0 = vertices[ib0];
+			vector_t b1 = vertices[ib1];
+			vector_t c = v3MulScalar(v3Add(a1, b0), 0.5);
+			
+			if ((ia0 != ia1) && (ia0 != ib0) && (ia0 != ib1) && (ia1 != ib0) && (ia1 != ib1) && (ib1 != ib0)) // if they're all unique, we can extrapolate
+			{
+				vector_t tx = xRays2D(a0, v3Sub(a1, a0), b1, v3Sub(b0, b1));
+				
+				assert(isnormal(tx.farr[0]));
+				
+				c = v3Add(a0, v3MulScalar(v3Sub(a1, a0), tx.farr[0]));
+			}
+			
+			
+			vertices[ib0] = c;
+			memmove(vertices + smallestIndex, vertices + smallestIndex + 1, sizeof(*vertices)*(vertexCount-smallestIndex-1));
 			vertexCount--;
 		}
 	}
@@ -463,7 +484,7 @@ static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, v
 			
 		}
 	}
-
+	assert(0);
 }
 
 - (NSArray*) offsetOutline: (double) offset withThreshold: (double) mergeThreshold
