@@ -41,6 +41,7 @@
 @interface PSMotorcycle : NSObject
 @property(nonatomic, weak) PSVertex* sourceVertex;
 @property(nonatomic, weak) PSVertex* terminalVertex;
+@property(nonatomic, weak) id terminator;
 @property(nonatomic) vector_t velocity;
 @property(nonatomic) vector_t leftNormal, rightNormal;
 @property(nonatomic, weak) PSMotorcycle *leftNeighbour, *rightNeighbour;
@@ -127,7 +128,7 @@
 	if (!(self = [super init]))
 		return nil;
 	
-	extensionLimit = 50.0;
+	extensionLimit = 500.0;
 	mergeThreshold = 0.001;
 	
 	vertices = [NSArray array];
@@ -300,7 +301,7 @@ static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, v
 			double ta = tx.farr[0] + cycle.start;
 			double tb = tx.farr[1];
 			
-			if ((ta > cycle.start) && (ta < extensionLimit) && (tb > 0.0) && (tb < 1.0))
+			if ((ta > cycle.start) && (ta < extensionLimit) && (tb > 0.0) && (tb < 1.0) && (ta > tb + cycle1.start) && (cycle1.terminator != cycle))
 			{
 				double hitTime = ta;
 				
@@ -373,43 +374,73 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 	}
 }
 
-static void _locateExternalCycles(NSArray* crashes, NSArray** internalCyclesPtr, NSArray** externalCyclesPtr)
+static PSMotorcycle* _findEscapeDirection(NSArray* crashes)
 {
-	
-	NSMutableSet* crashedCycles = [NSMutableSet set];
+	NSMutableDictionary* angles = [NSMutableDictionary dictionary];
 	
 	for (NSArray* crashInfo in crashes)
 	{
 		PSMotorcycle* cycle0 = [crashInfo objectAtIndex: 1];
 		PSMotorcycle* cycle1 = [crashInfo objectAtIndex: 2];
-		[crashedCycles addObjectsFromArray: @[cycle0, cycle1]];
+		
+		double angle0 = atan2(cycle0.velocity.farr[1], cycle0.velocity.farr[0]);
+		double angle1 = atan2(cycle1.velocity.farr[1], cycle1.velocity.farr[0]);
+		[angles setObject: [NSNumber numberWithDouble: angle0] forKey: [NSValue valueWithPointer: (void*)cycle0]];
+		[angles setObject: [NSNumber numberWithDouble: angle1] forKey: [NSValue valueWithPointer: (void*)cycle1]];
 	}
 	
-	NSMutableSet* leftNeighbours = [NSMutableSet set];
-	NSMutableSet* rightNeighbours = [NSMutableSet set];
-
-	for (PSMotorcycle* cycle in crashedCycles)
+	NSArray* sortedKeys = [angles keysSortedByValueUsingComparator:^NSComparisonResult(id obj0, id obj1) {
+		
+		double a0 = [[angles objectForKey: obj0] doubleValue];
+		double a1 = [[angles objectForKey: obj1] doubleValue];
+		
+		if (a1 > a0)
+			return NSOrderedAscending;
+		else if (a0 > a1)
+			return NSOrderedDescending;
+		else
+			return NSOrderedSame;
+	}];
+	
+	
+	for (long i = 0; i < sortedKeys.count; ++i)
 	{
-		if ([crashedCycles containsObject: cycle.leftNeighbour])
-			[leftNeighbours addObject: cycle.leftNeighbour];
-		if ([crashedCycles containsObject: cycle.rightNeighbour])
-			[rightNeighbours addObject: cycle.rightNeighbour];
+		PSMotorcycle* cycle0 = [[sortedKeys objectAtIndex: i] pointerValue];
+		PSMotorcycle* cycle1 = [[sortedKeys objectAtIndex: (i+1) % sortedKeys.count] pointerValue];
+		
+		vector_t r0 = cycle0.velocity;
+		vector_t r1 = cycle1.velocity;
+		
+		double cycleAngle = atan2(vCross(r0, r1).farr[2], vDot(r0, r1));
+		
+		if (cycleAngle < 0.0)
+			cycleAngle += 2.0*M_PI;
+		
+		if (cycleAngle > M_PI)
+		{
+			PSMotorcycle* newCycle = [[PSMotorcycle alloc] init];
+			newCycle.leftNeighbour = cycle1.leftNeighbour;
+			newCycle.rightNeighbour = cycle0.rightNeighbour;
+			newCycle.leftNormal = cycle1.leftNormal;
+			newCycle.rightNormal = cycle0.rightNormal;
+			newCycle.velocity = bisectorVelocity(newCycle.leftNormal, newCycle.rightNormal, _normalToEdge(newCycle.leftNormal), _normalToEdge(newCycle.rightNormal));
+			
+			assert(!vIsNAN(newCycle.velocity));
+
+			return newCycle;
+		}
 	}
 	
-	NSSet* difference = [leftNeighbours xorSetWithSet: rightNeighbours];
-	NSMutableSet* internals = [crashedCycles mutableCopy];
-	[internals minusSet: difference];
-	
-	assert((difference.count == 2) || (difference.count == 0));
-	
-	*externalCyclesPtr = [difference allObjects];
-	*internalCyclesPtr = [internals allObjects];
+	return nil;
 }
+
 
 - (void) runMotorcycles
 {
 	
 	assert([edges count] == [vertices count]);
+	
+	NSMutableArray* eventLog = [NSMutableArray array];
 	
 	
 	// start by generating the initial motorcycles
@@ -429,6 +460,8 @@ static void _locateExternalCycles(NSArray* crashes, NSArray** internalCyclesPtr,
 			cycle.sourceVertex = edge0.endVertex;
 			cycle.start = 0.0;
 			cycle.velocity = v;
+			cycle.leftNormal = edge0.normal;
+			cycle.rightNormal = edge1.normal;
 			
 			[motorcycles addObject: cycle];
 		}
@@ -492,6 +525,10 @@ static void _locateExternalCycles(NSArray* crashes, NSArray** internalCyclesPtr,
 			}
 		}
 		
+		[eventLog addObject: [NSString stringWithFormat: @"%f: processing %ld crashes", tmin, simultaneousCrashes.count]];
+		
+		assert(simultaneousCrashes.count);
+		
 		if ([simultaneousCrashes count])
 		{
 			BOOL mergeCrash = NO;
@@ -507,7 +544,10 @@ static void _locateExternalCycles(NSArray* crashes, NSArray** internalCyclesPtr,
 				
 			}
 			
+			[eventLog addObject: [NSString stringWithFormat: @"  wall: %d, trace: %d, merge: %d", wallCrash, traceCrash, mergeCrash]];
+
 			vector_t x = _crashLocation(initialCrashInfo);
+			[eventLog addObject: [NSString stringWithFormat: @"  location: %f, %f", x.farr[0], x.farr[1]]];
 
 			/*
 			 if we hit a wall, it's a wall crash, no worry about merging, similarly, if it's a trace crash
@@ -544,6 +584,7 @@ static void _locateExternalCycles(NSArray* crashes, NSArray** internalCyclesPtr,
 					// terminate each motorcycle and insert an edge
 					for (PSMotorcycle* cycle in cycles)
 					{
+						[eventLog addObject: [NSString stringWithFormat: @"  cycle: (%f, %f) from (%f, %f)", cycle.velocity.farr[0], cycle.velocity.farr[1], cycle.sourceVertex.position.farr[0], cycle.sourceVertex.position.farr[1]]];
 						cycle.terminalVertex = vertex;
 						cycle.leftNeighbour.rightNeighbour = cycle.rightNeighbour;
 						cycle.rightNeighbour.leftNeighbour = cycle.leftNeighbour;
@@ -619,117 +660,63 @@ static void _locateExternalCycles(NSArray* crashes, NSArray** internalCyclesPtr,
 					}
 				}
 				
+				[crashedCycles enumerateObjectsUsingBlock:^(PSMotorcycle* cycle, BOOL *stop) {
+					[eventLog addObject: [NSString stringWithFormat: @"  cycle: (%f, %f) from (%f, %f)", cycle.velocity.farr[0], cycle.velocity.farr[1], cycle.sourceVertex.position.farr[0], cycle.sourceVertex.position.farr[1]]];
+
+				}];
+				
 				assert(survivor);
 				[crashedCycles removeObject: survivor];
 				
 				
+				[eventLog addObject: [NSString stringWithFormat: @"  survivor towards: %f, %f", survivor.velocity.farr[0], survivor.velocity.farr[1]]];
 				
 				// terminate each motorcycle and insert an edge
 				for (PSMotorcycle* cycle in crashedCycles)
 				{
 					cycle.terminalVertex = vertex;
+					cycle.terminator = survivor;
 					cycle.leftNeighbour.rightNeighbour = cycle.rightNeighbour;
 					cycle.rightNeighbour.leftNeighbour = cycle.leftNeighbour;
 					
-					/*
-					PSMotorcycleEdge* edge = [[PSMotorcycleEdge alloc] init];
-					edge.startVertex = cycle.sourceVertex;
-					edge.endVertex = vertex;
-					edge.edge = v3Sub(edge.endVertex.position, edge.startVertex.position);
-					[edge.startVertex addEdge: edge];
-					[edge.endVertex addEdge: edge];
-					
-					edge.leftNormal = cycle.leftNormal;
-					edge.rightNormal = cycle.rightNormal;
-					edge.start = cycle.start;
-					
-					edges = [edges arrayByAddingObject: edge];
-					 */
 				}
 				
 				[motorcycles removeObjectsInArray: [crashedCycles allObjects]];
 				terminatedMotorcycles = [terminatedMotorcycles arrayByAddingObjectsFromArray: [crashedCycles allObjects]];
 				
-				/*
-				// aaaaaand... create a new motorcycle for the survivor
-				PSMotorcycle* survivor = [survivorCycles anyObject];
-				PSMotorcycle* newCycle = [[PSMotorcycle alloc] init];
-				newCycle.sourceVertex = vertex;
-				newCycle.start = tmin;
-				newCycle.velocity = survivor.velocity;
-				newCycle.leftNormal = survivor.leftNormal;
-				newCycle.rightNormal = survivor.rightNormal;
-				
-				[motorcycles addObject: newCycle];
-				 */
 			}
 			else if (mergeCrash)
-			{
-				NSArray* externalCycles = nil;
-				NSArray* internalCycles = nil;
-				_locateExternalCycles(simultaneousCrashes, &internalCycles, &externalCycles);
-				
-				//assert(simultaneousCrashes.count < 2); // TODO: allow star merge
-				
+			{				
 				PSVertex* vertex = [[PSVertex alloc] init];
 				vertex.position = x;
 				vertices = [vertices arrayByAddingObject: vertex];
+
+				PSMotorcycle* escapedCycle = _findEscapeDirection(simultaneousCrashes);
 				
-				for (PSMotorcycle* cycle in internalCycles)
+				NSMutableSet* terminatedCycles = [NSMutableSet set];
+				
+				
+				
+				for (NSArray* crashInfo in simultaneousCrashes)
+				{
+					NSArray* cycles = @[[crashInfo objectAtIndex: 1], [crashInfo objectAtIndex: 2]];
+					[terminatedCycles addObjectsFromArray: cycles];
+				}
+				
+				for (PSMotorcycle* cycle in terminatedCycles)
 				{
 					cycle.terminalVertex = vertex;
-					cycle.leftNeighbour.rightNeighbour = cycle.rightNeighbour;
-					cycle.rightNeighbour.leftNeighbour = cycle.leftNeighbour;
+					cycle.terminator = escapedCycle;
 				}
 				
-				if (externalCycles.count)
+				[motorcycles removeObjectsInArray: [terminatedCycles allObjects]];
+				terminatedMotorcycles = [terminatedMotorcycles arrayByAddingObjectsFromArray: [terminatedCycles allObjects]];
+				
+				if (escapedCycle)
 				{
-					PSMotorcycle* cycle0 = [externalCycles objectAtIndex: 0];
-					PSMotorcycle* cycle1 = [externalCycles objectAtIndex: 1];
-					
-					assert((cycle0.leftNeighbour == cycle1) || (cycle1.leftNeighbour == cycle0));
-					
-					PSMotorcycle* leftCycle = ( (cycle0.leftNeighbour == cycle1) ? cycle1 : cycle0);
-					PSMotorcycle* rightCycle = ( (cycle0.leftNeighbour == cycle1) ? cycle0 : cycle1);
-					PSMotorcycle* leftNeighbour = leftCycle.leftNeighbour;
-					PSMotorcycle* rightNeighbour = rightCycle.rightNeighbour;
-
-					for (PSMotorcycle* cycle in externalCycles)
-					{
-						cycle.terminalVertex = vertex;
-						cycle.leftNeighbour.rightNeighbour = cycle.rightNeighbour;
-						cycle.rightNeighbour.leftNeighbour = cycle.leftNeighbour;
-	/*
-						PSMotorcycleEdge* edge = [[PSMotorcycleEdge alloc] init];
-						edge.startVertex = cycle.sourceVertex;
-						edge.endVertex = vertex;
-						edge.edge = v3Sub(edge.endVertex.position, edge.startVertex.position);
-						[edge.startVertex addEdge: edge];
-						[edge.endVertex addEdge: edge];
-						
-						edge.leftNormal = cycle.leftNormal;
-						edge.rightNormal = cycle.rightNormal;
-						edge.start = cycle.start;
-
-						edges = [edges arrayByAddingObject: edge];
-	 */
-					}
-
-					
-					PSMotorcycle* newCycle = [[PSMotorcycle alloc] init];
-					newCycle.sourceVertex = vertex;
-					newCycle.start = tmin;
-					newCycle.velocity = bisectorVelocity(leftCycle.leftNormal, rightCycle.rightNormal, _normalToEdge(leftCycle.leftNormal), _normalToEdge(rightCycle.rightNormal));
-					newCycle.leftNeighbour = leftNeighbour;
-					newCycle.rightNeighbour = rightNeighbour;
-
-					[motorcycles addObject: newCycle];
+					escapedCycle.sourceVertex = vertex;
+					[motorcycles addObject: escapedCycle];
 				}
-				
-				[motorcycles removeObjectsInArray: internalCycles];
-				[motorcycles removeObjectsInArray: externalCycles];
-				terminatedMotorcycles = [terminatedMotorcycles arrayByAddingObjectsFromArray: internalCycles];
-				terminatedMotorcycles = [terminatedMotorcycles arrayByAddingObjectsFromArray: externalCycles];
 				
 			}
 		}
@@ -741,12 +728,23 @@ static void _locateExternalCycles(NSArray* crashes, NSArray** internalCyclesPtr,
 		crashes = [self crashMotorcycles: motorcycles];
 	}
 	
-	/*
-	 so we crashed everything, and now have a spaghetti of edges leftover, from which we need to extract the convex sub-regions
-	 we do this by starting at a random source edge, and walking a loop. each edge will be walked forward and backwards exactly once, then we have all regions
-	 TODO: holes need to be treated specially, best by removing the respective source edges from the walk lists appropriately (source edges may only be walked forward)
-	 */
+	// we shouldn't have any motorcycles left at this point. But if we do, we want to see them
 	
+	for (PSMotorcycle* cycle in motorcycles)
+	{
+		PSVertex* vertex = [[PSVertex alloc] init];
+		vertex.position = v3Add(cycle.sourceVertex.position, v3MulScalar(cycle.velocity, extensionLimit*2.0-cycle.start));
+		vertices = [vertices arrayByAddingObject: vertex];
+		
+		cycle.terminalVertex = vertex;
+		
+		assert(!vIsNAN(vertex.position));
+		
+		terminatedMotorcycles = [terminatedMotorcycles arrayByAddingObject: cycle];
+
+	}
+	
+	//assert(motorcycles.count == 0);
 		
 }
 

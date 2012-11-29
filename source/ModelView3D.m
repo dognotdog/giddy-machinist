@@ -31,7 +31,7 @@
 	GfxMesh*	grid;
 }
 
-@synthesize models;
+@synthesize models, layers;
 
 - (void) createGrid
 {
@@ -119,6 +119,7 @@
 	
 	if (!models)
 		models = [NSArray array];
+	layers = [NSDictionary dictionary];
 
 	camPos = vCreatePos(300.0, 300.0, 300.0);
 	printableVolume.maxv = vCreatePos(200.0, 200.0, 200.0);
@@ -211,6 +212,10 @@
 	{
 		[model drawHierarchyWithState: gfxState];
 	}
+	for (GfxMesh* model in [layers allValues])
+	{
+		[model drawHierarchyWithState: gfxState];
+	}
 	
 	[grid justDraw];
 }
@@ -233,7 +238,7 @@
 //	[self drawWorld: theWorld inFrustum: mIdentity() withState: gfxState];
 	
 	[self drawModelsWithState: gfxState];
-	
+
 	[self drawHUDWithState: gfxState];
 	
 //	LogGLError(@"what happen");

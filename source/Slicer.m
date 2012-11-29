@@ -86,6 +86,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 			_sliceZLayer(octree->baseNode, octree->vertices, height, segments);
 			
 			SlicedLayer* layer = [self connectSegments: segments];
+			layer.layerZ = height;
 			layer = [self nestPaths: layer];
 			
 			
@@ -350,9 +351,9 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 				double fa = (double)i/segment.vertexCount;
 				double fb = (double)(i+1)/segment.vertexCount;
 				
-				colors[k] = (vCreate(fa, 1.0-fa, 0.0, 1.0));
+				colors[k] = (vCreate(fa, 1.0, 0.0, 1.0));
 				vertices[k++] = segment.vertices[i];
-				colors[k] = (vCreate(fb, 1.0-fb, 0.0, 1.0));
+				colors[k] = (vCreate(fb, 1.0, 0.0, 1.0));
 				vertices[k++] = segment.vertices[(i+1)%segment.vertexCount];
 			}
 		}

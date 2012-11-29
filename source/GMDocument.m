@@ -92,6 +92,8 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 {
 	NSArray* machineCommands;
 	
+	NSArray* slicedLayers;
+	
 	dispatch_queue_t processingQueue;
 }
 
@@ -225,7 +227,8 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	
 	[slicer asyncSliceModel: mesh intoLayers: heights layersWithCallbackOnQueue: dispatch_get_main_queue() block: ^(SlicedLayer* layer) {
 		
-		modelView.models = [modelView.models arrayByAddingObject: [layer layerMesh]];
+		slicedLayers = [slicedLayers arrayByAddingObject: layer];
+		modelView.layers = [modelView.layers dictionaryBySettingObject: [layer layerMesh] forKey: [NSNumber numberWithDouble: layer.layerZ]];
 		
 	}];
 	
