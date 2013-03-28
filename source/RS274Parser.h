@@ -10,7 +10,7 @@
 
 @interface RS274Parser : NSObject
 
-@property(nonatomic,strong) NSArray* commandBlocks;
+@property(nonatomic,strong) NSMutableArray* commandBlocks;
 
 - (NSArray*) parseString: (NSString*) text named: (NSString*) name;
 

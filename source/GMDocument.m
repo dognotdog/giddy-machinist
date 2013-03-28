@@ -75,7 +75,7 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	free(colors);
 	free(normals);
 	
-	uint32_t* indices = calloc(numTris*3, sizeof(*indices));
+	uint32_t* indices = calloc(sizeof(*indices), numTris*3);
 	
 	for (size_t i = 0; i < numTris*3; ++i)
 		indices[i]=i;
@@ -171,6 +171,8 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	
 	[self.pathView resetPaths];
 	[self.pathView generatePathsWithMachineCommands: machineCommands];
+	
+	[self.modelView generateMovePathWithMachineCommands: machineCommands];
 	
 	[[self.statusTextView.textStorage mutableString] appendString: [results description]];
 	

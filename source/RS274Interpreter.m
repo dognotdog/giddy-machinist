@@ -150,7 +150,8 @@ enum
 		}
 		++i;
 	}
-	commands = [commands arrayByRemovingObjectsAtIndexes: [NSIndexSet indexSetWithIndexesInRange: NSMakeRange(i, 1)]];
+	if (i != commands.count)
+		commands = [commands arrayByRemovingObjectsAtIndexes: [NSIndexSet indexSetWithIndexesInRange: NSMakeRange(i, 1)]];
 	return commands;
 }
 
@@ -195,7 +196,8 @@ enum
 		}
 		++i;
 	}
-	commands = [commands arrayByRemovingObjectsAtIndexes: [NSIndexSet indexSetWithIndexesInRange: NSMakeRange(i, 1)]];
+	if (i != commands.count)
+		commands = [commands arrayByRemovingObjectsAtIndexes: [NSIndexSet indexSetWithIndexesInRange: NSMakeRange(i, 1)]];
 	return commands;
 }
 

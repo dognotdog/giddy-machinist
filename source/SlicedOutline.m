@@ -292,7 +292,7 @@
 	return r;
 }
 
-- (double) area
+- (double) area2
 {
 	assert(isClosed);
 	
@@ -308,6 +308,26 @@
 	}
 	return 0.5*crossSum.farr[2];
 }
+
+- (double) area
+{
+	assert(isClosed);
+	
+	vector_t crossSum = vZero();
+	
+	double area = 0.0;
+	
+	for (long i = 0; i < vertexCount; ++i)
+	{
+		vector_t a = vertices[i];
+		vector_t b = vertices[(i+1)%vertexCount];
+		
+		area += (b.farr[0] + a.farr[0])*(b.farr[1] - a.farr[1]);
+		
+	}
+	return 0.5*area;
+}
+
 
 - (BOOL) containsPath: (SlicedLineSegment*) segment
 {
@@ -357,6 +377,7 @@
 
 - (void) optimizeToThreshold: (double) threshold
 {
+	BOOL wasCCW = isCCW;
 	BOOL foundOne = YES;
 	while (foundOne)
 	{
@@ -403,10 +424,14 @@
 			vertexCount--;
 		}
 	}
+	
+	[self analyzeSegment];
+	assert(wasCCW == isCCW);
 }
 
 - (void) optimizeColinears: (double) threshold
 {
+//	BOOL wasCCW = self.isCCW;
 	BOOL foundOne = YES;
 	while (foundOne)
 	{
@@ -435,6 +460,9 @@
 			vertexCount--;
 		}
 	}
+	
+	[self analyzeSegment];
+//	assert(wasCCW == isCCW);
 }
 
 

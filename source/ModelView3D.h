@@ -8,9 +8,12 @@
 
 #import "GLBaseView.h"
 
+
 @interface ModelView3D : GLBaseView
 
 @property(nonatomic, strong) NSArray* models;
 @property(nonatomic, strong) NSDictionary* layers;
+
+- (void) generateMovePathWithMachineCommands:(NSArray *)commands;
 
 @end

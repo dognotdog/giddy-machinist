@@ -34,7 +34,6 @@
 		DA50F08115F0F8230047CEF9 /* GLBaseView.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F06415F0F8230047CEF9 /* GLBaseView.m */; };
 		DA50F08215F0F8230047CEF9 /* GLDrawableBuffer.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F06615F0F8230047CEF9 /* GLDrawableBuffer.m */; };
 		DA50F08315F0F8230047CEF9 /* GLString.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F06815F0F8230047CEF9 /* GLString.m */; };
-		DA50F08415F0F8230047CEF9 /* HIDManagement.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F06A15F0F8230047CEF9 /* HIDManagement.m */; };
 		DA50F08615F0F8230047CEF9 /* MersenneTwister.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F06E15F0F8230047CEF9 /* MersenneTwister.m */; };
 		DA50F08715F0F8230047CEF9 /* MeshOctree.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F07015F0F8230047CEF9 /* MeshOctree.m */; };
 		DA50F08915F0F8230047CEF9 /* simple.fs in Resources */ = {isa = PBXBuildFile; fileRef = DA50F07315F0F8230047CEF9 /* simple.fs */; };
@@ -450,7 +449,6 @@
 				DA50F08115F0F8230047CEF9 /* GLBaseView.m in Sources */,
 				DA50F08215F0F8230047CEF9 /* GLDrawableBuffer.m in Sources */,
 				DA50F08315F0F8230047CEF9 /* GLString.m in Sources */,
-				DA50F08415F0F8230047CEF9 /* HIDManagement.m in Sources */,
 				DA50F08615F0F8230047CEF9 /* MersenneTwister.m in Sources */,
 				DA50F08715F0F8230047CEF9 /* MeshOctree.m in Sources */,
 				DA50F08B15F0F8230047CEF9 /* SimplexNoise.m in Sources */,

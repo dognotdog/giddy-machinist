@@ -14,6 +14,10 @@
 #import "GLString.h"
 #import "GLDrawableBuffer.h"
 
+#import "RS274Interpreter.h"
+
+#import "FoundationExtensions.h"
+
 #import <OpenGL/gl3.h>
 
 
@@ -29,9 +33,61 @@
 	
 	range3d_t	printableVolume;
 	GfxMesh*	grid;
+	GfxMesh*	movePaths;
 }
 
 @synthesize models, layers;
+
+- (void) generateMovePathWithMachineCommands:(NSArray *)commands
+{
+	vector_t pathCursor = vCreatePos(0.0, 0.0, 0.0);
+	
+	vector_t maxp = vCreatePos(-INFINITY, -INFINITY, -INFINITY);
+	vector_t minp = vCreatePos(INFINITY, INFINITY, INFINITY);
+	
+	NSArray* moves = [commands select:^BOOL(id obj) {
+		return [obj isKindOfClass: [GMachineCommandMove class]];
+	}];
+	
+	size_t numVertices = moves.count+1;
+	
+	vector_t* vertices = calloc(sizeof(*vertices), numVertices);
+	vector_t* colors = calloc(sizeof(*colors), numVertices);
+	
+	size_t k = 0;
+	
+	for (size_t i = 0; i < numVertices; ++i)
+		colors[i] = vCreate(0.0, 0.5, 0.0, 0.5);
+	
+	vertices[k++] = pathCursor;
+	
+	for (id command in moves)
+	{
+		if ([command isKindOfClass: [GMachineCommandMove class]])
+		{
+
+			vector_t target = vCreatePos([command xTarget], [command yTarget], [command zTarget]);
+			vertices[k++] = target;
+			pathCursor = target;
+			minp = vMin(minp, pathCursor);
+			maxp = vMax(maxp, pathCursor);
+		}
+	}
+	
+	GfxMesh* mesh = [[GfxMesh alloc] init];
+	
+	[mesh addVertices: vertices count: numVertices];
+	[mesh addColors: colors count: numVertices];
+	[mesh addBatch: [GfxMesh_batch batchStarting: 0 count: numVertices mode: GL_LINE_STRIP]];
+	
+	free(colors);
+	free(vertices);
+	
+	//pathBounds = CGRectMake(minp.x, minp.y, maxp.x-minp.x, maxp.y-minp.y);
+	movePaths = mesh;
+	
+}
+
 
 - (void) createGrid
 {
@@ -158,6 +214,23 @@
 	
 }
 
+- (void) drawMovePathsWithState: (GfxStateStack*) gfxState
+{
+	gfxState.color = vCreate(1.0, 1.0, 1.0, 1.0);
+	[gfxState setTexture: whiteTexture atIndex: 0];
+	gfxState.blendingEnabled = YES;
+	gfxState.blendingSrcMode = GL_ONE;
+	gfxState.blendingDstMode = GL_ONE_MINUS_SRC_ALPHA;
+	gfxState.depthTestEnabled = NO;
+	
+	[gfxState submitState];
+	
+	[movePaths drawHierarchyWithState: gfxState];
+	
+	//	[statusString drawAtPoint: NSMakePoint(1.0,1.0)];
+	
+}
+
 - (void) drawModelsWithState: (GfxStateStack*) gfxState
 {
 	NSSize size = [self bounds].size;
@@ -216,6 +289,8 @@
 	{
 		[model drawHierarchyWithState: gfxState];
 	}
+	
+	[self drawMovePathsWithState: gfxState];
 	
 	[grid justDraw];
 }

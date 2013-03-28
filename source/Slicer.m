@@ -81,18 +81,23 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 		double height = [layerZ doubleValue];
 		
 		dispatch_async(workQueue, ^{
-			NSMutableArray* segments = [NSMutableArray array];
-			
-			_sliceZLayer(octree->baseNode, octree->vertices, height, segments);
-			
-			SlicedLayer* layer = [self connectSegments: segments];
-			layer.layerZ = height;
-			layer = [self nestPaths: layer];
-			
-			
-			dispatch_async(queue, ^{
-				callback(layer);
-			});
+			@autoreleasepool {
+				
+				NSMutableArray* segments = [NSMutableArray array];
+				
+				_sliceZLayer(octree->baseNode, octree->vertices, height, segments);
+				
+				SlicedLayer* layer = [self connectSegments: segments];
+				layer.layerZ = height;
+				layer = [self nestPaths: layer];
+				
+				
+				dispatch_async(queue, ^{
+					@autoreleasepool {
+						callback(layer);
+					}
+				});
+			}
 		});
 		
 		
@@ -194,7 +199,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 		
 		
 		double foundDistanceSqr = INFINITY;
-		size_t foundIndex = NSNotFound, foundCombo;
+		size_t foundIndex = NSNotFound, foundCombo = NSNotFound;
 		
 		BOOL atEnd[4] = {NO, NO, YES, YES};
 		BOOL reverse[4] = {NO, YES, NO, YES};
@@ -264,16 +269,22 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 	
 	layer.outlinePaths = [closedPaths map:^id(SlicedLineSegment* segment) {
 		assert(segment.vertexCount);
+
+		[segment optimizeColinears: mergeThreshold];
+		[segment optimizeToThreshold: mergeThreshold];
+
 		[segment analyzeSegment];
 
 		if (!segment.isCCW)
 		{
 			[segment reverse];
 			[segment analyzeSegment];
+			assert(segment.isCCW);
 		}
-		[segment optimizeColinears: mergeThreshold];
-		[segment optimizeToThreshold: mergeThreshold];
 
+		[segment analyzeSegment];
+		assert(segment.isCCW);
+		
 		SlicedOutline* outline = [[SlicedOutline alloc] init];
 		outline.outline = segment;
 		return outline;

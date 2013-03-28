@@ -65,9 +65,9 @@ static NSString* _removeComments(NSString* inText)
 	if ([_currentCommandBlock count])
 	{
 		if (!self.commandBlocks)
-			self.commandBlocks = [NSArray arrayWithObject: _currentCommandBlock];
+			self.commandBlocks = [NSMutableArray arrayWithObject: _currentCommandBlock];
 		else
-			self.commandBlocks = [self.commandBlocks arrayByAddingObject: _currentCommandBlock];
+			[self.commandBlocks addObject: _currentCommandBlock];
 	}
 	
 	_currentCommandBlock = nil;
@@ -98,6 +98,7 @@ static NSString* _removeComments(NSString* inText)
 	
 	for ( RS274TextLine* rawLine in lines)
 	{
+		@autoreleasepool {
 		NSString* text = _removeComments(rawLine.string);
 		[self prepareCommandBlock];
 		[self parseCString: [text UTF8String] length: strlen([text UTF8String])];
@@ -109,6 +110,7 @@ static NSString* _removeComments(NSString* inText)
 		if ([commands count])
 			[commandLines addObject: commands];
 		 */
+		}
 	}
 
 	return commandLines;
@@ -358,7 +360,7 @@ static NSString* _removeComments(NSString* inText)
 
 - (void) attachCommand: (id) command
 {
-	NSLog(@"Command Received: %@", command);
+//	NSLog(@"Command Received: %@", command);
 	
 	[_currentCommandBlock addObject: command];
 	
@@ -472,6 +474,7 @@ static long _ignoreWhitespace(const char* txt, long length)
 		case 'B':
 		case 'C':
 		case 'D':
+		case 'E':
 		case 'F':
 		case 'G':
 		case 'H':
