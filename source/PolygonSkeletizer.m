@@ -11,99 +11,9 @@
 #import "gfx.h"
 #import "VectorMath.h"
 #import "FoundationExtensions.h"
-
-@class PSEdge, PSSourceEdge, PSMotorcycle, PSSpoke, PSAntiSpoke;
-
-@interface PSVertex : NSObject
-@property(nonatomic) vector_t position;
-@property(nonatomic) double time;
-@property(nonatomic, readonly) NSArray* edges;
-@property(nonatomic, readonly) PSSourceEdge* prevEdge;
-@property(nonatomic, readonly) PSSourceEdge* nextEdge;
-@property(nonatomic, readonly) NSArray* incomingMotorcycles;
-@property(nonatomic, readonly) NSArray* outgoingMotorcycles;
-@property(nonatomic, readonly) NSArray* outgoingSpokes;
-
-- (void) addEdge: (PSEdge*) edge;
-- (void) removeEdge: (PSEdge*) edge;
-- (PSEdge*) nextEdgeFromEdgeCCW: (PSEdge*) edge;
-
-- (void) addMotorcycle: (PSMotorcycle*) cycle;
-- (void) addSpoke: (PSSpoke*) spoke;
-
-@end
-
-@interface PSSplitVertex : PSVertex
-@end
-
-@interface PSCrashVertex : PSVertex
-@end
+#import "PolygonSkeletizerObjects.h"
 
 
-@interface PSEdge : NSObject
-@property(nonatomic, weak) PSVertex* startVertex, *endVertex;
-@property(nonatomic) vector_t normal, edge;
-@end
-
-@interface PSSourceEdge : PSEdge
-@property(nonatomic, weak) PSSourceEdge *next, *prev;
-@end
-
-@interface PSSpoke : NSObject
-@property(nonatomic, weak) PSVertex *sourceVertex, *terminalVertex;
-@property(nonatomic) double start;
-@property(nonatomic) vector_t velocity;
-@end
-
-@interface PSMotorcycleSpoke : PSSpoke
-@property(nonatomic, weak) PSMotorcycle *motorcycle;
-@property(nonatomic, weak) PSAntiSpoke	*antiSpoke;
-@end
-
-@interface PSAntiSpoke : PSSpoke
-@property(nonatomic, weak) PSMotorcycle			*motorcycle;
-@property(nonatomic, weak) PSMotorcycleSpoke	*motorcycleSpoke;
-@end
-
-
-@interface PSMotorcycle : NSObject
-@property(nonatomic, weak) PSVertex* sourceVertex;
-@property(nonatomic, weak) PSVertex* terminalVertex;
-@property(nonatomic, weak) id terminator;
-@property(nonatomic) vector_t velocity;
-@property(nonatomic) vector_t leftNormal, rightNormal;
-@property(nonatomic, weak) PSMotorcycle *leftNeighbour, *rightNeighbour;
-@property(nonatomic) double start;
-
-@property(nonatomic, weak) PSAntiSpoke* antiSpoke;
-@property(nonatomic, weak) PSMotorcycleSpoke* spoke;
-
-
-@end
-
-
-@interface PSEvent : NSObject
-
-@property(nonatomic) double time;
-@property(nonatomic) vector_t location;
-
-@end
-
-@implementation PSEvent
-
-@synthesize time, location;
-
-- (id) init
-{
-	if (!(self = [super init]))
-		return nil;
-	
-	time = NAN;
-	location = vCreate(NAN, NAN, NAN, NAN);
-	
-	return self;
-}
-@end
 
 
 @implementation PolygonSkeletizer
@@ -897,6 +807,37 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes)
 
 }
 
+
+- (PSCollapseEvent*) computeCollapseEvent: (PSWaveFront*) waveFront
+{
+	vector_t v0 = waveFront.leftSpoke.velocity;
+	vector_t v1 = waveFront.rightSpoke.velocity;
+	
+	vector_t p0 = waveFront.leftSpoke.sourceVertex.position;
+	vector_t p1 = waveFront.rightSpoke.sourceVertex.position;
+	
+	double t0 = waveFront.leftSpoke.sourceVertex.time;
+	double t1 = waveFront.rightSpoke.sourceVertex.time;
+	
+	vector_t tx = xRays2D(v3Add(p0, v3MulScalar(v0, -t0)), v0, v3Add(p1, v3MulScalar(v1, -t1)), v1);
+	
+	
+	double tc = 0.5*(tx.farr[0]+tx.farr[1]);
+	
+	if (tc < MAX(t0,t1))
+		tc = INFINITY;
+	
+	
+	PSCollapseEvent* event = [[PSCollapseEvent alloc] init];
+	event.collapsingWaveFront = waveFront;
+	event.time = tc;
+	event.location = v3Add(p0, v3MulScalar(v0, tc-t0));
+	
+	
+	return event;
+}
+
+
 - (void) runSpokes
 {
 	/*
@@ -923,52 +864,65 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes)
 	
 	NSMutableArray* normalSpokes = [NSMutableArray array];
 	NSMutableArray* motorcycleSpokes = [NSMutableArray array];
-	NSMutableArray* antiSpokes = [NSMutableArray array];
+	NSMutableArray* edgeAntiSpokes = [NSMutableArray array];
+	NSMutableArray* traceAntiSpokes = [NSMutableArray array];
+	NSMutableArray* mergeAntiSpokes = [NSMutableArray array];
+	NSMutableArray* startingSpokes = [NSMutableArray array];
 	
 	/*
 	 normal vertices emit motorcycle and normal spokes, and they might also emit anti-spokes
 	 */
 	for (PSVertex* vertex in originalVertices)
 	{
-		_generateCycleSpokes(vertex, motorcycleSpokes);
+		@autoreleasepool {
+			NSMutableArray* newCycleSpokes = [NSMutableArray array];
+			NSMutableArray* newAntiSpokes = [NSMutableArray array];
+			
+			_generateCycleSpokes(vertex, newCycleSpokes);
+			_generateAntiSpokes(vertex, newAntiSpokes);
+			
+			[startingSpokes addObjectsFromArray: newCycleSpokes];
+			[startingSpokes addObjectsFromArray: newAntiSpokes];
+			[motorcycleSpokes addObjectsFromArray: newCycleSpokes];
+			[edgeAntiSpokes addObjectsFromArray: newAntiSpokes];
+			
+			NSArray* vedges = vertex.edges;
+			
+			assert(vedges.count == 2);
+			
+			PSSourceEdge* edge0 = vertex.prevEdge;
+			PSSourceEdge* edge1 = vertex.nextEdge;
+			assert(edge0.endVertex == vertex);
+			assert(edge1.startVertex == vertex);
 		
-		_generateAntiSpokes(vertex, antiSpokes);
-		
-		NSArray* vedges = vertex.edges;
-		
-		assert(vedges.count == 2);
-		
-		PSSourceEdge* edge0 = vertex.prevEdge;
-		PSSourceEdge* edge1 = vertex.nextEdge;
-		assert(edge0.endVertex == vertex);
-		assert(edge1.startVertex == vertex);
-	
-		vector_t v = bisectorVelocity(edge0.normal, edge1.normal, edge0.edge, edge1.edge);
-		double area = vCross(edge0.edge, edge1.edge).farr[2];
+			vector_t v = bisectorVelocity(edge0.normal, edge1.normal, edge0.edge, edge1.edge);
+			double area = vCross(edge0.edge, edge1.edge).farr[2];
 
-		if (area >= 0.0)
-		{
-			PSSpoke* spoke = [[PSSpoke alloc] init];
-			spoke.sourceVertex = vertex;
-			spoke.velocity = v;
-			
-			BOOL spokeExists = NO;
-			
-			for (PSSpoke* vspoke in vertex.outgoingSpokes)
+			if (area >= 0.0)
 			{
-				if (_spokesSameDir(spoke, vspoke))
-				{
-					spokeExists = YES;
-					break;
-				}
-			}
-			
-			if (!spokeExists)
-			{
-				_assertSpokeUnique(spoke, vertex.outgoingSpokes);
+				PSSpoke* spoke = [[PSSpoke alloc] init];
+				spoke.sourceVertex = vertex;
+				spoke.velocity = v;
 				
-				[normalSpokes addObject: spoke];
-				[vertex addSpoke: spoke];
+				BOOL spokeExists = NO;
+				
+				for (PSSpoke* vspoke in vertex.outgoingSpokes)
+				{
+					if (_spokesSameDir(spoke, vspoke))
+					{
+						spokeExists = YES;
+						break;
+					}
+				}
+				
+				if (!spokeExists)
+				{
+					_assertSpokeUnique(spoke, vertex.outgoingSpokes);
+					
+					[normalSpokes addObject: spoke];
+					[startingSpokes addObject: spoke];
+					[vertex addSpoke: spoke];
+				}
 			}
 		}
 	
@@ -979,7 +933,11 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes)
 	 */
 	for (PSSplitVertex* vertex in splitVertices)
 	{
-		_generateAntiSpokes(vertex, antiSpokes);
+		NSMutableArray* newAntiSpokes = [NSMutableArray array];
+		_generateAntiSpokes(vertex, newAntiSpokes);
+		
+		[edgeAntiSpokes addObjectsFromArray: newAntiSpokes];
+		[startingSpokes addObjectsFromArray: newAntiSpokes];
 	}
 	
 	/*
@@ -987,12 +945,12 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes)
 	 */
 	for (PSCrashVertex* vertex in mergeCrashVertices)
 	{
-		_generateAntiSpokes(vertex, antiSpokes);
+		_generateAntiSpokes(vertex, mergeAntiSpokes);
 	}
 
 	for (PSCrashVertex* vertex in traceCrashVertices)
 	{
-		_generateAntiSpokes(vertex, antiSpokes);
+		_generateAntiSpokes(vertex, traceAntiSpokes);
 	}
 	
 	
@@ -1001,8 +959,163 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes)
 	 TODO: loop through events
 	 */
 	
+	/*
+	 spokes are setup, time to generate wavefronts
+	 */
 	
+	NSMutableArray* waveFronts = [NSMutableArray array];
+	
+	
+	for (PSSpoke* leftSpoke in startingSpokes)
+	{
+		@autoreleasepool {
+			
+			PSVertex* sourceVertex = leftSpoke.sourceVertex;
+			
+			PSSpoke* rightSpoke = [sourceVertex nextSpokeClockwiseFrom: leftSpoke.velocity to: sourceVertex.nextEdge.edge];
+			
+			if (!rightSpoke)
+			{
+				PSVertex* nextVertex = sourceVertex.nextEdge.endVertex;
+				rightSpoke = [nextVertex nextSpokeClockwiseFrom: vNegate(sourceVertex.nextEdge.edge) to: nextVertex.nextEdge.edge];
+			}
+			assert(rightSpoke);
+			
+			assert(!leftSpoke.rightWaveFront);
+			assert(!rightSpoke.leftWaveFront);
+			
+			PSWaveFront* waveFront = [[PSWaveFront alloc] init];
+			waveFront.leftSpoke = leftSpoke;
+			waveFront.rightSpoke = rightSpoke;
+			leftSpoke.rightWaveFront = waveFront;
+			rightSpoke.leftWaveFront = waveFront;
+						
+			[waveFronts addObject: waveFront];
+		}
+	}
+	
+	// now we have the collapsing wavefronts, plus the motorcycle induced splits
+	// the splits are just potential at this point, as a collapsing wavefront along an anti-spoke means the anti-spoke may change speed.
 
+	// generate events
+	
+	NSMutableArray* events = [NSMutableArray array];
+	
+	for (PSWaveFront* waveFront in waveFronts)
+	{
+		PSCollapseEvent* event = [self computeCollapseEvent: waveFront];
+		
+
+		[events addObject: event];
+		
+	}
+	
+	
+	for (PSCrashVertex* vertex in traceCrashVertices)
+	{
+		PSBranchEvent* event = [[PSBranchEvent alloc] init];
+		event.time = vertex.time;
+		event.location = vertex.position;
+		event.branchVertex = vertex;
+		
+		[events addObject: event];
+	}
+
+	for (PSCrashVertex* vertex in mergeCrashVertices)
+	{
+		PSBranchEvent* event = [[PSBranchEvent alloc] init];
+		event.time = vertex.time;
+		event.location = vertex.position;
+		event.branchVertex = vertex;
+		
+		[events addObject: event];
+	}
+	
+	for (PSMotorcycleSpoke* cycleSpoke in motorcycleSpokes)
+	{
+		PSAntiSpoke* antiSpoke = cycleSpoke.antiSpoke;
+		
+		vector_t delta = v3Sub(
+							   v3Add(cycleSpoke.sourceVertex.position, v3MulScalar(cycleSpoke.velocity, -cycleSpoke.sourceVertex.time)),
+							   v3Add(antiSpoke.sourceVertex.position, v3MulScalar(antiSpoke.velocity, -antiSpoke.sourceVertex.time))
+							   );
+		double distance = vLength(delta);
+		
+		double v0 = vLength(cycleSpoke.velocity);
+		double v1 = vLength(antiSpoke.velocity);
+		
+		double tc = distance/(v0+v1);
+		
+		PSSplitEvent* event = [[PSSplitEvent alloc] init];
+		event.time = tc;
+		event.location = v3Add(cycleSpoke.sourceVertex.position, v3MulScalar(cycleSpoke.velocity, -cycleSpoke.sourceVertex.time));
+		
+		event.antiSpoke = antiSpoke;
+		
+		[events addObject: event];
+	}
+	// prune events that occur after extensionLimit
+	
+	{
+		NSMutableArray* prunedEvents = [NSMutableArray array];
+		
+		for (PSEvent* event in events)
+		{
+			if (event.time < extensionLimit)
+				[prunedEvents addObject: event];
+		}
+		
+		events = prunedEvents;
+	}
+	
+	[events sortUsingComparator: ^NSComparisonResult(PSEvent* obj0, PSEvent* obj1) {
+		
+		double t0 = obj0.time;
+		double t1 = obj1.time;
+		
+		if (t0 == t1)
+			return NSOrderedSame;
+		else if (t0 < t1)
+			return NSOrderedAscending;
+		else
+			return NSOrderedDescending;
+	}];
+	
+	while (events.count)
+	{ @autoreleasepool {
+		PSEvent* firstEvent = [events objectAtIndex: 0];
+		NSMutableArray* simultaneousEvents = [NSMutableArray array];
+		
+		for (PSEvent* event in events)
+		{
+			if (event.time < firstEvent.time + mergeThreshold)
+			{
+				vector_t delta = v3Sub(firstEvent.location, event.location);
+				double dd = vDot(delta, delta);
+				if (dd < mergeThreshold*mergeThreshold)
+					[simultaneousEvents addObject: event];
+			}
+			else
+				break;
+		}
+		
+		BOOL branchEvent = NO;
+		BOOL collapseEvent = NO;
+		BOOL splitEvent = NO;
+		
+		for (id event in simultaneousEvents)
+		{
+			if ([event isKindOfClass: [)
+			{
+				
+			}
+		}
+		
+			
+		
+		[events removeObjectsInArray: simultaneousEvents];
+	}	}
+	
 }
 
 - (void) generateSkeleton
@@ -1265,136 +1378,6 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes)
 	
 	return mesh;
 }
-
-
-@end
-
-
-
-
-static double _maxBoundsDimension(NSArray* vertices)
-{
-	vector_t minv = vCreatePos(INFINITY, INFINITY, INFINITY);
-	vector_t maxv = vCreatePos(-INFINITY, -INFINITY, -INFINITY);
-	
-	for (PSVertex* vertex in vertices)
-	{
-		minv = vMin(minv, vertex.position);
-		maxv = vMax(maxv, vertex.position);
-	}
-	
-	vector_t r = v3Sub(maxv, minv);
-	return vLength(r);
-}
-
-@implementation PSEdge
-
-
-
-@end
-
-@implementation PSMotorcycle
-
-
-@end
-
-
-@implementation PSSourceEdge
-
-
-@end
-
-@implementation PSVertex
-{
-}
-
-@synthesize edges, incomingMotorcycles, outgoingMotorcycles, outgoingSpokes;
-
-- (id) init
-{
-	if (!(self = [super init]))
-		return nil;
-	
-	edges = [NSArray array];
-	incomingMotorcycles = [NSArray array];
-	outgoingMotorcycles = [NSArray array];
-	outgoingSpokes = [NSArray array];
-	
-	return self;
-}
-
-- (void) addEdge:(PSEdge *)edge
-{
-	edges = [edges arrayByAddingObject: edge];
-}
-
-- (void) removeEdge:(PSEdge *)edge
-{
-	edges = [edges arrayByRemovingObject: edge];
-
-}
-
-- (PSSourceEdge*) prevEdge
-{
-	for (PSEdge* edge in edges)
-		if ([edge isKindOfClass: [PSSourceEdge class]] && (self == edge.endVertex))
-			return (PSSourceEdge*)edge;
-	return nil;
-}
-
-- (PSSourceEdge*) nextEdge
-{
-	for (PSEdge* edge in edges)
-		if ([edge isKindOfClass: [PSSourceEdge class]] && (self == edge.startVertex))
-			return (PSSourceEdge*)edge;
-	return nil;
-}
-
-
-- (void) addMotorcycle:(PSMotorcycle *)cycle
-{
-	assert(!((cycle.sourceVertex == self) && (cycle.terminalVertex == self)));
-	if (cycle.sourceVertex == self)
-	{
-		outgoingMotorcycles = [outgoingMotorcycles arrayByAddingObject: cycle];
-	}
-	else if (cycle.terminalVertex == self)
-	{
-		incomingMotorcycles = [incomingMotorcycles arrayByAddingObject: cycle];
-	}
-	else
-	{
-		outgoingMotorcycles = [outgoingMotorcycles arrayByAddingObject: cycle];
-		incomingMotorcycles = [incomingMotorcycles arrayByAddingObject: cycle];		
-	}
-}
-
-- (void) addSpoke:(PSSpoke *)spoke
-{
-	outgoingSpokes = [outgoingSpokes arrayByAddingObject: spoke];
-}
-
-@end
-
-@implementation	PSSpoke
-@end
-
-
-@implementation PSAntiSpoke
-
-
-@end
-
-@implementation PSMotorcycleSpoke
-
-@end
-
-@implementation PSCrashVertex
-
-
-@end
-
-@implementation PSSplitVertex
 
 
 @end

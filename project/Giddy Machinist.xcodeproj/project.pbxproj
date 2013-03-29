@@ -10,6 +10,7 @@
 		DA239D2D163615040035200F /* flat.fs in Resources */ = {isa = PBXBuildFile; fileRef = DA239D2A163614F80035200F /* flat.fs */; };
 		DA239D2E163615050035200F /* flat.vs in Resources */ = {isa = PBXBuildFile; fileRef = DA239D2B163614F80035200F /* flat.vs */; };
 		DA239D311636C27F0035200F /* SlicedOutline.m in Sources */ = {isa = PBXBuildFile; fileRef = DA239D301636C27F0035200F /* SlicedOutline.m */; };
+		DA292B041705D29C00942D12 /* PolygonSkeletizerObjects.m in Sources */ = {isa = PBXBuildFile; fileRef = DA292B031705D29C00942D12 /* PolygonSkeletizerObjects.m */; };
 		DA2E5E7516359B630047CD0A /* Slicer.m in Sources */ = {isa = PBXBuildFile; fileRef = DA2E5E7416359B630047CD0A /* Slicer.m */; };
 		DA2F148C163309C2008BC99F /* ModelView3D.m in Sources */ = {isa = PBXBuildFile; fileRef = DA2F148B163309C2008BC99F /* ModelView3D.m */; };
 		DA2F149B16330C0F008BC99F /* white.png in Resources */ = {isa = PBXBuildFile; fileRef = DA2F149A16330C02008BC99F /* white.png */; };
@@ -73,6 +74,8 @@
 		DA239D2B163614F80035200F /* flat.vs */ = {isa = PBXFileReference; explicitFileType = sourcecode.glsl; path = flat.vs; sourceTree = "<group>"; };
 		DA239D2F1636C27F0035200F /* SlicedOutline.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SlicedOutline.h; sourceTree = "<group>"; };
 		DA239D301636C27F0035200F /* SlicedOutline.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SlicedOutline.m; sourceTree = "<group>"; };
+		DA292B021705D29C00942D12 /* PolygonSkeletizerObjects.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolygonSkeletizerObjects.h; sourceTree = "<group>"; };
+		DA292B031705D29C00942D12 /* PolygonSkeletizerObjects.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PolygonSkeletizerObjects.m; sourceTree = "<group>"; };
 		DA2E5E7316359B630047CD0A /* Slicer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Slicer.h; sourceTree = "<group>"; };
 		DA2E5E7416359B630047CD0A /* Slicer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Slicer.m; sourceTree = "<group>"; };
 		DA2F148A163309C2008BC99F /* ModelView3D.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ModelView3D.h; sourceTree = "<group>"; };
@@ -291,6 +294,8 @@
 				DAE47E24164818F00036AACF /* PolygonExtender.m */,
 				DA58E5661637031100AA4F8C /* PolygonSkeletizer.h */,
 				DA58E5671637031100AA4F8C /* PolygonSkeletizer.m */,
+				DA292B021705D29C00942D12 /* PolygonSkeletizerObjects.h */,
+				DA292B031705D29C00942D12 /* PolygonSkeletizerObjects.m */,
 			);
 			path = source;
 			sourceTree = "<group>";
@@ -465,6 +470,7 @@
 				DA239D311636C27F0035200F /* SlicedOutline.m in Sources */,
 				DA58E5681637031100AA4F8C /* PolygonSkeletizer.m in Sources */,
 				DAE47E25164818F00036AACF /* PolygonExtender.m in Sources */,
+				DA292B041705D29C00942D12 /* PolygonSkeletizerObjects.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
