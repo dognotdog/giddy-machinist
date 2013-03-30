@@ -148,11 +148,13 @@ static double _maxBoundsDimension(NSArray* vertices)
 
 @implementation PSCrashVertex
 
+@end
+
+@implementation PSMergeVertex
 
 @end
 
 @implementation PSSplitVertex
-
 
 @end
 

@@ -37,6 +37,9 @@
 @interface PSCrashVertex : PSVertex
 @end
 
+@interface PSMergeVertex : PSVertex
+@end
+
 
 @interface PSEdge : NSObject
 @property(nonatomic, weak) PSVertex* startVertex, *endVertex;
@@ -116,3 +119,10 @@
 @property(nonatomic,weak) PSCrashVertex* branchVertex;
 
 @end
+
+@interface PSMergeEvent : PSEvent
+
+@property(nonatomic,weak) PSMergeVertex* mergeVertex;
+
+@end
+

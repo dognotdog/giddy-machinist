@@ -598,7 +598,7 @@ static PSMotorcycle* _findEscapeDirection(NSArray* crashes)
 				}
 				else if (mergeCrash)
 				{				
-					PSCrashVertex* vertex = [[PSCrashVertex alloc] init];
+					PSMergeVertex* vertex = [[PSMergeVertex alloc] init];
 					vertex.position = x;
 					vertex.time = tmin;
 					vertices = [vertices arrayByAddingObject: vertex];
@@ -1021,12 +1021,12 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes)
 		[events addObject: event];
 	}
 
-	for (PSCrashVertex* vertex in mergeCrashVertices)
+	for (PSMergeVertex* vertex in mergeCrashVertices)
 	{
-		PSBranchEvent* event = [[PSBranchEvent alloc] init];
+		PSMergeEvent* event = [[PSMergeEvent alloc] init];
 		event.time = vertex.time;
 		event.location = vertex.position;
-		event.branchVertex = vertex;
+		event.mergeVertex = vertex;
 		
 		[events addObject: event];
 	}
@@ -1100,18 +1100,44 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes)
 		}
 		
 		BOOL branchEvent = NO;
+		BOOL mergeEvent = NO;
 		BOOL collapseEvent = NO;
 		BOOL splitEvent = NO;
 		
 		for (id event in simultaneousEvents)
 		{
-			if ([event isKindOfClass: [)
+			if ([event isKindOfClass: [PSCollapseEvent class]])
 			{
-				
+				collapseEvent = YES;
+			}
+			if ([event isKindOfClass: [PSSplitEvent class]])
+			{
+				splitEvent = YES;
+			}
+			if ([event isKindOfClass: [PSBranchEvent class]])
+			{
+				branchEvent = YES;
+			}
+			if ([event isKindOfClass: [PSMergeEvent class]])
+			{
+				mergeEvent = YES;
 			}
 		}
 		
+		
+		if (collapseEvent && !mergeEvent && !branchEvent && !splitEvent)
+		{
+			// simple face collapse
 			
+			
+			PSCollapseEvent* event = [simultaneousEvents objectAtIndex: 0];
+			
+			NSArray* waveFronts = []
+			
+			
+			
+		}
+		
 		
 		[events removeObjectsInArray: simultaneousEvents];
 	}	}
