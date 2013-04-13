@@ -1,0 +1,258 @@
+\documentclass[12pt,a4paper,oneside,openany]{article}
+\usepackage[squaren]{SIunits}
+%% LaTeX Preamble - Common packages
+%\usepackage[german]{babel}
+\usepackage{setspace}
+
+\usepackage[T1]{fontenc}
+\usepackage{cmap}
+\usepackage[utf8]{inputenc} % Any characters can be typed directly from the keyboard, eg √©√ß√±
+\usepackage{textcomp} % provide lots of new symbols
+\usepackage{graphicx}  % Add graphics capabilities
+\usepackage{flafter}  % Don't place floats before their definition
+%\usepackage{topcapt}   % Define \topcaption for placing captions above tables (not in gwTeX)
+\usepackage[numbers]{natbib} % use author/date bibliographic citations
+\usepackage{subfigure}
+\usepackage{url}
+
+\usepackage{amsmath,amssymb}  % Better maths support & more symbols
+\usepackage{bm}  % Define \bm{} to use bold math fonts
+\usepackage{esint}
+\usepackage{algorithm}
+%\usepackage[noend]{algorithmic}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+
+\usepackage[usenames,dvipsnames]{color} 
+
+\usepackage[pdftex,bookmarks,colorlinks,breaklinks]{hyperref}  % PDF hyperlinks, with coloured links
+%\definecolor{dullmagenta}{rgb}{0.4,0,0.4}   % #660066
+%\definecolor{darkblue}{rgb}{0,0,0.4}
+\hypersetup{linkcolor=red,citecolor=blue,filecolor=blue,urlcolor=blue} % coloured links
+%\hypersetup{linkcolor=black,citecolor=black,filecolor=black,urlcolor=black} % black links, for print output
+
+\usepackage{memhfixc}  % remove conflict between the memoir class & hyperref
+% \usepackage[activate]{pdfcprot}  % Turn on margin kerning (not in gwTeX)
+%\usepackage{pdfsync}  % enable tex source and pdf output syncronicity
+
+\usepackage{listings}
+\usepackage{nomencl}
+
+%\usepackage{python}
+\usepackage{tikz}
+%\usetikzlibrary{arrows,decorations.pathmorphing,backgrounds,placments,fit}
+\usetikzlibrary{calc,arrows,through,backgrounds,fit,shapes.geometric,shapes.misc,plotmarks}
+
+\usepackage{anysize}
+\marginsize{2cm}{2cm}{2cm}{2cm}
+
+\onehalfspacing
+
+\makenomenclature
+\def\nomlabel#1{\textbf{#1}\hfil}
+
+\newcommand{\Parameters}{\subsection*{Parameters}}
+\newcommand{\ReturnValue}{\subsection*{Return Value}}
+\newcommand{\Description}{\subsection*{Description}}
+\newcommand{\ClassName}[1]{{\tt #1}}
+\newcommand{\ReturnType}[1]{{\tt (#1)}}
+%\newcommand{\Function}[1]{{\tt #1()}}
+\newcommand{\Self}{{\tt self}}
+
+\DeclareMathOperator{\erf}{erf}
+%\DeclareMathOperator{\K}{K}
+%\newcommand{\K}{\ensuremath{\mathrm{\large{K}}}}
+\newcommand{\ud}{\ensuremath{\mathrm{d}}}
+\newcommand{\ii}{\ensuremath{\mathrm{i}}}
+\newcommand{\fclamp}{\ensuremath{\mathrm{clamp}}}
+\newcommand{\vx}{\ensuremath{\boldsymbol{x}}}
+\newcommand{\vv}{\ensuremath{\boldsymbol{v}}}
+\newcommand{\va}{\ensuremath{\boldsymbol{a}}}
+\newcommand{\vf}{\ensuremath{\boldsymbol{f}}}
+\newcommand{\mM}{\ensuremath{\boldsymbol{M}}}
+\newcommand{\mW}{\ensuremath{\boldsymbol{W}}}
+\newcommand{\mJ}{\ensuremath{\boldsymbol{J}}}
+\newcommand{\vq}{\ensuremath{\boldsymbol{q}}}
+\newcommand{\vC}{\ensuremath{\boldsymbol{C}}}
+\newcommand{\vQ}{\ensuremath{\boldsymbol{Q}}}
+\newcommand{\vlambda}{\ensuremath{\boldsymbol{\lambda}}}
+\newcommand{\vd}{\ensuremath{\boldsymbol{d}}}
+\newcommand{\mI}{\ensuremath{\boldsymbol{I}}}
+\newcommand{\vc}{\ensuremath{\boldsymbol{c}}}
+\newcommand{\vr}{\ensuremath{\boldsymbol{r}}}
+\newcommand{\vF}{\ensuremath{\boldsymbol{F}}}
+\newcommand{\vtau}{\ensuremath{\boldsymbol{\tau}}}
+\newcommand{\valpha}{\ensuremath{\boldsymbol{\alpha}}}
+
+\newtheorem{mydef}{Definition}
+
+
+\lstset{numbers=left,basicstyle=\footnotesize,numberstyle=\tiny,tabsize=4,breaklines=true}
+
+\long\def\symbolfootnote[#1]#2{\begingroup%
+\def\thefootnote{\fnsymbol{footnote}}\footnote[#1]{#2}\endgroup}
+
+
+\begin{document}
+
+\tableofcontents
+
+\listoffigures
+
+\section*{About}
+
+This document contains notes about the \em Giddy Machinist \em project.
+
+\section{Straight Skeleton Generation}
+
+
+The straight skeleton is generated via a two-phase approach. At first, the so-called motorcycle graph is generated, then the actual straight skeleton. One algorithm is described in \cite{ski}.
+
+There are single-phase and two-phase approaches. The two phase approach seems more robust for handling degenerate geometry, for example symmetric polygons, which are very common in practical usage. The two phase approach begins with the motorcycle tracing, which creates clear boundaries for non-convex polygons. 
+
+Another advantage to the two phase approach is that principally, the time complexity of the 2nd phase is greatly reduced, as all events that need to be tracked are of time complexity $O(N+M)$, as there are only collapse events for each edge, as well as the wavefronts opposite of a motorcycle, that need to be tracked.
+
+\subsection{The Motorcycle Graph}
+
+For a simple polygon, motorcycles are only emitted by reflex\footnote{what exactly is a reflex vertex?} vertices. The motorcycles are angular bisector rays, and may crash into each other or the polygon edges as in the game \em Tron\em . A motorcycle trace is terminated when it reaches an edge or other motorcycle trace. A degenerate case, which must be handled for real-world geometry, is when two or more motorcycles collide at the same point, in which case a new motorcycle must be emitted.
+
+\subsubsection{Events}
+
+Three different events may happen during motorcycle tracing:
+\begin{description}
+\item[Edge Crash] The edge crash is the simplest event, and happens when a motorcycle hits a polygon edge. The edge is split (unless the hit is at an existing vertex), and a new vertex is inserted.
+\item[Trace Crash] When a motorcycle hits the trace of another motorcycle, it is terminated, and a vertex is generated.
+\item[Merge Crash] When two motorcycles reach the same point in space at the same time, they merge, and may emit one or two new motorcycles in new directions, depending on the crash geometry.
+\end{description}
+
+The times for potential crashes do not change during tracing, but new motorcycles may be generated during merges.
+
+Events are treated as simultaneous if they occur within some limit of location and time. As motorcycle events are point-like in nature, there is no danger of invalidating the graph.
+
+
+\subsubsection{Tracing Algorithm}
+
+The implementation is outlined in algorithm \ref{alg:mc}. Large performance improvements could be made by eliminating redundant intersection queries.
+
+\begin{algorithm}
+\caption{Computation of motorcycle graph.}
+\label{alg:mc}
+\begin{algorithmic}
+\Require{simple input polygon}
+\For{each vertex}
+	\State create motorcycle structure
+\EndFor
+
+\Repeat
+	\For{each active motorcycle}
+		\State record crash times with edges
+		\State record crash times with active motorcycles
+		\State record crash times with terminated motorcycles
+	\EndFor
+	\State sort crash events by time
+	\State pick first crash
+	\State assemble array off all crash events within merge threshold of location and time from first crash
+	\State determine crash subtypes: wall, trace, merge
+	\If {contains wall crash} 
+		\State all traces terminate at crash site
+		\If{not at vertex}
+			\State split edge, insert new vertex
+		\EndIf
+	\ElsIf{contains trace crash}
+		\State create new vertex, terminate crashed motorcycles
+	\Else
+		\State create new vertex, terminate involved motorcycles
+		\If{non-convex sub-polygon remains}
+			\State start new `escaped' motorcycle
+		\EndIf
+	\EndIf 
+
+\Until{no more active motorcycles}
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Wavefront Propagation}
+
+After the motorcycle graph is generated, the wavefront propagation can be started. Each edge emits a wavefront, which can either collapse, or be split by a motorcycle.
+
+\subsubsection{Wavefront Events}
+
+The following events may occur during wavefront propagation:
+\begin{description}
+\item[Wavefront Collapse] The collapse is the simplest event. A wavefront collapses into a vertex, which emits a new spoke bisecting the neighbouring wavefronts.
+\item[Motorcycle Split] The split occurs along a motorcycle trace, when the motorcycle would hit the opposing face. As the wavefronts are already pre-split along the motorcycle trace, only minor topological changes need to happen.
+\item[Motorcycle Branch] A branch occurs when a motorcycle trace reaches a point where another motorcycle will crash into it. The wavefront is split along the incoming motorcycle trace.
+\item[Motorcycle Merge] A merge corresponds to the motorcycle merge crash. This event splits the combined wavefront into two sub-wavefronts.
+\item[Emit Contour] When the offset/time of a contour is reached, the wavefront graph can easily be traversed to emit a polygon at this point.
+\end{description}
+
+The motorcycle branch and contour emission events are static, thus occur at fixed times that can be computed before the wavefront propagation is started. The collapse and split events, however, are dynamic, and need to be recomputed when certain changes in topology occur.
+
+\subsubsection{Simultaneous Events}
+
+The complex topology of the wavefront graph results in many theoretically degenerate cases, which nevertheless occur in practical applications.
+
+Unlike in the motorcycle tracing phase, degenerate events are not point-like. Resolving degenerate events must not invalidate the graph.
+
+Fortunately, after the separate motorcycle phase, only two classes of degenerate events may occur:
+\begin{description}
+\item[Arc Collapse] The arc collapse happens when multiple wavefronts collapse into a single point. 
+\item[Opposing Wavefronts] This case occurs when the neighbouring wavefronts to the one collapsing are anti-parallel.
+\end{description}
+
+Simultaneous collapses should be resolvable sequentially, as long as the temporary resulting wavefronts are allowed to collapse immediately.
+
+\subsubsection{Opposing Wavefronts Collapse and Motorcycle Traces}
+
+When a motorcycle anti-spoke is involved in a degenerate collapse, care must be taken to propagate the anti-spoke correctly.
+
+It appears that the anti-spoke can be dropped in such cases, as cycle-spoke is entering a convex sub-region. This can be detected at the cycle spoke if one of the attached wavefronts collapses, and the new angle bisector `cuts off' the motorcycle trace.
+
+The test for a collapsing anti-spoke is as follows: if the new wavefront travels in the same direction as the anti-spoke, keep it, and split the new wavefront accordingly, otherwise terminate anti-spoke. 
+
+It seems, at this point, that degenerate cases can be handled gracefully, and locally, simply by removing the offending wavefronts from the active list.
+
+%
+%\begin{algorithm}
+%\caption{Lent's method for computing a finite continued fraction.}
+%\label{alg1}
+%\begin{algorithmic}
+%\IF {$b_0 = 0$} 
+%	\STATE $f_0 \gets tiny$
+%\ELSE
+%	\STATE $f_0 \gets b_0$
+%\ENDIF 
+%\STATE $C_0 \gets f_0$
+%\STATE $1/D_0 \gets 0$
+%\FOR{$i = 1,2,3,\ldots$} 
+%	\STATE $D_i \gets b_i + a_i / D_{i-1}$
+%	\IF {$D_i = 0$} 
+%		\STATE $D_i \gets tiny$
+%	\ENDIF 
+%	\STATE $C_i \gets b_i + a_i C_{i-1}$
+%	\IF {$C_i = 0$} 
+%		\STATE $C_i \gets tiny$
+%	\ENDIF 
+%	\STATE $\Delta_i \gets C_i / D_{i}$
+%	\STATE $f_i \gets f_{i-1} \Delta_i$
+%	\IF {$|\Delta_i-1| < eps$} 
+%		\STATE break
+%	\ENDIF 
+%\ENDFOR
+%\end{algorithmic}
+%\end{algorithm}
+%
+
+\section{FDM Features}
+
+\subsection{Start/End Overlap on Perimeters}
+
+\subsection{Infill generation}
+
+%\printnomenclature
+
+\bibliographystyle{ieeetr}
+\bibliography{machinist}
+
+\end{document}
+
