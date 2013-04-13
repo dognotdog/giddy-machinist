@@ -23,11 +23,29 @@
 	
 	return self;
 }
+
+- (NSString *)description
+{
+	return [NSString stringWithFormat: @"%p @%f", self, time];
+}
+
 @end
 
 
+@implementation PSBranchEvent
+@end
 
+@implementation PSMergeEvent
+@end
 
+@implementation PSCollapseEvent
+@end
+
+@implementation PSSplitEvent
+@end
+
+@implementation PSEmitEvent
+@end
 
 static double _maxBoundsDimension(NSArray* vertices)
 {
@@ -131,9 +149,69 @@ static double _maxBoundsDimension(NSArray* vertices)
 	outgoingSpokes = [outgoingSpokes arrayByAddingObject: spoke];
 }
 
+static double _angle2d(vector_t from, vector_t to)
+{
+	double x = vDot(from, to);
+	double y = vCross(from, to).farr[2];
+	double angle = atan2(y, x);
+	return angle;
+}
+
+static double _angle2d_ccw(vector_t from, vector_t to)
+{
+	double angle = _angle2d(from, to);
+	if (angle < 0.0)
+		angle = M_PI - angle;
+	return angle;
+}
+
+static double _angle2d_cw(vector_t from, vector_t to)
+{
+	double angle = -_angle2d(from, to);
+	if (angle < 0.0)
+		angle = M_PI - angle;
+	return angle;
+}
+
+- (PSSpoke*) nextSpokeClockwiseFrom: (vector_t) startDir to: (vector_t) endDir
+{
+	double alphaMin = 2.0*M_PI;
+	id outSpoke = nil;
+	
+	for (PSSpoke* spoke in outgoingSpokes)
+	{
+		vector_t dir = spoke.velocity;
+		
+		double angleStart = _angle2d_cw(startDir, dir);
+		double angleEnd = _angle2d_cw(dir, endDir);
+		
+		if (angleEnd < 0.0)
+			continue;
+		
+		if (angleStart <= 0.0)
+			continue;
+		
+		if (angleStart < alphaMin)
+		{
+			outSpoke = spoke;
+			alphaMin = angleStart;
+		}
+		
+	}
+	
+	
+	return outSpoke;
+}
+
 @end
 
 @implementation	PSSpoke
+
+- (NSString *)description
+{
+	return [NSString stringWithFormat: @"%p @%f: (%f, %f)", self, self.start, self.velocity.farr[0], self.velocity.farr[1]];
+}
+
 @end
 
 

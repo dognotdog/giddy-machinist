@@ -21,5 +21,6 @@
 - (void) generateSkeleton;
 
 - (GfxMesh*) skeletonMesh;
+- (NSArray*) offsetMeshes;
 
 @end

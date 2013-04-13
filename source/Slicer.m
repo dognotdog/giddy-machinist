@@ -390,7 +390,13 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 	free(indices);
 	
 	for (SlicedOutline* outline in outlinePaths)
+	{
+		NSArray* outlines = [outline.skeleton offsetMeshes];
+		for (GfxMesh* mesh in outlines)
+			[layerMesh appendMesh: mesh];
 		[layerMesh appendMesh: [outline.skeleton skeletonMesh]];
+
+	}
 	
 	return layerMesh;
 }

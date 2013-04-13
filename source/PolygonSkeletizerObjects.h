@@ -10,7 +10,7 @@
 
 #import "VectorMath.h"
 
-@class PSEdge, PSSourceEdge, PSSpoke, PSAntiSpoke, PSMotorcycle, PSWaveFront;
+@class PSEdge, PSSourceEdge, PSSpoke, PSAntiSpoke, PSMotorcycle, PSWaveFront, PSCollapseEvent;
 
 @interface PSVertex : NSObject
 @property(nonatomic) vector_t position;
@@ -90,7 +90,8 @@
 
 @property(nonatomic, strong) PSSpoke* leftSpoke;
 @property(nonatomic, strong) PSSpoke* rightSpoke;
-@property(nonatomic) double collapseTime;
+@property(nonatomic, weak) PSCollapseEvent* collapseEvent;
+@property(nonatomic) vector_t direction;
 
 @end
 
@@ -117,12 +118,17 @@
 @interface PSBranchEvent : PSEvent
 
 @property(nonatomic,weak) PSCrashVertex* branchVertex;
+@property(nonatomic,weak) PSMotorcycleSpoke* rootSpoke;
 
 @end
 
 @interface PSMergeEvent : PSEvent
 
 @property(nonatomic,weak) PSMergeVertex* mergeVertex;
+
+@end
+
+@interface PSEmitEvent : PSEvent
 
 @end
 
