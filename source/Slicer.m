@@ -30,6 +30,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 			if ((t >= 0.0) & (t < 1.0))
 			{
 				vector_t x = v3Add(a, v3MulScalar(ray, t));
+				x.farr[2] = zh; // set Z height explicitly to prevent floating point rounding error
 				if (!segment)
 				{
 					segment = [[SlicedLineSegment alloc] init];
@@ -70,7 +71,8 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 
 - (void) asyncSliceModel: (GfxMesh*) model intoLayers: (NSArray*) layers layersWithCallbackOnQueue: (dispatch_queue_t) queue block: (void (^)(id)) callback;
 {
-	dispatch_queue_t workQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+//	dispatch_queue_t workQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+	dispatch_queue_t workQueue = dispatch_queue_create("com.elmonkey.giddy-machinist.slicing", 0);
 	
 	MeshOctree* octree = [[MeshOctree alloc] init];
 	[model addTrianglesToOctree: octree];

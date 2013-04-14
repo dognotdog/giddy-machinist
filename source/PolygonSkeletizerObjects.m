@@ -26,7 +26,7 @@
 
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p @%f", self, time];
+	return [NSString stringWithFormat: @"%p @%f (%@)", self, time, [self class]];
 }
 
 @end

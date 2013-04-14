@@ -66,6 +66,7 @@
 @interface PSAntiSpoke : PSSpoke
 @property(nonatomic, weak) PSMotorcycle			*motorcycle;
 @property(nonatomic, weak) PSMotorcycleSpoke	*motorcycleSpoke;
+
 @end
 
 
