@@ -183,6 +183,7 @@ The following events may occur during wavefront propagation:
 \item[Motorcycle Split] The split occurs along a motorcycle trace, when the motorcycle would hit the opposing face. As the wavefronts are already pre-split along the motorcycle trace, only minor topological changes need to happen.
 \item[Motorcycle Branch] A branch occurs when a motorcycle trace reaches a point where another motorcycle will crash into it. The wavefront is split along the incoming motorcycle trace.
 \item[Motorcycle Merge] A merge corresponds to the motorcycle merge crash. This event splits the combined wavefront into two sub-wavefronts.
+\item[Reverse Merge] Occurs when a merge vertex is reached by the opposing spoke before it is reached by the motorcycles that created it. New wavefronts are inserted between the incoming motorcycles.
 \item[Emit Contour] When the offset/time of a contour is reached, the wavefront graph can easily be traversed to emit a polygon at this point.
 \end{description}
 
@@ -248,6 +249,12 @@ It seems, at this point, that degenerate cases can be handled gracefully, and lo
 \subsection{Start/End Overlap on Perimeters}
 
 \subsection{Infill generation}
+
+\subsection{Thin Wall Tracking}
+
+A thin wall is a section of geometry which is too narrow for a deposited loop of material. It can occur as a result of polygon insetting, too, and the question is how to identify these areas.
+
+It may be possible to look at the history of the wavefront tracing, to peek into the future at any given inset, and determine if a given polygon segment will border a thin wall or not.
 
 %\printnomenclature
 

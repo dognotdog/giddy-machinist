@@ -21,8 +21,8 @@
 	NSArray* vertices;
 	NSArray* originalVertices;
 	NSArray* splitVertices;
-	NSArray* traceCrashVertices;
-	NSArray* mergeCrashVertices;
+	NSMutableArray* traceCrashVertices;
+	NSMutableArray* mergeCrashVertices;
 	NSArray* edges;
 	
 	NSArray* terminatedMotorcycles;
@@ -44,14 +44,14 @@
 	vertices = [NSArray array];
 	originalVertices = [NSArray array];
 	splitVertices = [NSArray array];
-	traceCrashVertices = [NSArray array];
-	mergeCrashVertices = [NSArray array];
+	traceCrashVertices = [NSMutableArray array];
+	mergeCrashVertices = [NSMutableArray array];
 	edges = [NSArray array];
 	terminatedMotorcycles = [NSArray array];
 	
 	outlineMeshes = [NSMutableArray array];
 	
-	emissionTimes = @[@1.0, @2.0, @5.0, @10.0, @20.0, @50.0];
+	emissionTimes = @[@1.0, @2.0, @5.0, @10.0, @20.0, @25.0, @30.0, @35.0, @40.0, @50.0];
 
 	return self;
 }
@@ -352,11 +352,15 @@ static PSMotorcycle* _findEscapeDirection(NSArray* crashes)
 		if (cycleAngle > M_PI)
 		{
 			PSMotorcycle* newCycle = [[PSMotorcycle alloc] init];
+			newCycle.leftParent = cycle1;
+			newCycle.rightParent = cycle0;
 			newCycle.leftNeighbour = cycle1.leftNeighbour;
 			newCycle.rightNeighbour = cycle0.rightNeighbour;
-			newCycle.leftNormal = cycle1.leftNormal;
-			newCycle.rightNormal = cycle0.rightNormal;
-			newCycle.velocity = bisectorVelocity(newCycle.leftNormal, newCycle.rightNormal, _normalToEdge(newCycle.leftNormal), _normalToEdge(newCycle.rightNormal));
+			newCycle.leftEdge = cycle1.leftEdge;
+			newCycle.rightEdge = cycle0.rightEdge;
+			//newCycle.leftNormal = cycle1.leftNormal;
+			//newCycle.rightNormal = cycle0.rightNormal;
+			newCycle.velocity = bisectorVelocity(newCycle.leftEdge.normal, newCycle.rightEdge.normal, _normalToEdge(newCycle.leftEdge.normal), _normalToEdge(newCycle.rightEdge.normal));
 			
 			assert(!vIsNAN(newCycle.velocity));
 
@@ -393,8 +397,8 @@ static PSMotorcycle* _findEscapeDirection(NSArray* crashes)
 			cycle.sourceVertex = edge0.endVertex;
 			cycle.start = 0.0;
 			cycle.velocity = v;
-			cycle.leftNormal = edge0.normal;
-			cycle.rightNormal = edge1.normal;
+			cycle.leftEdge = edge0;
+			cycle.rightEdge = edge1;
 			
 			[motorcycles addObject: cycle];
 			[edge0.endVertex addMotorcycle: cycle];
@@ -590,6 +594,7 @@ static PSMotorcycle* _findEscapeDirection(NSArray* crashes)
 					vertex.position = x;
 					vertex.time = survivorTime;
 					vertices = [vertices arrayByAddingObject: vertex];
+					[traceCrashVertices addObject: vertex];
 					
 					assert(survivor);
 					[crashedCycles removeObject: survivor];
@@ -619,7 +624,8 @@ static PSMotorcycle* _findEscapeDirection(NSArray* crashes)
 					vertex.position = x;
 					vertex.time = tmin;
 					vertices = [vertices arrayByAddingObject: vertex];
-
+					[mergeCrashVertices addObject: vertex];
+					
 					PSMotorcycle* escapedCycle = _findEscapeDirection(simultaneousCrashes);
 					
 					NSMutableSet* terminatedCycles = [NSMutableSet set];
@@ -813,9 +819,8 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes, NSM
 	PSMotorcycleSpoke* spoke = [[PSMotorcycleSpoke alloc] init];
 	spoke.sourceVertex = vertex;
 	spoke.motorcycle = cycle;
-	spoke.antiSpoke = cycle.antiSpoke;
-	if (spoke.antiSpoke)
-		spoke.antiSpoke.motorcycleSpoke = spoke;
+	cycle.spoke = spoke;
+
 	spoke.velocity = cycle.velocity;
 	assert(!vIsNAN(spoke.velocity));
 	spoke.start = vertex.time;
@@ -831,10 +836,16 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes, NSM
 	antiSpoke.start = antiVertex.time;
 	
 	spoke.antiSpoke = antiSpoke;
+	cycle.antiSpoke = antiSpoke;
 	antiSpoke.motorcycleSpoke = spoke;
+	antiSpoke.motorcycle = cycle;
 	
 	PSSourceEdge* antiEdge = nil;
-	if ([vertex isKindOfClass: [PSSplitVertex class]])
+	if ([vertex isKindOfClass: [PSCrashVertex class]])
+	{
+		// FIXME: cant precompute velocity at this point?
+	}
+	else if ([vertex isKindOfClass: [PSSplitVertex class]])
 	{
 		antiEdge = antiVertex.prevEdge; // in this case, both are colinear
 	}
@@ -847,8 +858,8 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes, NSM
 		else
 			antiEdge = antiVertex.nextEdge;
 	}
-	
-	antiSpoke.velocity = vReverseProject(antiEdge.normal, cycle.velocity);
+	if (antiEdge)
+		antiSpoke.velocity = vReverseProject(antiEdge.normal, cycle.velocity);
 	
 	[antiSpokes addObject: antiSpoke];
 	_assertSpokeUnique(antiSpoke, antiVertex.outgoingSpokes);
@@ -864,6 +875,63 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes, NSMut
 	}
 
 }
+
+- (PSSplitEvent*) computeSimpleSplitEvent: (PSMotorcycleSpoke*) cycleSpoke
+{
+	PSAntiSpoke* antiSpoke = cycleSpoke.antiSpoke;
+
+	vector_t delta = v3Sub(
+						   v3Add(cycleSpoke.sourceVertex.position, v3MulScalar(cycleSpoke.velocity, -cycleSpoke.sourceVertex.time)),
+						   v3Add(antiSpoke.sourceVertex.position, v3MulScalar(antiSpoke.velocity, -antiSpoke.sourceVertex.time))
+						   );
+	double distance = vLength(delta);
+	
+	double v0 = vLength(cycleSpoke.velocity);
+	double v1 = vLength(antiSpoke.velocity);
+	
+	double tc = distance/(v0+v1);
+	
+	PSSplitEvent* event = [[PSSplitEvent alloc] init];
+	event.time = tc;
+	event.location = v3Add(cycleSpoke.sourceVertex.position, v3MulScalar(cycleSpoke.velocity, tc -cycleSpoke.sourceVertex.time));
+	
+	event.antiSpoke = antiSpoke;
+
+	return event;
+}
+
+- (PSSplitEvent*) computeCrashedSplitEvent: (PSMotorcycleSpoke*) cycleSpoke
+{
+	PSMotorcycle* motorcycle = cycleSpoke.motorcycle;
+	assert([motorcycle.terminalVertex isKindOfClass: [PSCrashVertex class]]);
+	
+	
+	PSAntiSpoke* antiSpoke = cycleSpoke.antiSpoke;
+	
+	PSCrashVertex* vertex = (id)motorcycle.terminalVertex;
+	
+	assert(vertex.outgoingMotorcycles.count == 1);
+	PSMotorcycle* winningCycle = [vertex.outgoingMotorcycles lastObject];
+	
+	double asina = vCross(winningCycle.velocity, motorcycle.velocity).farr[2];
+	
+	vector_t wallDir = vZero();
+	
+	if (asina > 0.0) // alpha > 0 == to the right
+	{
+		wallDir = winningCycle.rightEdge.normal;
+	}
+	else
+	{
+		wallDir = winningCycle.leftEdge.normal;
+	}
+	
+	vector_t antiVel = vReverseProject(wallDir, motorcycle.velocity);
+	antiSpoke.velocity = antiVel;
+	
+	return [self computeSimpleSplitEvent: cycleSpoke];
+}
+
 
 
 - (PSCollapseEvent*) computeCollapseEvent: (PSWaveFront*) waveFront
@@ -1077,21 +1145,7 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 		[startingSpokes addObjectsFromArray: newAntiSpokes];
 	}
 	*/
-	/*
-	 merge crash vertices emit anti-spokes
-	 */
-	/* not needed if motorcycle & anti-spoke gen is one step
-	for (PSCrashVertex* vertex in mergeCrashVertices)
-	{
-		_generateAntiSpokes(vertex, mergeAntiSpokes);
-	}
 
-	for (PSCrashVertex* vertex in traceCrashVertices)
-	{
-		_generateAntiSpokes(vertex, traceAntiSpokes);
-	}
-	 */	
-	
 	/*
 	 spokes are setup, time to generate wavefronts
 	 */
@@ -1178,6 +1232,7 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 		event.time = vertex.time;
 		event.location = vertex.position;
 		event.branchVertex = vertex;
+		event.rootSpoke = [[vertex.outgoingMotorcycles objectAtIndex: 0] spoke];
 		
 		[events addObject: event];
 	}
@@ -1193,27 +1248,22 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 	}
 	
 	for (PSMotorcycleSpoke* cycleSpoke in motorcycleSpokes)
-	{
-		PSAntiSpoke* antiSpoke = cycleSpoke.antiSpoke;
+	{		
+		if ([cycleSpoke.motorcycle.terminalVertex isKindOfClass: [PSCrashVertex class]])
+		{
+			PSSplitEvent* event = [self computeCrashedSplitEvent: cycleSpoke];
+			[events addObject: event];
+		}
+		else if ([cycleSpoke.motorcycle.terminalVertex isKindOfClass: [PSMergeVertex class]])
+		{
+			// do nothing, ...
+		}
+		else
+		{
+			PSSplitEvent* event = [self computeSimpleSplitEvent: cycleSpoke];			
+			[events addObject: event];
+		}
 		
-		vector_t delta = v3Sub(
-							   v3Add(cycleSpoke.sourceVertex.position, v3MulScalar(cycleSpoke.velocity, -cycleSpoke.sourceVertex.time)),
-							   v3Add(antiSpoke.sourceVertex.position, v3MulScalar(antiSpoke.velocity, -antiSpoke.sourceVertex.time))
-							   );
-		double distance = vLength(delta);
-		
-		double v0 = vLength(cycleSpoke.velocity);
-		double v1 = vLength(antiSpoke.velocity);
-		
-		double tc = distance/(v0+v1);
-		
-		PSSplitEvent* event = [[PSSplitEvent alloc] init];
-		event.time = tc;
-		event.location = v3Add(cycleSpoke.sourceVertex.position, v3MulScalar(cycleSpoke.velocity, tc -cycleSpoke.sourceVertex.time));
-		
-		event.antiSpoke = antiSpoke;
-		
-		[events addObject: event];
 	}
 	// prune events that occur after extensionLimit
 	
@@ -1256,51 +1306,6 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 		assert(firstEvent.time >= lastEventTime);
 		lastEventTime = firstEvent.time;
 		
-		/*
-		if (0)
-		{
-			NSMutableArray* simultaneousEvents = [NSMutableArray array];
-			
-			
-			for (PSEvent* event in events)
-			{
-				if (event.time <= firstEvent.time + mergeThreshold)
-				{
-					vector_t delta = v3Sub(firstEvent.location, event.location);
-					double dd = vDot(delta, delta);
-					if (dd < mergeThreshold*mergeThreshold)
-						[simultaneousEvents addObject: event];
-				}
-				else
-					break;
-			}
-			
-			BOOL branchEvent = NO;
-			BOOL mergeEvent = NO;
-			BOOL collapseEvent = NO;
-			BOOL splitEvent = NO;
-			
-			for (id event in simultaneousEvents)
-			{
-				if ([event isKindOfClass: [PSCollapseEvent class]])
-				{
-					collapseEvent = YES;
-				}
-				if ([event isKindOfClass: [PSSplitEvent class]])
-				{
-					splitEvent = YES;
-				}
-				if ([event isKindOfClass: [PSBranchEvent class]])
-				{
-					branchEvent = YES;
-				}
-				if ([event isKindOfClass: [PSMergeEvent class]])
-				{
-					mergeEvent = YES;
-				}
-			}
-		}
-		*/
 		NSMutableArray* changedWaveFronts = [NSMutableArray array];
 		
 		if ([firstEvent isKindOfClass: [PSCollapseEvent class]])
@@ -1468,11 +1473,15 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 		}
 		else if ([firstEvent isKindOfClass: [PSBranchEvent class]])
 		{
-			[eventLog addObject: [NSString stringWithFormat: @"branching @ %f", firstEvent.time]];
+			// TODO: debug branch
+			[eventLog addObject: [NSString stringWithFormat: @"%f: branchinng", firstEvent.time]];
 			// a branch simply inserts a new spoke+wavefront into the list, in the same direction as its parent
 			PSBranchEvent* event = (id) firstEvent;
 			
-			// left or right?
+			assert(event.rootSpoke);
+			assert(event.rootSpoke.rightWaveFront);
+			assert(event.rootSpoke.leftWaveFront);
+			
 			// FIXME: won't handle insertion of multiple branches right
 			assert(event.branchVertex.incomingMotorcycles.count < 3);
 			for (PSMotorcycle* motorcycle in event.branchVertex.incomingMotorcycles)
@@ -1481,34 +1490,54 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 					continue;
 				
 				PSWaveFront* newFront = [[PSWaveFront alloc] init];
-				PSSpoke* newSpoke = [[PSSpoke alloc] init];
+				PSSpoke* newSpoke = motorcycle.antiSpoke;
+				PSSpoke* rootSpoke = event.rootSpoke;
 				
-				newSpoke.start = event.time;
-				newSpoke.sourceVertex = event.branchVertex;
+				PSWaveFront* leftFront = rootSpoke.leftWaveFront;
+				PSWaveFront* rightFront = rootSpoke.rightWaveFront;
 				
-				double asinAlpha = vCross(event.rootSpoke.velocity, vNegate(motorcycle.velocity)).farr[2];
+				assert(newSpoke.start == event.time);
+				assert(newSpoke.sourceVertex == event.branchVertex);
 				
-				if (asinAlpha < 0.0) // alpha < 0 == to the right
+				//double asinAlpha = vCross(event.rootSpoke.velocity, vNegate(motorcycle.velocity)).farr[2];
+				double asinAlpha = vCross(rootSpoke.velocity, motorcycle.velocity).farr[2];
+				
+				if (asinAlpha > 0.0) // alpha > 0 == to the right
 				{
-					newFront.direction = event.rootSpoke.rightWaveFront.direction;
+					newFront.direction = rightFront.direction;
 					newSpoke.leftWaveFront = newFront;
-					newSpoke.rightWaveFront = event.rootSpoke.rightWaveFront;
+					newSpoke.rightWaveFront = rightFront;
+					newFront.leftSpoke = rootSpoke;
+					newFront.rightSpoke = newSpoke;
+					
+					rightFront.leftSpoke = newSpoke;
 					
 					
-					[changedWaveFronts addObject: event.rootSpoke.rightWaveFront];
+					
+					[changedWaveFronts addObject: rightFront];
+					rootSpoke.rightWaveFront = newFront;
 					
 				}
 				else // to the left
 				{
-					newFront.direction = event.rootSpoke.leftWaveFront.direction;
+					newFront.direction = leftFront.direction;
+					newSpoke.leftWaveFront = leftFront;
 					newSpoke.rightWaveFront = newFront;
-					newSpoke.leftWaveFront = event.rootSpoke.leftWaveFront;
+					newFront.leftSpoke = newSpoke;
+					newFront.rightSpoke = rootSpoke;
 					
-					[changedWaveFronts addObject: event.rootSpoke.leftWaveFront];
+					leftFront.rightSpoke = newSpoke;
+
+					[changedWaveFronts addObject: leftFront];
+					rootSpoke.leftWaveFront = newFront;
 				}
 				
+				newSpoke.velocity = vReverseProject(newFront.direction, (motorcycle.velocity));
+
 				newSpoke.leftWaveFront.rightSpoke = newSpoke;
 				newSpoke.rightWaveFront.leftSpoke = newSpoke;
+				
+				//FIXME: add event!!
 				
 				[changedWaveFronts addObject: newFront];
 				[activeWaveFronts addObject: newFront];
@@ -1517,9 +1546,89 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 		}
 		else if ([firstEvent isKindOfClass: [PSMergeEvent class]])
 		{
-			[eventLog addObject: [NSString stringWithFormat: @"merging @ %f", firstEvent.time]];
-			assert(0); // TODO: handle merge event
+			[eventLog addObject: [NSString stringWithFormat: @"%f: merging", firstEvent.time]];
+			
+			PSMergeEvent* event = (id) firstEvent;
 
+			PSMergeVertex* mergeVertex = event.mergeVertex;
+			
+			PSMotorcycleSpoke* outCycleSpoke = nil;
+			
+			if (mergeVertex.outgoingMotorcycles.count == 1)
+			{
+				PSMotorcycle* motorcycle = [mergeVertex.outgoingMotorcycles lastObject];
+				PSMotorcycleSpoke* cycleSpoke = motorcycle.spoke;
+				assert(cycleSpoke);
+				outCycleSpoke = cycleSpoke;
+				
+			}
+			
+			NSArray* incomingCycles = mergeVertex.incomingMotorcycles;
+			
+			incomingCycles = [incomingCycles sortedArrayUsingComparator: ^NSComparisonResult(PSMotorcycle* obj0, PSMotorcycle* obj1)
+			{
+				double a0 = atan2(obj0.velocity.farr[1], obj0.velocity.farr[0]);
+				double a1 = atan2(obj1.velocity.farr[1], obj1.velocity.farr[0]);
+				
+				if (a0 < a1)
+					return NSOrderedAscending;
+				else if (a0 > a1)
+					return NSOrderedDescending;
+				else
+					return NSOrderedSame;
+			}];
+			
+			for (size_t i = 0; i < incomingCycles.count; ++i)
+			{
+				PSMotorcycle* mcLeft = [incomingCycles objectAtIndex: i];
+				PSMotorcycle* mcRight = [incomingCycles objectAtIndex: (i+1) % incomingCycles.count];
+				
+				PSMotorcycleSpoke* mcSpokeLeft = mcLeft.spoke;
+				PSMotorcycleSpoke* mcSpokeRight = mcRight.spoke;
+				
+				if (_waveFrontsAreAntiParallel(mcSpokeLeft.leftWaveFront, mcSpokeRight.rightWaveFront))
+				{
+					[inactiveWaveFronts addObject: mcSpokeLeft.leftWaveFront];
+					[inactiveWaveFronts addObject: mcSpokeRight.rightWaveFront];
+					[activeWaveFronts removeObject: mcSpokeLeft.leftWaveFront];
+					[activeWaveFronts removeObject: mcSpokeRight.rightWaveFront];
+					
+					[changedWaveFronts addObject: mcSpokeLeft.leftWaveFront];
+					[changedWaveFronts addObject: mcSpokeRight.rightWaveFront];
+				}
+				else
+				{
+					PSSpoke* newSpoke = nil;
+					if (outCycleSpoke && (outCycleSpoke.motorcycle.leftParent == mcLeft) && (outCycleSpoke.motorcycle.rightParent == mcRight))
+					{
+						newSpoke = outCycleSpoke;
+					}
+					else
+					{
+						newSpoke = [[PSSpoke alloc] init];
+						newSpoke.sourceVertex = mergeVertex;
+						newSpoke.start = mergeVertex.time;
+						
+						[mergeVertex addSpoke: newSpoke];
+						
+						vector_t newVelocity = bisectorVelocity(mcLeft.leftEdge.normal, mcRight.rightEdge.normal, _normalToEdge(mcLeft.leftEdge.normal), _normalToEdge(mcRight.rightEdge.normal));
+						
+						newSpoke.velocity = newVelocity;
+					}
+					
+					newSpoke.leftWaveFront = mcSpokeLeft.leftWaveFront;
+					newSpoke.rightWaveFront = mcSpokeRight.rightWaveFront;
+					newSpoke.leftWaveFront.rightSpoke = newSpoke;
+					newSpoke.rightWaveFront.leftSpoke = newSpoke;
+
+					[changedWaveFronts addObject: newSpoke.leftWaveFront];
+					[changedWaveFronts addObject: newSpoke.rightWaveFront];
+
+				}
+				
+				
+			}
+			
 			
 		}
 		else

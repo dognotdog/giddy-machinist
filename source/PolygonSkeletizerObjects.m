@@ -203,9 +203,21 @@ static double _angle2d_cw(vector_t from, vector_t to)
 	return outSpoke;
 }
 
+- (NSString *)description
+{
+	return [NSString stringWithFormat: @"%p @%f (%f, %f)", self, self.time, self.position.farr[0], self.position.farr[1]];
+}
+
+
 @end
 
 @implementation	PSSpoke
+
+- (void) setVelocity:(vector_t)velocity
+{
+	assert(!vIsInf(velocity) && !vIsNAN(velocity));
+	_velocity = velocity;
+}
 
 - (NSString *)description
 {

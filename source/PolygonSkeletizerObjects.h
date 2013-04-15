@@ -75,8 +75,9 @@
 @property(nonatomic, weak) PSVertex* terminalVertex;
 @property(nonatomic, weak) id terminator;
 @property(nonatomic) vector_t velocity;
-@property(nonatomic) vector_t leftNormal, rightNormal;
+@property(nonatomic, weak) PSSourceEdge *leftEdge, *rightEdge;
 @property(nonatomic, weak) PSMotorcycle *leftNeighbour, *rightNeighbour;
+@property(nonatomic, weak) PSMotorcycle *leftParent, *rightParent;
 @property(nonatomic) double start;
 
 @property(nonatomic, weak) PSAntiSpoke* antiSpoke;
@@ -130,6 +131,10 @@
 @end
 
 @interface PSEmitEvent : PSEvent
+
+@end
+
+@interface PSReverseMergeEvent : PSEvent
 
 @end
 
