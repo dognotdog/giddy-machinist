@@ -8,6 +8,9 @@
 
 #import "GMDocument.h"
 
+#import "GMDocumentWindowController.h"
+#import "LayerInspectorWindowController.h"
+
 #import "RS274Parser.h"
 #import "RS274Interpreter.h"
 #import "PathView2D.h"
@@ -84,6 +87,8 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	
 	free(indices);
 	
+	mesh = [mesh meshWithCoalescedVertices];
+	mesh = [mesh meshWithoutDegenerateTriangles];
 	
 	return mesh;
 }
@@ -97,7 +102,7 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	dispatch_queue_t processingQueue;
 }
 
-@synthesize statusTextView, modelView, pathView;
+@synthesize mainWindowController, slicedLayers;
 
 - (id)init
 {
@@ -106,7 +111,8 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 
 	processingQueue = dispatch_queue_create("gmdocument.processing", DISPATCH_QUEUE_SERIAL);
 	
-	
+	slicedLayers = @[];
+	machineCommands = @[];
 	
 	return self;
 }
@@ -116,12 +122,13 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	dispatch_release(processingQueue);
 }
 
-- (NSString *)windowNibName
+- (void) makeWindowControllers
 {
-	// Override returning the nib file name of the document
-	// If you need to use a subclass of NSWindowController or if your document supports multiple NSWindowControllers, you should remove this method and override -makeWindowControllers instead.
-	return @"GMDocument";
+	mainWindowController = [[GMDocumentWindowController alloc] initWithWindowNibName: @"GMDocument"];
+	
+	[self addWindowController: mainWindowController];
 }
+
 
 - (void)windowControllerDidLoadNib:(NSWindowController *)aController
 {
@@ -169,12 +176,12 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	
 	machineCommands = interpreter.machineCommands;
 	
-	[self.pathView resetPaths];
-	[self.pathView generatePathsWithMachineCommands: machineCommands];
+	[self.mainWindowController.pathView resetPaths];
+	[self.mainWindowController.pathView generatePathsWithMachineCommands: machineCommands];
 	
-	[self.modelView generateMovePathWithMachineCommands: machineCommands];
+	[self.mainWindowController.modelView generateMovePathWithMachineCommands: machineCommands];
 	
-	[[self.statusTextView.textStorage mutableString] appendString: [results description]];
+	[[self.mainWindowController.statusTextView.textStorage mutableString] appendString: [results description]];
 	
 	
 
@@ -208,13 +215,23 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 
 }
 
+- (void) layerDidLoad: (SlicedLayer*) layer
+{	
+	for (id wc in self.windowControllers)
+	{
+		if ([wc respondsToSelector: @selector(layerDidLoad:)])
+			[wc layerDidLoad: layer];
+	}
+	
+}
+
 - (void) loadSTLAtPath: (NSString*) path
 {
 	
 	GfxMesh* mesh = LoadSTLFileAtPath(path);
 
 	if (!mesh)
-		[[self.statusTextView.textStorage mutableString] appendString: @"oops, failed to load STL file"];
+		[[self.mainWindowController.statusTextView.textStorage mutableString] appendString: @"oops, failed to load STL file"];
 	
 	Slicer* slicer = [[Slicer alloc] init];
 	
@@ -230,7 +247,7 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	[slicer asyncSliceModel: mesh intoLayers: heights layersWithCallbackOnQueue: dispatch_get_main_queue() block: ^(SlicedLayer* layer) {
 		
 		slicedLayers = [slicedLayers arrayByAddingObject: layer];
-		modelView.layers = [modelView.layers dictionaryBySettingObject: [layer layerMesh] forKey: [NSNumber numberWithDouble: layer.layerZ]];
+		[self layerDidLoad: layer];
 		
 	}];
 	
@@ -279,6 +296,13 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	MachineSimulator* machineSim = [[MachineSimulator alloc] init];
 	
 	
+}
+
+- (IBAction) showLayerInspector:(id)sender
+{
+	LayerInspectorWindowController* inspector = [LayerInspectorWindowController sharedInspector];
+	[self addWindowController: inspector];
+	[[LayerInspectorWindowController sharedInspector] showWindow: sender];
 }
 
 @end

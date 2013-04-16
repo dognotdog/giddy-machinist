@@ -50,6 +50,10 @@
 		DA50F09B15F223610047CEF9 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA50F09A15F223610047CEF9 /* IOKit.framework */; };
 		DA50F0A315F24A870047CEF9 /* RS274Interpreter.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F0A215F24A870047CEF9 /* RS274Interpreter.m */; };
 		DA58E5681637031100AA4F8C /* PolygonSkeletizer.m in Sources */ = {isa = PBXBuildFile; fileRef = DA58E5671637031100AA4F8C /* PolygonSkeletizer.m */; };
+		DA5FCA7F171BE2B000A374C3 /* LayerInspectorWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = DA5FCA7D171BE2B000A374C3 /* LayerInspectorWindowController.m */; };
+		DA5FCA80171BE2B000A374C3 /* LayerInspectorWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = DA5FCA7E171BE2B000A374C3 /* LayerInspectorWindow.xib */; };
+		DA5FCA83171BE4FD00A374C3 /* GMDocumentWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = DA5FCA82171BE4FD00A374C3 /* GMDocumentWindowController.m */; };
+		DA5FCA86171BEEDA00A374C3 /* LayerInspectorView.m in Sources */ = {isa = PBXBuildFile; fileRef = DA5FCA85171BEEDA00A374C3 /* LayerInspectorView.m */; };
 		DA88D7411618DD44001CE353 /* motion_control_fixp32.c in Sources */ = {isa = PBXBuildFile; fileRef = DA88D73F1618DD44001CE353 /* motion_control_fixp32.c */; };
 		DA88D7451618E324001CE353 /* MachineSimulator.m in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7441618E324001CE353 /* MachineSimulator.m */; };
 		DA88D7481618E3E5001CE353 /* MotionPlanner.m in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7471618E3E4001CE353 /* MotionPlanner.m */; };
@@ -150,6 +154,13 @@
 		DA50F0A215F24A870047CEF9 /* RS274Interpreter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RS274Interpreter.m; sourceTree = "<group>"; };
 		DA58E5661637031100AA4F8C /* PolygonSkeletizer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolygonSkeletizer.h; sourceTree = "<group>"; };
 		DA58E5671637031100AA4F8C /* PolygonSkeletizer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PolygonSkeletizer.m; sourceTree = "<group>"; };
+		DA5FCA7C171BE2B000A374C3 /* LayerInspectorWindowController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LayerInspectorWindowController.h; sourceTree = "<group>"; };
+		DA5FCA7D171BE2B000A374C3 /* LayerInspectorWindowController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LayerInspectorWindowController.m; sourceTree = "<group>"; };
+		DA5FCA7E171BE2B000A374C3 /* LayerInspectorWindow.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; name = LayerInspectorWindow.xib; path = en.lproj/LayerInspectorWindow.xib; sourceTree = "<group>"; };
+		DA5FCA81171BE4FD00A374C3 /* GMDocumentWindowController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GMDocumentWindowController.h; sourceTree = "<group>"; };
+		DA5FCA82171BE4FD00A374C3 /* GMDocumentWindowController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GMDocumentWindowController.m; sourceTree = "<group>"; };
+		DA5FCA84171BEEDA00A374C3 /* LayerInspectorView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LayerInspectorView.h; sourceTree = "<group>"; };
+		DA5FCA85171BEEDA00A374C3 /* LayerInspectorView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LayerInspectorView.m; sourceTree = "<group>"; };
 		DA88D73F1618DD44001CE353 /* motion_control_fixp32.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = motion_control_fixp32.c; sourceTree = "<group>"; };
 		DA88D7401618DD44001CE353 /* motion_control_fixp32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = motion_control_fixp32.h; sourceTree = "<group>"; };
 		DA88D7431618E324001CE353 /* MachineSimulator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MachineSimulator.h; sourceTree = "<group>"; };
@@ -256,6 +267,7 @@
 		DA50F04715F0BF690047CEF9 /* resources */ = {
 			isa = PBXGroup;
 			children = (
+				DA5FCA7E171BE2B000A374C3 /* LayerInspectorWindow.xib */,
 				DA50F03215F0BE930047CEF9 /* Credits.rtf */,
 				DA50F02C15F0BE930047CEF9 /* InfoPlist.strings */,
 				DA50F03815F0BE930047CEF9 /* GMDocument.xib */,
@@ -270,6 +282,8 @@
 				DA50F02F15F0BE930047CEF9 /* main.m */,
 				DA50F03515F0BE930047CEF9 /* GMDocument.h */,
 				DA50F03615F0BE930047CEF9 /* GMDocument.m */,
+				DA5FCA81171BE4FD00A374C3 /* GMDocumentWindowController.h */,
+				DA5FCA82171BE4FD00A374C3 /* GMDocumentWindowController.m */,
 				DA50F04F15F0F78A0047CEF9 /* RS274Parser.h */,
 				DA50F05015F0F78A0047CEF9 /* RS274Parser.m */,
 				DA50F0A115F24A870047CEF9 /* RS274Interpreter.h */,
@@ -296,6 +310,10 @@
 				DA58E5671637031100AA4F8C /* PolygonSkeletizer.m */,
 				DA292B021705D29C00942D12 /* PolygonSkeletizerObjects.h */,
 				DA292B031705D29C00942D12 /* PolygonSkeletizerObjects.m */,
+				DA5FCA84171BEEDA00A374C3 /* LayerInspectorView.h */,
+				DA5FCA85171BEEDA00A374C3 /* LayerInspectorView.m */,
+				DA5FCA7C171BE2B000A374C3 /* LayerInspectorWindowController.h */,
+				DA5FCA7D171BE2B000A374C3 /* LayerInspectorWindowController.m */,
 			);
 			path = source;
 			sourceTree = "<group>";
@@ -431,6 +449,7 @@
 				DA50F03A15F0BE930047CEF9 /* GMDocument.xib in Resources */,
 				DA50F03D15F0BE930047CEF9 /* MainMenu.xib in Resources */,
 				DA2F149B16330C0F008BC99F /* white.png in Resources */,
+				DA5FCA80171BE2B000A374C3 /* LayerInspectorWindow.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -471,6 +490,9 @@
 				DA58E5681637031100AA4F8C /* PolygonSkeletizer.m in Sources */,
 				DAE47E25164818F00036AACF /* PolygonExtender.m in Sources */,
 				DA292B041705D29C00942D12 /* PolygonSkeletizerObjects.m in Sources */,
+				DA5FCA7F171BE2B000A374C3 /* LayerInspectorWindowController.m in Sources */,
+				DA5FCA83171BE4FD00A374C3 /* GMDocumentWindowController.m in Sources */,
+				DA5FCA86171BEEDA00A374C3 /* LayerInspectorView.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

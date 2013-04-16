@@ -21,6 +21,8 @@
 
 - (GfxMesh*) layerMesh;
 
+@property(nonatomic) double mergeThreshold;
+
 @end
 
 

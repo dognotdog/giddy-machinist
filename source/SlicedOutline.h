@@ -52,6 +52,7 @@
 - (void) recursivelyNestPaths;
 
 - (void) generateSkeletonWithMergeThreshold: (double) mergeThreshold;
+- (void) addPathsToSkeletizer: (PolygonSkeletizer*) sk;
 
 
 @end

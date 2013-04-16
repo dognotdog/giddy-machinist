@@ -8,13 +8,13 @@
 
 #import <Cocoa/Cocoa.h>
 
-@class PathView2D, ModelView3D;
+@class GMDocumentWindowController;
 
 @interface GMDocument : NSDocument
 
-@property(strong) IBOutlet NSTextView* statusTextView;
-@property(strong) IBOutlet PathView2D* pathView;
-@property(strong) IBOutlet ModelView3D* modelView;
+@property(nonatomic, strong) GMDocumentWindowController*  mainWindowController;
+
+@property(nonatomic, strong, readonly) NSArray* slicedLayers;
 
 - (IBAction) importGCode: (id) sender;
 

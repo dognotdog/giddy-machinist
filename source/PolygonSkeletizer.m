@@ -26,12 +26,14 @@
 	NSArray* edges;
 	
 	NSArray* terminatedMotorcycles;
+	NSMutableSet* terminatedSpokes;
+	NSMutableArray* terminatedWaveFronts;
 	
 	NSMutableArray* outlineMeshes;
 	NSArray* emissionTimes;
 }
 
-@synthesize extensionLimit, mergeThreshold;
+@synthesize extensionLimit, mergeThreshold, eventCallback, emitCallback;
 
 - (id) init
 {
@@ -48,10 +50,12 @@
 	mergeCrashVertices = [NSMutableArray array];
 	edges = [NSArray array];
 	terminatedMotorcycles = [NSArray array];
+	terminatedSpokes = [NSMutableSet set];
+	terminatedWaveFronts = [NSMutableArray array];
 	
 	outlineMeshes = [NSMutableArray array];
 	
-	emissionTimes = @[@1.0, @2.0, @5.0, @10.0, @20.0, @25.0, @30.0, @35.0, @40.0, @50.0];
+	emissionTimes = @[@1.0, @2.0, @5.0, @10.0, @15.0, @20.0, @25.0, @30.0, @35.0, @40.0, @45.0, @50.0];
 
 	return self;
 }
@@ -739,12 +743,19 @@ static BOOL _spokesSameDir(PSSpoke* spoke0, PSSpoke* spoke1)
 	vector_t v0 = spoke0.velocity;
 	vector_t v1 = spoke1.velocity;
 	
+	if (vLength(v0) == 0.0)
+		return NO;
+	if (vLength(v1) == 0.0)
+		return NO;
+	
 	return (fabs(atan2(vCross(v0, v1).farr[2], vDot(v0, v1))) <= FLT_EPSILON);
 	
 }
 
 static BOOL _isSpokeUnique(PSSpoke* uspoke, NSArray* spokes)
 {
+	if (vLength(uspoke.velocity) == 0.0)
+		return YES;
 	for (PSSpoke * spoke in spokes)
 	{
 		if (_spokesSameDir(spoke, uspoke))
@@ -841,13 +852,18 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes, NSM
 	antiSpoke.motorcycle = cycle;
 	
 	PSSourceEdge* antiEdge = nil;
-	if ([vertex isKindOfClass: [PSCrashVertex class]])
+	if ([antiVertex isKindOfClass: [PSCrashVertex class]])
 	{
 		// FIXME: cant precompute velocity at this point?
 	}
-	else if ([vertex isKindOfClass: [PSSplitVertex class]])
+	else if ([antiVertex isKindOfClass: [PSMergeVertex class]])
+	{
+		// FIXME: cant precompute velocity at this point?
+	}
+	else if ([antiVertex isKindOfClass: [PSSplitVertex class]])
 	{
 		antiEdge = antiVertex.prevEdge; // in this case, both are colinear
+		assert(antiEdge);
 	}
 	else	 // else figure out which direction we'd hit
 	{
@@ -857,6 +873,7 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes, NSM
 			antiEdge = antiVertex.prevEdge;
 		else
 			antiEdge = antiVertex.nextEdge;
+		assert(antiEdge);
 	}
 	if (antiEdge)
 		antiSpoke.velocity = vReverseProject(antiEdge.normal, cycle.velocity);
@@ -1013,6 +1030,11 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes, NSMut
 	[mesh addColors: colors count: numVertices];
 	[mesh addDrawArrayIndices: indices count: numVertices withMode: GL_LINES];
 	
+	if (emitCallback)
+	{
+		NSBezierPath* path = [self bezierPathFromOffsetSegments: vs count: numVertices];
+		emitCallback(self, path);
+	}
 	
 	free(vs);
 	free(colors);
@@ -1024,6 +1046,57 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes, NSMut
 	
 }
 
+static NSBezierPath* _bezierPathFromOffsetSegments(vector_t* vertices, size_t numVertices)
+{
+	NSBezierPath* path = [NSBezierPath bezierPath];
+	
+	assert(numVertices % 2 == 0);
+	
+	vector_t lastVertex = vZero();
+	vector_t loopVertex = vZero();
+	
+	for (size_t i = 0; i < numVertices/2; ++i)
+	{
+		vector_t a = vertices[2*i+0];
+		vector_t b = vertices[2*i+1];
+		if (i == 0)
+		{
+			[path moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
+			[path lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
+			loopVertex = a;
+			lastVertex = b;
+		}
+		else
+		{
+			
+			if (v3Equal(a, lastVertex))
+			{
+				if (v3Equal(b, loopVertex))
+					[path closePath];
+				else
+					[path lineToPoint: NSMakePoint(b.farr[0], vertices[2*i+1].farr[1])];
+				lastVertex = b;
+			}
+			else
+			{
+				[path moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
+				[path lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
+				loopVertex = a;
+				lastVertex = b;
+			}
+			
+		}
+	}
+	
+	
+	return path;
+}
+
+- (NSBezierPath*) bezierPathFromOffsetSegments: (vector_t*) vs count: (size_t) count
+{
+	return _bezierPathFromOffsetSegments(vs, count);
+}
+
 static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* rightFront)
 {
 	double lrdot = vDot(leftFront.direction, rightFront.direction);
@@ -1031,6 +1104,18 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 	
 	return ((fabs(lrdot + 1.0) < FLT_EPSILON) && (fabs(lrcross) < FLT_EPSILON)); // test for anti-parallel faces
 
+}
+
+- (void) terminateWaveFront: (PSWaveFront*) waveFront
+{
+	[terminatedWaveFronts addObject: waveFront];
+//	[terminatedSpokes addObject: waveFront.leftSpoke];
+//	[terminatedSpokes addObject: waveFront.rightSpoke];
+}
+
+- (void) addVertex: (PSVertex*) vertex
+{
+	
 }
 
 - (void) runSpokes
@@ -1058,15 +1143,22 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 	
 	NSMutableArray* normalSpokes = [NSMutableArray array];
 	NSMutableArray* motorcycleSpokes = [NSMutableArray array];
-	NSMutableArray* edgeAntiSpokes = [NSMutableArray array];
-	NSMutableArray* traceAntiSpokes = [NSMutableArray array];
-	NSMutableArray* mergeAntiSpokes = [NSMutableArray array];
+	NSMutableArray* antiSpokes = [NSMutableArray array];
 	NSMutableArray* startingSpokes = [NSMutableArray array];
 
 	
 	/*
 	 normal vertices emit motorcycle and normal spokes, and they might also emit anti-spokes
 	 */
+	
+	// FIXME: backpropagate reverse wave velocities?
+	@autoreleasepool {
+		for (PSMotorcycle* motorcycle in [terminatedMotorcycles reverseObjectEnumerator])
+		{
+			
+		}
+		
+	}
 	
 	@autoreleasepool {
 		for (PSMotorcycle* motorcycle in terminatedMotorcycles)
@@ -1078,7 +1170,7 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 			[startingSpokes addObjectsFromArray: newCycleSpokes];
 			[startingSpokes addObjectsFromArray: newAntiSpokes];
 			[motorcycleSpokes addObjectsFromArray: newCycleSpokes];
-			[edgeAntiSpokes addObjectsFromArray: newAntiSpokes];
+			[antiSpokes addObjectsFromArray: newAntiSpokes];
 		}
 	}
 	
@@ -1280,7 +1372,6 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 	}
 	
 	
-	NSMutableArray* inactiveWaveFronts = [NSMutableArray array];
 	NSMutableArray* collapsedVertices = [NSMutableArray array];
 	
 	double lastEventTime = 0.0;
@@ -1330,15 +1421,18 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 
 			if (_waveFrontsAreAntiParallel(leftFront, rightFront)) // test for anti-parallel faces
 			{
-				[inactiveWaveFronts addObject: leftFront];
-				[inactiveWaveFronts addObject: rightFront];
 				[activeWaveFronts removeObject: leftFront];
 				[activeWaveFronts removeObject: rightFront];
+				[activeWaveFronts removeObject: waveFront];
 
 				[changedWaveFronts addObject: waveFront];
-				[inactiveWaveFronts addObject: waveFront];
-				[activeWaveFronts removeObject: waveFront];
+				[changedWaveFronts addObject: leftFront];
+				[changedWaveFronts addObject: rightFront];
+
 				
+				[self terminateWaveFront: rightFront];
+				[self terminateWaveFront: leftFront];
+				[self terminateWaveFront: waveFront];
 			}
 			else
 			{
@@ -1352,6 +1446,8 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 				
 				leftSpoke.terminalVertex = newVertex;
 				rightSpoke.terminalVertex = newVertex;
+				[terminatedSpokes addObject: leftSpoke];
+				[terminatedSpokes addObject: rightSpoke];
 				
 				PSSpoke* newSpoke = [[PSSpoke alloc] init];
 				newSpoke.sourceVertex = newVertex;
@@ -1368,8 +1464,9 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 				[changedWaveFronts addObject: leftFront];
 				[changedWaveFronts addObject: rightFront];
 				
-				[inactiveWaveFronts addObject: waveFront];
 				[activeWaveFronts removeObject: waveFront];
+
+				[self terminateWaveFront: waveFront];
 				
 				
 				if ([leftSpoke isKindOfClass: [PSAntiSpoke class]])
@@ -1409,17 +1506,20 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 			
 			antiSpoke.terminalVertex = newVertex;
 			motorcycleSpoke.terminalVertex = newVertex;
+			[terminatedSpokes addObject: antiSpoke];
+			[terminatedSpokes addObject: motorcycleSpoke];
 			
 			if (_waveFrontsAreAntiParallel(antiSpoke.leftWaveFront, motorcycleSpoke.rightWaveFront))
 			{
-				[inactiveWaveFronts addObject: antiSpoke.leftWaveFront];
-				[inactiveWaveFronts addObject: motorcycleSpoke.rightWaveFront];
 				[activeWaveFronts removeObject: antiSpoke.leftWaveFront];
 				[activeWaveFronts removeObject: motorcycleSpoke.rightWaveFront];
 
 				[changedWaveFronts addObject: antiSpoke.leftWaveFront];
 				[changedWaveFronts addObject: motorcycleSpoke.rightWaveFront];
-			}
+
+				[self terminateWaveFront: antiSpoke.leftWaveFront];
+				[self terminateWaveFront: motorcycleSpoke.rightWaveFront];
+}
 			else
 			{
 				PSSpoke* newSpoke = [[PSSpoke alloc] init];
@@ -1442,13 +1542,14 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 			
 			if (_waveFrontsAreAntiParallel(antiSpoke.rightWaveFront, motorcycleSpoke.leftWaveFront))
 			{
-				[inactiveWaveFronts addObject: antiSpoke.rightWaveFront];
-				[inactiveWaveFronts addObject: motorcycleSpoke.leftWaveFront];
 				[activeWaveFronts removeObject: antiSpoke.rightWaveFront];
 				[activeWaveFronts removeObject: motorcycleSpoke.leftWaveFront];
 				
 				[changedWaveFronts addObject: antiSpoke.rightWaveFront];
 				[changedWaveFronts addObject: motorcycleSpoke.leftWaveFront];
+
+				[self terminateWaveFront: antiSpoke.rightWaveFront];
+				[self terminateWaveFront: motorcycleSpoke.leftWaveFront];
 			}
 			else
 			{
@@ -1588,13 +1689,14 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 				
 				if (_waveFrontsAreAntiParallel(mcSpokeLeft.leftWaveFront, mcSpokeRight.rightWaveFront))
 				{
-					[inactiveWaveFronts addObject: mcSpokeLeft.leftWaveFront];
-					[inactiveWaveFronts addObject: mcSpokeRight.rightWaveFront];
 					[activeWaveFronts removeObject: mcSpokeLeft.leftWaveFront];
 					[activeWaveFronts removeObject: mcSpokeRight.rightWaveFront];
 					
 					[changedWaveFronts addObject: mcSpokeLeft.leftWaveFront];
 					[changedWaveFronts addObject: mcSpokeRight.rightWaveFront];
+					
+					[self terminateWaveFront: mcSpokeLeft.leftWaveFront];
+					[self terminateWaveFront: mcSpokeRight.rightWaveFront];
 				}
 				else
 				{
@@ -1664,6 +1766,8 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 		
 	}	}
 	
+	vertices = [vertices arrayByAddingObjectsFromArray: collapsedVertices];
+	
 	BOOL maybe = NO;
 	if (maybe)
 		NSLog(@"%@", eventLog);
@@ -1676,228 +1780,44 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 	[self runSpokes];
 }
 
-#if 0
-- (void) generateSkeleton2
-{
-	// start by generating the spokes for each edge
-	assert(numEdges == numVertices);
-	
-	[self generateWalls];
-	NSArray* events = [self initializeEvents];
-	
-	/*
-	 need to group events somehow
-	 */
-	
-	
-	while ([events count])
-	{
-		events = [events sortedArrayUsingComparator: ^NSComparisonResult(PSEvent* e0, PSEvent* e1) {
-			double t0 = e0.time, t1 = e1.time;
-			if (t0 < t1)
-				return 1; // sort in descending order
-			else if (t0 > t1)
-				return -1;
-			else
-				return 0;
-		}];
-		
-		PSEvent* firstEvent = [events lastObject];
-		PSEventGroup* timeGroup = [[PSEventGroup alloc] init];
-		
-		double tref = firstEvent.time;
-		timeGroup.time = tref;
-		
-		for (PSEvent* event in [events reverseObjectEnumerator])
-		{
-			if (event.time > tref + mergeThreshold)
-				break;
-			timeGroup.events = [timeGroup.events arrayByAddingObject: event];
-		}
-		
-		// now have a group of events roughly at the same time
-		
-		NSArray* eventChains = [self buildEventChains: timeGroup];
-		
-		eventChains = [self retireInteriorEvents: eventChains];
-
-		
-		mergesort(events, numEvents, sizeof(*events), _eventSorter);
-		
-		ps_event_t event = events[--numEvents];
-//		NSLog(@"Skeletizing, %zd events remaining @%f", numEvents, event.time);
-		
-		if ((event.spoke != NSNotFound) && spokes[event.spoke].active && walls[event.wall].active) // split event
-		{
-			size_t newSpokeId[2], newWallId[2], newVertexId;
-			[self allocateSpokesTo: newSpokeId count: 2];
-			[self allocateWallsTo: newWallId count: 2];
-			[self allocateVerticesTo: &newVertexId count: 1];
-			
-
-			ps_spoke_t* spoke = spokes + event.spoke;
-			ps_wall_t* wall0 = walls + spoke->walls[0];
-			ps_wall_t* wall1 = walls + spoke->walls[1];
-			spoke->active = NO;
-			
-			ps_wall_t* wall = walls + event.wall;
-			wall->active = NO;
-			ps_spoke_t* spoke0 = spokes + wall->spokes[0];
-			ps_spoke_t* spoke1 = spokes + wall->spokes[1];
-			
-			vector_t newX = v3Add(vertices[spoke->sourceVertex].position, v3MulScalar(spoke->velocity, event.time - spoke->start));
-			assert(!vIsNAN(newX));
-		
-			vector_t newV0 = bisectorVelocity(wall1->velocity, wall->velocity, edges[wall1->sourceEdge].edge, edges[wall->sourceEdge].edge);
-			vector_t newV1 = bisectorVelocity(wall0->velocity, wall->velocity, edges[wall0->sourceEdge].edge, edges[wall->sourceEdge].edge);
-
-			
-			
-			ps_vertex_t* newVertex = vertices + newVertexId;
-
-			newVertex->position = newX;
-			
-			ps_spoke_t* newSpoke0 = spokes + newSpokeId[0];
-			
-			newSpoke0->velocity = newV0;
-			newSpoke0->sourceVertex = newVertex->vertexId;
-			newSpoke0->walls[0] = newWallId[0];
-			newSpoke0->walls[1] = wall1->wallId;
-			newSpoke0->active = YES;
-			newSpoke0->start = event.time;
-
-			ps_spoke_t* newSpoke1 = spokes + newSpokeId[1];
-			
-			newSpoke1->velocity = newV1;
-			newSpoke1->sourceVertex = newVertex->vertexId;
-			newSpoke1->walls[0] = wall0->wallId;
-			newSpoke1->walls[1] = newWallId[1];
-			newSpoke1->active = YES;
-			newSpoke1->start = event.time;
-			
-			ps_wall_t* newWall0 = walls + newWallId[0];
-			newWall0->sourceEdge = wall->sourceEdge;
-			newWall0->velocity = wall->velocity;
-			newWall0->spokes[0] = wall->spokes[0];
-			newWall0->spokes[1] = newSpoke0->spokeId;
-			newWall0->active = YES;
-			
-
-			ps_wall_t* newWall1 = walls + newWallId[1];
-			newWall1->sourceEdge = wall->sourceEdge;
-			newWall1->velocity = wall->velocity;
-			newWall1->spokes[0] = newSpoke1->spokeId;
-			newWall1->spokes[1] = wall->spokes[1];
-			newWall1->active = YES;
-			
-			
-			spoke->finalVertex = newVertex->vertexId;
-			wall0->spokes[1] = newSpoke1->spokeId;
-			wall1->spokes[0] = newSpoke0->spokeId;
-			spoke0->walls[1] = newWall0->wallId;
-			spoke1->walls[0] = newWall1->wallId;
-
-
-			[self generateEventsForSplit: *newSpoke0 afterTime: event.time];
-			[self generateEventsForSplit: *newSpoke1 afterTime: event.time];
-			[self generateEventForWallCollapse: *wall0 afterTime: event.time];
-			[self generateEventForWallCollapse: *wall1 afterTime: event.time];
-			[self generateEventForWallCollapse: *newWall0 afterTime: event.time];
-			[self generateEventForWallCollapse: *newWall1 afterTime: event.time];
- 
-		}
-		else if (walls[event.wall].active) // collapse event
-		{
-			size_t newSpokeId, newVertexId;
-			[self allocateSpokesTo: &newSpokeId count: 1];
-			[self allocateVerticesTo: &newVertexId count: 1];
-			
-			
-			ps_wall_t* wall = walls + event.wall;
-			ps_spoke_t* spoke0 = spokes + wall->spokes[0];
-			ps_spoke_t* spoke1 = spokes + wall->spokes[1];
-			ps_vertex_t* vertex0 = vertices + spoke0->sourceVertex;
-			ps_vertex_t* vertex1 = vertices + spoke1->sourceVertex;
-			wall->active = NO;
-			spoke0->active = NO;
-			spoke1->active = NO;
-		
-			ps_wall_t* wall0 = walls  +  spoke0->walls[0];
-			ps_wall_t* wall1 = walls  +  spoke1->walls[1];
-			
-			vector_t newV = bisectorVelocity(wall0->velocity, wall1->velocity, edges[wall0->sourceEdge].edge, edges[wall1->sourceEdge].edge);
-
-			assert(!vIsNAN(newV));
-			
-			vector_t newX = v3Add(vertex0->position, v3MulScalar(spoke0->velocity, event.time - spoke0->start));
-
-			assert(!vIsNAN(newX));
-		
-			ps_spoke_t* newSpoke = spokes + newSpokeId;
-			
-			newSpoke->velocity = newV;
-			newSpoke->sourceVertex = newVertexId;
-			newSpoke->walls[0] = wall0->wallId;
-			newSpoke->walls[1] = wall1->wallId;
-			newSpoke->active = YES;
-			newSpoke->start = event.time;
-			
-			ps_vertex_t* newVertex = vertices + newVertexId;
-
-			newVertex->position = newX;
-			newVertex->edges[0] = NSNotFound;
-			newVertex->edges[1] = NSNotFound;
-
-						
-			wall0->spokes[1] = newSpoke->spokeId;
-			wall1->spokes[0] = newSpoke->spokeId;
-			
-			spoke0->finalVertex = newVertex->vertexId;
-			spoke1->finalVertex = newVertex->vertexId;
-			
-			[self generateEventsForSplit: *newSpoke afterTime: event.time];
-			[self generateEventForWallCollapse: *wall0 afterTime: event.time];
-			[self generateEventForWallCollapse: *wall1 afterTime: event.time];
-			 
-		}
-		
-	}
-	
-	
-	for (size_t i = 0; i < numSpokes; ++i)
-	{
-		ps_spoke_t* spoke = spokes + i;
-		
-		
-		if (spoke->finalVertex == NSNotFound)
-		{
-			size_t newVertexId;
-			[self allocateVerticesTo: &newVertexId count: 1];
-
-			vector_t p = vertices[spoke->sourceVertex].position;
-			vector_t v = spoke->velocity;
-			vector_t x = v3Add(p, v3MulScalar(v, extensionLimit - spoke->start));
-			
-			assert(!vIsNAN(x));
-			
-			ps_vertex_t* newVertex = vertices + newVertexId;
-			
-			newVertex->position = x;
-			newVertex->edges[0] = NSNotFound;
-			newVertex->edges[1] = NSNotFound;
-			
-			spoke->finalVertex = newVertex->vertexId;
-			spoke->active = NO;
-		}
-	}
-	
-}
-#endif
 
 - (NSArray*) offsetMeshes
 {
 	return outlineMeshes;
 }
+
+- (NSArray*) motorcycleDisplayPaths
+{
+	NSBezierPath* bpath = [NSBezierPath bezierPath];
+	
+	
+	for (PSMotorcycle* motorcycle in terminatedMotorcycles)
+	{
+		vector_t a = motorcycle.sourceVertex.position;
+		vector_t b = motorcycle.terminalVertex.position;
+		[bpath moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
+		[bpath lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
+	}
+	
+	return @[ bpath ];
+}
+
+- (NSArray*) spokeDisplayPaths
+{
+	NSBezierPath* bpath = [NSBezierPath bezierPath];
+	
+	
+	for (PSSpoke* spoke in terminatedSpokes)
+	{
+		vector_t a = spoke.sourceVertex.position;
+		vector_t b = spoke.terminalVertex.position;
+		[bpath moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
+		[bpath lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
+	}
+	
+	return @[ bpath ];
+}
+
 
 - (GfxMesh*) skeletonMesh
 {

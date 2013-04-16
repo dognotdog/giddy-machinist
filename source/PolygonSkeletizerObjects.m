@@ -70,6 +70,10 @@ static double _maxBoundsDimension(NSArray* vertices)
 
 @implementation PSMotorcycle
 
+- (NSString *)description
+{
+	return [NSString stringWithFormat: @"%p @%f (%.3f, %.3f)", self, self.start, self.velocity.farr[0], self.velocity.farr[1]];
+}
 
 @end
 
@@ -205,7 +209,7 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p @%f (%f, %f)", self, self.time, self.position.farr[0], self.position.farr[1]];
+	return [NSString stringWithFormat: @"%p (%@) @%f (%f, %f)", self, [self class], self.time, self.position.farr[0], self.position.farr[1]];
 }
 
 
@@ -221,7 +225,7 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p @%f: (%f, %f)", self, self.start, self.velocity.farr[0], self.velocity.farr[1]];
+	return [NSString stringWithFormat: @"%p (%@) @%f: (%f, %f)", self, [self class], self.start, self.velocity.farr[0], self.velocity.farr[1]];
 }
 
 @end

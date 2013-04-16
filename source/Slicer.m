@@ -91,6 +91,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 				
 				SlicedLayer* layer = [self connectSegments: segments];
 				layer.layerZ = height;
+				layer.mergeThreshold = mergeThreshold;
 				layer = [self nestPaths: layer];
 				
 				
@@ -171,7 +172,8 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 	for (SlicedOutline* outline in outerPaths)
 	{
 		[outline recursivelyNestPaths];
-		[outline generateSkeletonWithMergeThreshold: 0.5*mergeThreshold];
+		// FIXME: disable straight skeleton generation for test purposes
+	//	[outline generateSkeletonWithMergeThreshold: 0.5*mergeThreshold];
 	}
 	
 	inLayer.outlinePaths = outerPaths;
@@ -281,6 +283,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 		{
 			[segment reverse];
 			[segment analyzeSegment];
+			// FIXME: what should happen when a segment is reduced to zero vertices?
 			assert(segment.isCCW);
 		}
 
@@ -396,7 +399,9 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 		NSArray* outlines = [outline.skeleton offsetMeshes];
 		for (GfxMesh* mesh in outlines)
 			[layerMesh appendMesh: mesh];
-		[layerMesh appendMesh: [outline.skeleton skeletonMesh]];
+		id skMesh = [outline.skeleton skeletonMesh];
+		if (skMesh)
+			[layerMesh appendMesh: skMesh];
 
 	}
 	
