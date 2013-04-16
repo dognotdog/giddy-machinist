@@ -134,6 +134,11 @@
 
 }
 
+- (IBAction) displayOptionsChanged:(id)sender
+{
+	[layerView setNeedsDisplay: YES];
+}
+
 - (IBAction) layerSelected:(NSPopUpButton*)sender
 {
 		
@@ -150,6 +155,14 @@
 {
 	
 	self.layerView.indexOfSelectedOutline = [sender indexOfSelectedItem];
+}
+
+- (IBAction) copy:(id)sender
+{
+	NSPasteboard *pb = [NSPasteboard generalPasteboard];
+	[pb declareTypes: @[ NSPasteboardTypePDF ] owner: self];
+	[layerView writePDFInsideRect: layerView.bounds toPasteboard: pb];
+
 }
 
 - (void) layerDidLoad: (SlicedLayer*) layer

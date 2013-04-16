@@ -19,10 +19,11 @@
 @property(nonatomic,strong) IBOutlet LayerInspectorView* layerView;
 @property(nonatomic,strong) IBOutlet NSButton* resetButton;
 @property(nonatomic,strong) IBOutlet NSButton* stepButton;
-@property(nonatomic,strong) IBOutlet NSPopUpButton* historySelector;
+@property(nonatomic,strong) IBOutlet NSSegmentedControl* displayOptionsControl;
 
 - (IBAction) layerSelected: (id) sender;
 - (IBAction) outlineSelected: (id) sender;
+- (IBAction) displayOptionsChanged: (id) sender;
 - (IBAction) runSlicing: (id) sender;
 
 @end

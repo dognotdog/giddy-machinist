@@ -1419,6 +1419,19 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 			
 			[eventLog addObject: [NSString stringWithFormat: @"%.f: collapsing wavefront %@, bounded by %@, %@", event.time, waveFront, waveFront.leftSpoke, waveFront.rightSpoke]];
 
+			vector_t xPos = v3Add(leftSpoke.sourceVertex.position, v3MulScalar(leftSpoke.velocity, event.time - leftSpoke.start));
+
+			PSVertex* newVertex = [[PSVertex alloc] init];
+			newVertex.position = xPos;
+			newVertex.time = event.time;
+			[collapsedVertices addObject: newVertex];
+			
+			leftSpoke.terminalVertex = newVertex;
+			rightSpoke.terminalVertex = newVertex;
+			[terminatedSpokes addObject: leftSpoke];
+			[terminatedSpokes addObject: rightSpoke];
+			
+
 			if (_waveFrontsAreAntiParallel(leftFront, rightFront)) // test for anti-parallel faces
 			{
 				[activeWaveFronts removeObject: leftFront];
@@ -1434,20 +1447,19 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 				[self terminateWaveFront: leftFront];
 				[self terminateWaveFront: waveFront];
 			}
+			else if (vCross(leftFront.direction, rightFront.direction).farr[2] < 0.0)
+			{
+				// this case marks a "closing" collapse, no new spoke should be generated, as it would just go the "wrong" direction
+				// it is assumed that the neighbouring wavefronts also collapse simultaneously, on their own
+				[activeWaveFronts removeObject: waveFront];
+				[changedWaveFronts addObject: waveFront];
+				[self terminateWaveFront: waveFront];
+				
+			}
 			else
 			{
 				vector_t newVelocity = bisectorVelocity(leftFront.direction, rightFront.direction, _normalToEdge(leftFront.direction), _normalToEdge(rightFront.direction));
-				vector_t xPos = v3Add(leftSpoke.sourceVertex.position, v3MulScalar(leftSpoke.velocity, event.time - leftSpoke.start));
 				
-				PSVertex* newVertex = [[PSVertex alloc] init];
-				newVertex.position = xPos;
-				newVertex.time = event.time;
-				[collapsedVertices addObject: newVertex];
-				
-				leftSpoke.terminalVertex = newVertex;
-				rightSpoke.terminalVertex = newVertex;
-				[terminatedSpokes addObject: leftSpoke];
-				[terminatedSpokes addObject: rightSpoke];
 				
 				PSSpoke* newSpoke = [[PSSpoke alloc] init];
 				newSpoke.sourceVertex = newVertex;
@@ -1519,7 +1531,7 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 
 				[self terminateWaveFront: antiSpoke.leftWaveFront];
 				[self terminateWaveFront: motorcycleSpoke.rightWaveFront];
-}
+			}
 			else
 			{
 				PSSpoke* newSpoke = [[PSSpoke alloc] init];

@@ -8,6 +8,8 @@
 
 #import "LayerInspectorView.h"
 
+#import "LayerInspectorWindowController.h"
+
 #import "Slicer.h"
 #import "SlicedOutline.h"
 
@@ -127,8 +129,8 @@
 	NSAffineTransform* transform = [NSAffineTransform transform];
 	
 	CGSize boundsSize = self.bounds.size;
-	boundsSize.width -= 3.0f;
-	boundsSize.height -= 3.0f;
+	boundsSize.width -= 5.0f;
+	boundsSize.height -= 5.0f;
 	
 	NSGraphicsContext* ctx = [NSGraphicsContext currentContext];
 	[ctx saveGraphicsState];
@@ -139,51 +141,59 @@
 	[transform translateXBy: CGRectGetMidX(self.bounds) - scale*CGRectGetMidX(outlineRect) yBy: CGRectGetMidY(self.bounds) - scale*CGRectGetMidY(outlineRect)];
 	[transform scaleBy: scale];
 
-	
-	
+	BOOL displayOutline = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 0];
+	BOOL displayMotorcycles = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 1];
+	BOOL displaySpokes = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 2];
+	BOOL displayWavefronts = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 3];
+
 	[transform concat];
 	
-	NSInteger k = 0;
-	for (NSBezierPath* outlinePath in outlinePaths)
+	if (displayOutline)
 	{
-		if (k == self.indexOfSelectedOutline)
-			[[[NSColor yellowColor] colorWithAlphaComponent: 1.0] set];
-		else
-			[[[NSColor yellowColor] colorWithAlphaComponent: 0.2] set];
-		
-		[outlinePath setLineWidth: 1.0/scale];
-		[outlinePath stroke];
+		NSInteger k = 0;
+		for (NSBezierPath* outlinePath in outlinePaths)
+		{
+			if (k == self.indexOfSelectedOutline)
+				[[[NSColor yellowColor] colorWithAlphaComponent: 1.0] set];
+			else
+				[[[NSColor yellowColor] colorWithAlphaComponent: 0.2] set];
+			
+			[outlinePath setLineWidth: 1.0/scale];
+			[outlinePath stroke];
+		}
+		for (NSBezierPath* path in openPaths)
+		{
+			[[[NSColor redColor] colorWithAlphaComponent: 0.5] set];
+			
+			[path setLineWidth: 1.0/scale];
+			[path stroke];
+		}
 	}
-	for (NSBezierPath* path in openPaths)
-	{
-		[[[NSColor redColor] colorWithAlphaComponent: 0.5] set];
-		
-		[path setLineWidth: 1.0/scale];
-		[path stroke];
-	}
-	for (NSBezierPath* path in motorcyclePaths)
-	{
-		[[[NSColor blueColor] colorWithAlphaComponent: 1.0] set];
-		
-		[path setLineWidth: 1.0/scale];
-		[path stroke];
-	}
-	for (NSBezierPath* path in spokePaths)
-	{
-		[[[NSColor redColor] colorWithAlphaComponent: 1.0] set];
-		
-		[path setLineWidth: 1.0/scale];
-		[path stroke];
-	}
+	if (displayMotorcycles)
+		for (NSBezierPath* path in motorcyclePaths)
+		{
+			[[[NSColor blueColor] colorWithAlphaComponent: 1.0] set];
+			
+			[path setLineWidth: 1.0/scale];
+			[path stroke];
+		}
+	if (displaySpokes)
+		for (NSBezierPath* path in spokePaths)
+		{
+			[[[NSColor redColor] colorWithAlphaComponent: 1.0] set];
+			
+			[path setLineWidth: 1.0/scale];
+			[path stroke];
+		}
 	
-
-	for (NSBezierPath* path in offsetPaths)
-	{
-		[[[NSColor grayColor] colorWithAlphaComponent: 1.0] set];
-		
-		[path setLineWidth: 1.0/scale];
-		[path stroke];
-	}
+	if (displayWavefronts)
+		for (NSBezierPath* path in offsetPaths)
+		{
+			[[[NSColor grayColor] colorWithAlphaComponent: 1.0] set];
+			
+			[path setLineWidth: 1.0/scale];
+			[path stroke];
+		}
 	
 
 	[transform invert];
@@ -192,5 +202,6 @@
 	[ctx restoreGraphicsState];
 
 }
+
 
 @end
