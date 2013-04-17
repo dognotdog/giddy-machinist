@@ -10,7 +10,7 @@
 
 #import "VectorMath.h"
 
-@class PSEdge, PSSourceEdge, PSSpoke, PSAntiSpoke, PSMotorcycle, PSWaveFront, PSCollapseEvent;
+@class PSEdge, PSSourceEdge, PSSpoke, PSAntiSpoke, PSMotorcycle, PSWaveFront, PSCollapseEvent, PSSplitEvent, PSMergeEvent, PSReverseMergeEvent, PSReverseBranchEvent;
 
 @interface PSVertex : NSObject
 @property(nonatomic) vector_t position;
@@ -34,10 +34,18 @@
 @interface PSSplitVertex : PSVertex
 @end
 
+@interface PSSourceVertex : PSVertex
+@end
+
 @interface PSCrashVertex : PSVertex
+@property(nonatomic, weak) PSReverseBranchEvent* reverseEvent;
 @end
 
 @interface PSMergeVertex : PSVertex
+// returns the incoming motorcycles that were merged, starting CCW from the outgoing motorcycle, in CCW order
+- (NSArray*) mergedMotorcyclesCCW;
+@property(nonatomic, weak) PSMergeEvent* mergeEvent;
+@property(nonatomic, weak) PSReverseMergeEvent* reverseEvent;
 @end
 
 
@@ -61,6 +69,7 @@
 @interface PSMotorcycleSpoke : PSSpoke
 @property(nonatomic, weak) PSMotorcycle *motorcycle;
 @property(nonatomic, weak) PSAntiSpoke	*antiSpoke;
+@property(nonatomic, weak) PSSplitEvent	*splitEvent;
 @end
 
 @interface PSAntiSpoke : PSSpoke
@@ -74,11 +83,14 @@
 @property(nonatomic, weak) PSVertex* sourceVertex;
 @property(nonatomic, weak) PSVertex* terminalVertex;
 @property(nonatomic, weak) id terminator;
-@property(nonatomic) vector_t velocity, reverseWaveVelocity;
+@property(nonatomic) vector_t velocity;
 @property(nonatomic, weak) PSSourceEdge *leftEdge, *rightEdge;
 @property(nonatomic, weak) PSMotorcycle *leftNeighbour, *rightNeighbour;
 @property(nonatomic, weak) PSMotorcycle *leftParent, *rightParent;
 @property(nonatomic) double start;
+
+@property(nonatomic) vector_t	reverseWaveVelocity;
+@property(nonatomic) double		reverseHitTime;
 
 @property(nonatomic, weak) PSAntiSpoke* antiSpoke;
 @property(nonatomic, weak) PSMotorcycleSpoke* spoke;
@@ -135,6 +147,10 @@
 @end
 
 @interface PSReverseMergeEvent : PSEvent
-@property(nonatomic,weak) PSMotorcycleSpoke* rootSpoke;
+@property(nonatomic,weak) PSAntiSpoke* rootSpoke;
+@end
+
+@interface PSReverseBranchEvent : PSEvent
+@property(nonatomic,weak) PSAntiSpoke* rootSpoke;
 @end
 

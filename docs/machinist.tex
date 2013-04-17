@@ -175,6 +175,52 @@ The implementation is outlined in algorithm \ref{alg:mc}. Large performance impr
 
 After the motorcycle graph is generated, the wavefront propagation can be started. Each edge emits a wavefront, which can either collapse, or be split by a motorcycle.
 
+\begin{algorithm}
+\caption{Wavefront Initialization.}
+\label{alg:wpi}
+\begin{algorithmic}
+\Require{simple input polygon}
+\Require{motorcycle graph}
+\For{each motorcycle}
+	\State create motorcycle spoke and anti-spoke
+\EndFor
+\For{each vertex on outline}
+	\State create spoke if vertex is convex, and no motorcycle spoke or anti-spoke exists
+\EndFor
+\For{each each spoke starting at $t=0$}
+	\State create wavefront
+	\State attach wavefront
+\EndFor
+
+\State generate emission events
+
+\For{each wavefront}
+	\State compute collapse time
+	\State add collapse event to event queue
+\EndFor
+
+\For{each branch and merge vertex}
+	\State add respective events to event queue
+\EndFor
+
+\For{each motorcycle spoke}
+	\If{motorcycle starts on outline vertex}
+		\State compute split event
+	\EndIf
+	\If{motorcycle ends on outline vertex}
+		\State compute reverse event
+	\EndIf
+	\If{motorcycles ends and starts on outline}
+		\State add earlier event to event queue
+	\Else
+		add split or reverse event to event queue, whichever exists
+	\EndIf
+\EndFor
+
+
+\end{algorithmic}
+\end{algorithm}
+
 \subsubsection{Wavefront Events}
 
 The following events may occur during wavefront propagation:
@@ -184,10 +230,13 @@ The following events may occur during wavefront propagation:
 \item[Motorcycle Branch] A branch occurs when a motorcycle trace reaches a point where another motorcycle will crash into it. The wavefront is split along the incoming motorcycle trace.
 \item[Motorcycle Merge] A merge corresponds to the motorcycle merge crash. This event splits the combined wavefront into two sub-wavefronts.
 \item[Reverse Merge] Occurs when a merge vertex is reached by the opposing spoke before it is reached by the motorcycles that created it. New wavefronts are inserted between the incoming motorcycles.
+\item[Reverse Branch] Occurs when a branch vertex is reached by the opposing spoke before it is reached by the motorcycles that created it. New wavefronts are inserted between the incoming motorcycles.
 \item[Emit Contour] When the offset/time of a contour is reached, the wavefront graph can easily be traversed to emit a polygon at this point.
 \end{description}
 
 The motorcycle branch and contour emission events are static, thus occur at fixed times that can be computed before the wavefront propagation is started. The collapse and split events, however, are dynamic, and need to be recomputed when certain changes in topology occur.
+
+The reverse merge and branch events can also only be computed dynamically, as when the vertices are hit by backpropagating anti-spokes may depend on previous events.
 
 \subsubsection{Simultaneous Events}
 

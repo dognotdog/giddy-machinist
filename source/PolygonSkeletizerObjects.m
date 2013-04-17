@@ -47,6 +47,12 @@
 @implementation PSEmitEvent
 @end
 
+@implementation PSReverseMergeEvent
+@end
+
+@implementation PSReverseBranchEvent
+@end
+
 static double _maxBoundsDimension(NSArray* vertices)
 {
 	vector_t minv = vCreatePos(INFINITY, INFINITY, INFINITY);
@@ -215,6 +221,43 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 @end
 
+@implementation PSSourceVertex
+
+@end
+
+@implementation PSCrashVertex
+
+@end
+
+@implementation PSMergeVertex
+
+- (NSArray*) mergedMotorcyclesCCW
+{
+	PSMotorcycle* outCycle = [self.outgoingMotorcycles objectAtIndex: 0];
+	NSArray* angles = [self.incomingMotorcycles map: ^id (PSMotorcycle* obj) {
+		
+		vector_t a = outCycle.velocity;
+		vector_t b = vNegate(obj.velocity);
+		double angle = vAngleBetweenVectors2D(a, b);
+		if (angle < 0.0)
+			angle += 2.0*M_PI;
+		return [NSNumber numberWithDouble: angle];
+	}];
+	
+	NSDictionary* dict = [NSDictionary dictionaryWithObjects: self.incomingMotorcycles forKeys: angles];
+	
+	angles = [angles sortedArrayUsingSelector: @selector(compare:)];
+	
+	
+	return [dict objectsForKeys: angles notFoundMarker: [NSNull null]];
+}
+
+@end
+
+@implementation PSSplitVertex
+
+@end
+
 @implementation	PSSpoke
 
 - (void) setVelocity:(vector_t)velocity
@@ -240,17 +283,6 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 @end
 
-@implementation PSCrashVertex
-
-@end
-
-@implementation PSMergeVertex
-
-@end
-
-@implementation PSSplitVertex
-
-@end
 
 @implementation PSWaveFront
 
