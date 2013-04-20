@@ -76,6 +76,19 @@ static double _maxBoundsDimension(NSArray* vertices)
 
 @implementation PSMotorcycle
 
+@synthesize crashVertices;
+
+- (id) init
+{
+	if (!(self = [super init]))
+		return nil;
+	
+	crashVertices = @[];
+	
+	
+	return self;
+}
+
 - (NSString *)description
 {
 	return [NSString stringWithFormat: @"%p @%f (%.3f, %.3f)", self, self.start, self.velocity.farr[0], self.velocity.farr[1]];
@@ -159,6 +172,12 @@ static double _maxBoundsDimension(NSArray* vertices)
 	outgoingSpokes = [outgoingSpokes arrayByAddingObject: spoke];
 }
 
+- (void) removeSpoke:(PSSpoke *)spoke
+{
+	outgoingSpokes = [outgoingSpokes arrayByRemovingObject: spoke];
+}
+
+
 static double _angle2d(vector_t from, vector_t to)
 {
 	double x = vDot(from, to);
@@ -188,7 +207,7 @@ static double _angle2d_cw(vector_t from, vector_t to)
 	double alphaMin = 2.0*M_PI;
 	id outSpoke = nil;
 	
-	for (PSSpoke* spoke in outgoingSpokes)
+	for (PSSimpleSpoke* spoke in outgoingSpokes)
 	{
 		vector_t dir = spoke.velocity;
 		
@@ -227,6 +246,28 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 @implementation PSCrashVertex
 
+- (NSArray*) incomingMotorcyclesCCW
+{
+	PSMotorcycle* outCycle = [self.outgoingMotorcycles objectAtIndex: 0];
+	NSArray* angles = [self.incomingMotorcycles map: ^id (PSMotorcycle* obj) {
+		
+		vector_t a = outCycle.velocity;
+		vector_t b = vNegate(obj.velocity);
+		double angle = vAngleBetweenVectors2D(a, b);
+		if (angle < 0.0)
+			angle += 2.0*M_PI;
+		return [NSNumber numberWithDouble: angle];
+	}];
+	
+	NSDictionary* dict = [NSDictionary dictionaryWithObjects: self.incomingMotorcycles forKeys: angles];
+	
+	angles = [angles sortedArrayUsingSelector: @selector(compare:)];
+	
+	
+	return [dict objectsForKeys: angles notFoundMarker: [NSNull null]];
+}
+
+
 @end
 
 @implementation PSMergeVertex
@@ -260,6 +301,11 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 @implementation	PSSpoke
 
+
+@end
+
+@implementation PSSimpleSpoke
+
 - (void) setVelocity:(vector_t)velocity
 {
 	assert(!vIsInf(velocity) && !vIsNAN(velocity));
@@ -271,20 +317,55 @@ static double _angle2d_cw(vector_t from, vector_t to)
 	return [NSString stringWithFormat: @"%p (%@) @%f: (%f, %f)", self, [self class], self.start, self.velocity.farr[0], self.velocity.farr[1]];
 }
 
+- (BOOL) convex
+{
+	return YES;
+}
+
 @end
 
 
+@implementation PSFastSpoke
+
+- (NSString *)description
+{
+	return [NSString stringWithFormat: @"%p (%@) @%f: (%f, %f)", self, [self class], self.start, self.direction.farr[0], self.direction.farr[1]];
+}
+
+- (BOOL) convex
+{
+	return YES;
+}
+
+
+@end
+
 @implementation PSAntiSpoke
+
+- (BOOL) convex
+{
+	return NO;
+}
 
 
 @end
 
 @implementation PSMotorcycleSpoke
 
+- (BOOL) convex
+{
+	return NO;
+}
+
+
 @end
 
 
 @implementation PSWaveFront
+- (NSString *)description
+{
+	return [NSString stringWithFormat: @"%p (%@): (%f, %f)", self, [self class], self.direction.farr[0], self.direction.farr[1]];
+}
 
 @end
 

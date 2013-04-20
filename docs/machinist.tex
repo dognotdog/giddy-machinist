@@ -208,12 +208,17 @@ After the motorcycle graph is generated, the wavefront propagation can be starte
 		\State compute split event
 	\EndIf
 	\If{motorcycle ends on outline vertex}
-		\State compute reverse event
+		\For{each other motorcycle crashed into trace}
+			\State compute reverse branch event
+		\EndFor
+		\If{motorcycle starts on merge vertex}
+			\State compute reverse merge event
+		\EndIf
 	\EndIf
 	\If{motorcycles ends and starts on outline}
-		\State add earlier event to event queue
+		\State add earliest event to event queue
 	\Else
-		add split or reverse event to event queue, whichever exists
+		\State add split or reverse event to event queue, whichever exists
 	\EndIf
 \EndFor
 

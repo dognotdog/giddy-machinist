@@ -313,7 +313,7 @@
 {
 	assert(isClosed);
 	
-	vector_t crossSum = vZero();
+//	vector_t crossSum = vZero();
 	
 	double area = 0.0;
 	

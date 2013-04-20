@@ -105,6 +105,17 @@
 	[self setNeedsDisplay: YES];
 }
 
+- (BOOL) becomeFirstResponder
+{
+	return YES;
+}
+
+- (BOOL) acceptsFirstResponder
+{
+	return YES;
+}
+
+
 - (void)drawRect:(NSRect)dirtyRect
 {
 	[[NSColor blackColor] set];

@@ -10,7 +10,7 @@
 
 #import "VectorMath.h"
 
-@class PSEdge, PSSourceEdge, PSSpoke, PSAntiSpoke, PSMotorcycle, PSWaveFront, PSCollapseEvent, PSSplitEvent, PSMergeEvent, PSReverseMergeEvent, PSReverseBranchEvent;
+@class PSEdge, PSSourceEdge, PSSpoke, PSAntiSpoke, PSMotorcycle, PSWaveFront, PSCollapseEvent, PSSplitEvent, PSMergeEvent, PSReverseMergeEvent, PSReverseBranchEvent, PSEvent, PSBranchEvent;
 
 @interface PSVertex : NSObject
 @property(nonatomic) vector_t position;
@@ -28,7 +28,7 @@
 
 - (void) addMotorcycle: (PSMotorcycle*) cycle;
 - (void) addSpoke: (PSSpoke*) spoke;
-
+- (void) removeSpoke: (PSSpoke*) spoke;
 @end
 
 @interface PSSplitVertex : PSVertex
@@ -39,13 +39,15 @@
 
 @interface PSCrashVertex : PSVertex
 @property(nonatomic, weak) PSReverseBranchEvent* reverseEvent;
+@property(nonatomic, weak) PSBranchEvent* forwardEvent;
+- (NSArray*) incomingMotorcyclesCCW;
 @end
 
 @interface PSMergeVertex : PSVertex
 // returns the incoming motorcycles that were merged, starting CCW from the outgoing motorcycle, in CCW order
 - (NSArray*) mergedMotorcyclesCCW;
-@property(nonatomic, weak) PSMergeEvent* mergeEvent;
 @property(nonatomic, weak) PSReverseMergeEvent* reverseEvent;
+@property(nonatomic, weak) PSMergeEvent* forwardEvent;
 @end
 
 
@@ -61,18 +63,28 @@
 @interface PSSpoke : NSObject
 @property(nonatomic, weak) PSVertex *sourceVertex, *terminalVertex;
 @property(nonatomic) double start;
-@property(nonatomic) vector_t velocity;
 @property(nonatomic, weak) PSWaveFront* leftWaveFront;
 @property(nonatomic, weak) PSWaveFront* rightWaveFront;
+@property(nonatomic, readonly) BOOL convex;
 @end
 
-@interface PSMotorcycleSpoke : PSSpoke
+@interface PSSimpleSpoke : PSSpoke
+@property(nonatomic) vector_t velocity;
+
+@end
+
+@interface PSFastSpoke : PSSpoke
+@property(nonatomic) vector_t direction;
+
+@end
+
+@interface PSMotorcycleSpoke : PSSimpleSpoke
 @property(nonatomic, weak) PSMotorcycle *motorcycle;
 @property(nonatomic, weak) PSAntiSpoke	*antiSpoke;
-@property(nonatomic, weak) PSSplitEvent	*splitEvent;
+@property(nonatomic, weak) PSEvent		*upcomingEvent;
 @end
 
-@interface PSAntiSpoke : PSSpoke
+@interface PSAntiSpoke : PSSimpleSpoke
 @property(nonatomic, weak) PSMotorcycle			*motorcycle;
 @property(nonatomic, weak) PSMotorcycleSpoke	*motorcycleSpoke;
 
@@ -80,6 +92,7 @@
 
 
 @interface PSMotorcycle : NSObject
+@property(nonatomic, strong) NSArray* crashVertices; // FIXME: results in cyclic references (weak NSPointerArray under ARC not available pre-10.8
 @property(nonatomic, weak) PSVertex* sourceVertex;
 @property(nonatomic, weak) PSVertex* terminalVertex;
 @property(nonatomic, weak) id terminator;
@@ -152,5 +165,6 @@
 
 @interface PSReverseBranchEvent : PSEvent
 @property(nonatomic,weak) PSAntiSpoke* rootSpoke;
+@property(nonatomic,weak) PSCrashVertex* branchVertex;
 @end
 

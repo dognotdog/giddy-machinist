@@ -20,6 +20,7 @@
 @property(nonatomic,strong) IBOutlet NSButton* resetButton;
 @property(nonatomic,strong) IBOutlet NSButton* stepButton;
 @property(nonatomic,strong) IBOutlet NSSegmentedControl* displayOptionsControl;
+@property(nonatomic,strong) IBOutlet NSTextField* extensionLimitField;
 
 - (IBAction) layerSelected: (id) sender;
 - (IBAction) outlineSelected: (id) sender;

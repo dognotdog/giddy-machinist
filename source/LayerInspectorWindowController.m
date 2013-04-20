@@ -121,9 +121,10 @@
 	{
 		skeletizer = [[PolygonSkeletizer alloc] init];
 		skeletizer.mergeThreshold = slice.mergeThreshold;
+		skeletizer.extensionLimit = [self.extensionLimitField doubleValue];
 		skeletizer.emitCallback = ^(PolygonSkeletizer* skel, NSBezierPath* bpath)
 		{
-			[layerView addOffsetOutlinePath: bpath];
+			SuppressSelfCaptureWarning([layerView addOffsetOutlinePath: bpath]);
 		};
 		[outline addPathsToSkeletizer: skeletizer];
 		[skeletizer generateSkeleton];
