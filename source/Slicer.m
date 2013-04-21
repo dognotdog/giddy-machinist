@@ -182,6 +182,43 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 
 }
 
+/*
+ New concept: create a list of all possible links, and connect segments in order of "straightness" instead of minimum vertex distance only.
+ */
+
+static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLineSegment* segment1)
+{
+	vector_t startDir0 = v3Sub(segment0.vertices[1], segment0.vertices[0]);
+	vector_t endDir0 = v3Sub(segment0.vertices[segment0.vertexCount-1], segment0.vertices[segment0.vertexCount-2]);
+	vector_t startDir1 = v3Sub(segment1.vertices[1], segment1.vertices[0]);
+	vector_t endDir1 = v3Sub(segment1.vertices[segment1.vertexCount-1], segment1.vertices[segment0.vertexCount-2]);
+
+	vector_t delta[4] = {
+		v3Sub(segment0.begin, segment1.begin),
+		v3Sub(segment0.begin, segment1.end),
+		v3Sub(segment0.end, segment1.begin),
+		v3Sub(segment0.end, segment1.end),
+	};
+	double angle[4] = {
+		vAngleBetweenVectors2D(startDir0, vNegate(startDir1)),
+		vAngleBetweenVectors2D(startDir0, endDir1),
+		vAngleBetweenVectors2D(endDir0, startDir1),
+		vAngleBetweenVectors2D(endDir0, vNegate(endDir1)),
+	};
+
+	vector_t distance;
+	
+
+	for (size_t i = 0; i < 4; ++i)
+	{
+		distance.farr[i] = vDot(delta[i], delta[i]) + angle[i]*angle[i];
+		
+		
+	}
+
+	return distance;
+}
+
 - (SlicedLayer*) connectSegments: (NSArray* ) segments
 {
 	SlicedLayer* layer = [[SlicedLayer alloc] init];

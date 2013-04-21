@@ -320,7 +320,7 @@
 	
 }
 
-- (void) drawForTime: (const CVTimeStamp*) outputTime
+- (void) drawForTime: (double) outputTime
 {
 	NSArray* drawableKeys = [NSArray arrayWithObjects: @"everything", nil];
 	

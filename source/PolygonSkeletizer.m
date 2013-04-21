@@ -94,12 +94,12 @@ static inline vector_t _normalToEdge(vector_t n)
 	for (long i = 0; i < vcount; ++i)
 	{
 		PSSourceEdge* edge = [[PSSourceEdge alloc] init];
-		edge.startVertex = [newVertices objectAtIndex: i];
-		edge.endVertex = [newVertices objectAtIndex: (i+1) % vcount];
-		[edge.startVertex addEdge: edge];
-		[edge.endVertex addEdge: edge];
-		vector_t a = edge.startVertex.position;
-		vector_t b = edge.endVertex.position;
+		edge.leftVertex = [newVertices objectAtIndex: i];
+		edge.rightVertex = [newVertices objectAtIndex: (i+1) % vcount];
+		edge.leftVertex.rightEdge = edge;;
+		edge.rightVertex.leftEdge = edge;
+		vector_t a = edge.leftVertex.position;
+		vector_t b = edge.rightVertex.position;
 		vector_t e = v3Sub(b, a);
 		edge.normal = _edgeToNormal(e);
 		edge.edge = e;
@@ -109,14 +109,6 @@ static inline vector_t _normalToEdge(vector_t n)
 		assert(vLength(e) >= mergeThreshold);
 		
 		[newEdges addObject: edge];
-	}
-	for (long i = 0; i < vcount; ++i)
-	{
-		PSSourceEdge* edge0 = [newEdges objectAtIndex: i];
-		PSSourceEdge* edge1 = [newEdges objectAtIndex: (i+1) % vcount];
-		
-		edge0.next = edge1;
-		edge1.prev = edge0;
 	}
 
 	edges = [edges arrayByAddingObjectsFromArray: newEdges];
@@ -173,12 +165,12 @@ static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, v
 			{
 				@autoreleasepool {
 					// skip edges motorcycle started from
-					if ((edge.startVertex == cycle.sourceVertex) || (edge.endVertex == cycle.sourceVertex))
+					if ((edge.leftVertex == cycle.sourceVertex) || (edge.rightVertex == cycle.sourceVertex))
 						continue;
 					
 					
 					//vector_t delta = v3Sub(motorp, edge.startVertex.position);
-					vector_t tx = xRays2D(motorp, motorv, edge.startVertex.position, edge.edge);
+					vector_t tx = xRays2D(motorp, motorv, edge.leftVertex.position, v3Sub(edge.rightVertex.position, edge.leftVertex.position));
 					double t = tx.farr[0] + cycle.start;
 					
 					//assert(vCross(edge.edge, delta).farr[2] >= 0.0);
@@ -187,20 +179,20 @@ static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, v
 					{
 						vector_t x = v3Add(motorp, v3MulScalar(motorv, t - cycle.start));
 						
-						vector_t ax = v3Sub(x, edge.startVertex.position);
-						vector_t bx = v3Sub(x, edge.endVertex.position);
+						vector_t ax = v3Sub(x, edge.leftVertex.position);
+						vector_t bx = v3Sub(x, edge.rightVertex.position);
 						
 						BOOL hitStart = (vDot(ax, ax) < mergeThreshold*mergeThreshold);
 						BOOL hitEnd = (vDot(bx, bx) < mergeThreshold*mergeThreshold);
 						
 						if (hitStart)
 						{
-							id crash = @[[NSNumber numberWithDouble: t], cycle, edge.startVertex];
+							id crash = @[[NSNumber numberWithDouble: t], cycle, edge.leftVertex];
 							[crashes addObject: crash];
 						}
 						else if (hitEnd)
 						{
-							id crash = @[[NSNumber numberWithDouble: t], cycle, edge.endVertex];
+							id crash = @[[NSNumber numberWithDouble: t], cycle, edge.rightVertex];
 							[crashes addObject: crash];
 						}
 						else if ((tx.farr[1] > 0.0) && (tx.farr[1] < 1.0))
@@ -296,33 +288,31 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 	return [[crashInfo objectAtIndex: 2] isKindOfClass: [PSVertex class]] || [[crashInfo objectAtIndex: 2] isKindOfClass: [PSEdge class]];
 }
 
-- (void) splitEdge: (PSEdge*) edge atVertex: (PSSplitVertex*) vertex
+- (void) splitEdge: (PSSourceEdge*) edge0 atVertex: (PSSplitVertex*) vertex
 {
-	PSEdge* newEdge = [[[edge class] alloc] init];
+	assert([edge0 isKindOfClass: [PSSourceEdge class]]);
+	PSSourceEdge* edge1 = [[[edge0 class] alloc] init];
 	
-	newEdge.startVertex = vertex;
-	newEdge.endVertex = edge.endVertex;
+	assert(edge0.leftVertex.rightEdge == edge0);
+	assert(edge0.rightVertex.leftEdge == edge0);
+		
+	edge1.leftVertex = vertex;
+	edge1.rightVertex = edge0.rightVertex;
+	edge1.rightVertex.leftEdge = edge1;
 	
-	newEdge.normal = edge.normal;
-	newEdge.edge = v3Sub(newEdge.endVertex.position, newEdge.startVertex.position);
+	edge1.normal = edge0.normal;
+	edge1.edge = v3Sub(edge1.rightVertex.position, edge1.leftVertex.position);
 	
-	[edge.endVertex removeEdge: edge];
-	edge.endVertex = vertex;
-	[newEdge.endVertex addEdge: newEdge];
+	edge0.rightVertex = vertex;
+	vertex.leftEdge = edge0;
+	vertex.rightEdge = edge1;
 	
-	[vertex addEdge: newEdge];
-	[vertex addEdge: edge];
+	NSMutableArray* edgeArray = [edges mutableCopy];
+	[edgeArray insertObject: edge1 atIndex: [edgeArray indexOfObject: edge0]+1];
 	
-	edges = [edges arrayByAddingObject: newEdge];
+	edges = edgeArray;
+	
 	splitVertices = [splitVertices arrayByAddingObject: vertex];
-	
-	if ([edge isKindOfClass: [PSSourceEdge class]])
-	{
-		[(PSSourceEdge*)newEdge setNext: [(PSSourceEdge*)edge next]];
-		[(PSSourceEdge*)newEdge setPrev: (PSSourceEdge*)edge];
-		[(PSSourceEdge*)edge setNext: (PSSourceEdge*)newEdge];
-		[[(PSSourceEdge*)newEdge next] setPrev: (PSSourceEdge*)edge];
-	}
 }
 
 static PSMotorcycle* _findEscapeDirection(NSArray* crashes)
@@ -412,23 +402,23 @@ static PSMotorcycle* _findEscapeDirection(NSArray* crashes)
 	
 	for (PSSourceEdge* edge0 in edges)
 	{
-		PSSourceEdge* edge1 = edge0.next;
-		assert(edge0.next);
+		PSSourceEdge* edge1 = edge0.rightVertex.rightEdge;
+		assert(edge0.rightVertex.rightEdge);
 		
-		vector_t v = bisectorVelocity(edge0.normal, edge1.normal, edge0.edge, edge1.edge);
+		vector_t v = bisectorVelocity(edge0.normal, edge1.normal, _normalToEdge(edge0.normal), _normalToEdge(edge1.normal));
 		double area = vCross(edge0.edge, edge1.edge).farr[2];
 		
 		if (area < 0.0)
 		{
 			PSMotorcycle* cycle = [[PSMotorcycle alloc] init];
-			cycle.sourceVertex = edge0.endVertex;
+			cycle.sourceVertex = edge0.rightVertex;
 			cycle.start = 0.0;
 			cycle.velocity = v;
 			cycle.leftEdge = edge0;
 			cycle.rightEdge = edge1;
 			
 			[motorcycles addObject: cycle];
-			[edge0.endVertex addMotorcycle: cycle];
+			[edge0.rightVertex addMotorcycle: cycle];
 		}
 	}
 	
@@ -559,11 +549,11 @@ static PSMotorcycle* _findEscapeDirection(NSArray* crashes)
 					}
 					else
 					{
+						PSSourceEdge* edge = [crashWalls anyObject];
 						vertex = [[PSSplitVertex alloc] init];
 						vertex.position = x;
-						vertices = [vertices arrayByAddingObject: vertex];
+						vertices = [vertices arrayByInsertingObject: vertex atIndex: [vertices indexOfObject: edge.leftVertex]+1];
 						
-						PSEdge* edge = [crashWalls anyObject];
 						
 						[self splitEdge: edge atVertex: (id)vertex];
 						
@@ -802,14 +792,11 @@ static void _assertSpokeUnique(PSSimpleSpoke* uspoke, NSArray* spokes)
 
 static void _generateAntiSpokes(PSVertex* vertex, NSMutableArray* spokes)
 {
-	NSArray* vedges = vertex.edges;
 	
-	assert(vedges.count == 2);
-	
-	PSSourceEdge* edge0 = vertex.prevEdge;
-	PSSourceEdge* edge1 = vertex.nextEdge;
-	assert(edge0.endVertex == vertex);
-	assert(edge1.startVertex == vertex);
+	PSSourceEdge* edge0 = vertex.leftEdge;
+	PSSourceEdge* edge1 = vertex.rightEdge;
+	assert(edge0.rightVertex == vertex);
+	assert(edge1.leftVertex == vertex);
 	
 	
 	for (PSMotorcycle* cycle in vertex.incomingMotorcycles)
@@ -892,17 +879,17 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes, NSM
 	}
 	else if ([antiVertex isKindOfClass: [PSSplitVertex class]])
 	{
-		antiEdge = antiVertex.prevEdge; // in this case, both are colinear
+		antiEdge = antiVertex.leftEdge; // in this case, both are colinear
 		assert(antiEdge);
 	}
 	else	 // else figure out which direction we'd hit
 	{
-		vector_t v = bisectorVelocity(antiVertex.prevEdge.normal, antiVertex.nextEdge.normal, antiVertex.prevEdge.edge, antiVertex.nextEdge.edge);
+		vector_t v = bisectorVelocity(antiVertex.leftEdge.normal, antiVertex.rightEdge.normal, antiVertex.leftEdge.edge, antiVertex.rightEdge.edge);
 		double area = vCross(v, vNegate(cycle.velocity)).farr[2];
 		if (area > 0.0)
-			antiEdge = antiVertex.prevEdge;
+			antiEdge = antiVertex.leftEdge;
 		else
-			antiEdge = antiVertex.nextEdge;
+			antiEdge = antiVertex.rightEdge;
 		assert(antiEdge);
 		
 	}
@@ -1382,6 +1369,34 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 	
 }
 
+- (PSSimpleSpoke*) swapMotorcycleSpoke: (PSAntiSpoke*) motorcycleSpoke
+{
+	PSSimpleSpoke* simpleSpoke = [[PSSimpleSpoke alloc] init];
+	simpleSpoke.start = motorcycleSpoke.start;
+	simpleSpoke.sourceVertex = motorcycleSpoke.sourceVertex;
+	simpleSpoke.velocity = motorcycleSpoke.velocity;
+	simpleSpoke.terminalVertex = motorcycleSpoke.terminalVertex;
+
+	simpleSpoke.leftWaveFront = motorcycleSpoke.leftWaveFront;
+	simpleSpoke.rightWaveFront = motorcycleSpoke.rightWaveFront;
+	simpleSpoke.leftWaveFront.rightSpoke = simpleSpoke;
+	simpleSpoke.rightWaveFront.leftSpoke = simpleSpoke;
+
+	[simpleSpoke.sourceVertex removeSpoke: motorcycleSpoke];
+	[simpleSpoke.sourceVertex addSpoke: simpleSpoke];
+	if (simpleSpoke.terminalVertex)
+	{
+		[simpleSpoke.terminalVertex removeSpoke: motorcycleSpoke];
+		[simpleSpoke.terminalVertex addSpoke: simpleSpoke];
+	}
+	if ([terminatedSpokes containsObject: motorcycleSpoke])
+	{
+		[terminatedSpokes removeObject: motorcycleSpoke];
+		[terminatedSpokes addObject: simpleSpoke];
+	}
+	return simpleSpoke;
+
+}
 - (PSSimpleSpoke*) swapAntiSpoke: (PSAntiSpoke*) antiSpoke 
 {
 	PSSimpleSpoke* simpleSpoke = [[PSSimpleSpoke alloc] init];
@@ -1484,15 +1499,11 @@ static void _assertWaveFrontConsistent(PSWaveFront* waveFront)
 	for (PSVertex* vertex in originalVertices)
 	{
 		@autoreleasepool {
-			
-			NSArray* vedges = vertex.edges;
-			
-			assert(vedges.count == 2);
-			
-			PSSourceEdge* edge0 = vertex.prevEdge;
-			PSSourceEdge* edge1 = vertex.nextEdge;
-			assert(edge0.endVertex == vertex);
-			assert(edge1.startVertex == vertex);
+						
+			PSSourceEdge* edge0 = vertex.leftEdge;
+			PSSourceEdge* edge1 = vertex.rightEdge;
+			assert(edge0.rightVertex == vertex);
+			assert(edge1.leftVertex == vertex);
 		
 			vector_t v = bisectorVelocity(edge0.normal, edge1.normal, edge0.edge, edge1.edge);
 			double area = vCross(edge0.edge, edge1.edge).farr[2];
@@ -1550,13 +1561,13 @@ static void _assertWaveFrontConsistent(PSWaveFront* waveFront)
 			
 			PSVertex* sourceVertex = leftSpoke.sourceVertex;
 			
-			PSSpoke* rightSpoke = [sourceVertex nextSpokeClockwiseFrom: leftSpoke.velocity to: sourceVertex.nextEdge.edge];
+			PSSpoke* rightSpoke = [sourceVertex nextSpokeClockwiseFrom: leftSpoke.velocity to: sourceVertex.rightEdge.edge];
 			
 			if (!rightSpoke)
 			{
-				PSVertex* nextVertex = sourceVertex.nextEdge.endVertex;
+				PSVertex* nextVertex = sourceVertex.rightEdge.rightVertex;
 				assert(nextVertex);
-				rightSpoke = [nextVertex nextSpokeClockwiseFrom: vNegate(sourceVertex.nextEdge.edge) to: nextVertex.nextEdge.edge];
+				rightSpoke = [nextVertex nextSpokeClockwiseFrom: vNegate(sourceVertex.rightEdge.edge) to: nextVertex.rightEdge.edge];
 				assert(rightSpoke);
 			}
 			assert(rightSpoke);
@@ -1567,7 +1578,7 @@ static void _assertWaveFrontConsistent(PSWaveFront* waveFront)
 			PSWaveFront* waveFront = [[PSWaveFront alloc] init];
 			waveFront.leftSpoke = leftSpoke;
 			waveFront.rightSpoke = rightSpoke;
-			waveFront.direction = leftSpoke.sourceVertex.nextEdge.normal;
+			waveFront.direction = leftSpoke.sourceVertex.rightEdge.normal;
 			
 			leftSpoke.rightWaveFront = waveFront;
 			rightSpoke.leftWaveFront = waveFront;
@@ -1697,11 +1708,11 @@ static void _assertWaveFrontConsistent(PSWaveFront* waveFront)
 
 		PSEvent* firstEvent = [events objectAtIndex: 0];
 		
-		assert(firstEvent.time >= lastEventTime);
-		lastEventTime = firstEvent.time;
-		
 		if (firstEvent.time > extensionLimit)
 			break;
+		
+		assert(firstEvent.time >= lastEventTime);
+		lastEventTime = firstEvent.time;
 		
 		NSMutableArray* changedWaveFronts = [NSMutableArray array];
 		
@@ -1748,6 +1759,54 @@ static void _assertWaveFrontConsistent(PSWaveFront* waveFront)
 			rightSpoke.terminalVertex = newVertex;
 			[terminatedSpokes addObject: leftSpoke];
 			[terminatedSpokes addObject: rightSpoke];
+			
+			if ([leftSpoke isKindOfClass: [PSMotorcycleSpoke class]])
+			{
+				PSMotorcycleSpoke* motorcycleSpoke = (id) leftSpoke;
+				[eventLog addObject: [NSString stringWithFormat: @"  removing motorcycle %@", motorcycleSpoke]];
+				
+				[self swapAntiSpoke: motorcycleSpoke.antiSpoke];
+				
+				for (PSCrashVertex* cv in motorcycleSpoke.motorcycle.crashVertices)
+				{
+					if (cv.forwardEvent)
+						[events removeObject: cv.forwardEvent];
+					cv.forwardEvent = nil;
+					/*
+					if (cv.reverseEvent)
+						[events removeObject: cv.reverseEvent];
+					cv.reverseEvent = nil;
+					 */
+				}
+				if (motorcycleSpoke.upcomingEvent)
+					[events removeObject: motorcycleSpoke.upcomingEvent];
+				motorcycleSpoke.upcomingEvent = nil;
+
+			}
+			if ([rightSpoke isKindOfClass: [PSMotorcycleSpoke class]])
+			{
+				PSMotorcycleSpoke* motorcycleSpoke = (id) rightSpoke;
+				[eventLog addObject: [NSString stringWithFormat: @"  removing motorcycle %@", motorcycleSpoke]];
+				
+				[self swapAntiSpoke: motorcycleSpoke.antiSpoke];
+				
+				for (PSCrashVertex* cv in motorcycleSpoke.motorcycle.crashVertices)
+				{
+					if (cv.forwardEvent)
+						[events removeObject: cv.forwardEvent];
+					cv.forwardEvent = nil;
+					/*
+					if (cv.reverseEvent)
+						[events removeObject: cv.reverseEvent];
+					cv.reverseEvent = nil;
+					 */
+				}
+
+				if (motorcycleSpoke.upcomingEvent)
+					[events removeObject: motorcycleSpoke.upcomingEvent];
+				motorcycleSpoke.upcomingEvent = nil;
+				
+			}
 			
 			if ([leftSpoke isKindOfClass: [PSAntiSpoke class]] && (vDot(rightFront.direction, ((PSAntiSpoke*)leftSpoke).velocity) > 0.0))
 			{
@@ -1927,19 +1986,6 @@ static void _assertWaveFrontConsistent(PSWaveFront* waveFront)
 				
 				[self terminateWaveFront: waveFront];
 
-				if ([leftSpoke isKindOfClass: [PSAntiSpoke class]])
-				{
-					{
-						//double asinSpoke = vCross(leftSpoke.velocity, newSpoke.velocity).farr[2];
-						assert(0); // TODO: finish anti-spoke handling
-					}
-				}
-				else if ([rightSpoke isKindOfClass: [PSAntiSpoke class]])
-				{
-					{
-						assert(0); // TODO: finish anti-spoke handling
-					}
-				}
 			}
 			else if (vCross(leftFront.direction, rightFront.direction).farr[2] < 0.0)
 			{
@@ -2130,9 +2176,9 @@ static void _assertWaveFrontConsistent(PSWaveFront* waveFront)
 		{
 #pragma mark Branch Event Handling
 			// TODO: debug branch
-			[eventLog addObject: [NSString stringWithFormat: @"%f: branchinng", firstEvent.time]];
-			// a branch simply inserts a new spoke+wavefront into the list, in the same direction as its parent
 			PSBranchEvent* event = (id) firstEvent;
+			[eventLog addObject: [NSString stringWithFormat: @"%f: branchinng %@", firstEvent.time, event.rootSpoke]];
+			// a branch simply inserts a new spoke+wavefront into the list, in the same direction as its parent
 			
 			assert(event.rootSpoke);
 			assert(event.rootSpoke.rightWaveFront);
@@ -2683,6 +2729,30 @@ static void _assertWaveFrontConsistent(PSWaveFront* waveFront)
 		
 	}	}
 	
+#pragma mark Terminate left over spokes
+	
+	for (PSWaveFront* waveFront in activeWaveFronts)
+	{
+		
+		NSArray* spokes = @[waveFront.leftSpoke, waveFront.rightSpoke];
+		
+		for (PSSpoke* spoke in spokes)
+		{
+			if (!spoke.terminalVertex)
+			{
+				PSVertex* vertex = [[PSVertex alloc] init];
+				vertex.time = lastEventTime;
+				vertex.position = [spoke positionAtTime: lastEventTime];
+				
+				spoke.terminalVertex = vertex;
+				[vertex addSpoke: spoke];
+				
+				[collapsedVertices addObject: vertex];
+				[terminatedSpokes addObject: spoke];
+			}
+		}
+	}
+	
 	vertices = [vertices arrayByAddingObjectsFromArray: collapsedVertices];
 	
 	BOOL maybe = NO;
@@ -2778,6 +2848,22 @@ static void _assertWaveFrontConsistent(PSWaveFront* waveFront)
 	{
 		vector_t a = spoke.sourceVertex.position;
 		vector_t b = spoke.terminalVertex.position;
+		[bpath moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
+		[bpath lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
+	}
+	
+	return @[ bpath ];
+}
+
+- (NSArray*) outlineDisplayPaths
+{
+	NSBezierPath* bpath = [NSBezierPath bezierPath];
+	
+	
+	for (PSEdge* edge in edges)
+	{
+		vector_t a = edge.leftVertex.position;
+		vector_t b = edge.rightVertex.position;
 		[bpath moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
 		[bpath lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
 	}

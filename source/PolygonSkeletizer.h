@@ -33,5 +33,6 @@ typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, NSBezierPa
 - (NSArray*) offsetMeshes;
 - (NSArray*) motorcycleDisplayPaths;
 - (NSArray*) spokeDisplayPaths;
+- (NSArray*) outlineDisplayPaths;
 
 @end

@@ -17,13 +17,13 @@
 
 @implementation LayerInspectorView
 {
-	NSMutableArray* outlinePaths;
+	NSArray* outlinePaths;
 	NSMutableArray* offsetPaths;
 	NSMutableArray* openPaths;
 	NSArray* motorcyclePaths;
 }
 
-@synthesize slice, indexOfSelectedOutline, motorcyclePaths, spokePaths;
+@synthesize slice, indexOfSelectedOutline, motorcyclePaths, spokePaths, outlinePaths;
 
 - (id)initWithFrame:(NSRect)frame
 {
@@ -55,11 +55,12 @@
 {
 	slice = s;
 
-	outlinePaths = [NSMutableArray array];
+	NSMutableArray* outlines = [NSMutableArray array];
 	openPaths = [NSMutableArray array];
 	offsetPaths = [NSMutableArray array];
 	motorcyclePaths = @[];
 	spokePaths = @[];
+	
 	for (SlicedOutline* path in slice.outlinePaths)
 	{
 		NSBezierPath* outline = [NSBezierPath bezierPath];
@@ -78,9 +79,11 @@
 			[outline closePath];
 		}
 		
-		[outlinePaths addObject: outline];
+		[outlines addObject: outline];
 		
 	}
+	outlinePaths = outlines;
+	
 	for (SlicedLineSegment* segment in slice.openPaths)
 	{
 		NSBezierPath* outline = [NSBezierPath bezierPath];

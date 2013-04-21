@@ -16,6 +16,7 @@
 @property(nonatomic) NSInteger indexOfSelectedOutline;
 @property(nonatomic, strong) NSArray* motorcyclePaths;
 @property(nonatomic, strong) NSArray* spokePaths;
+@property(nonatomic, strong) NSArray* outlinePaths;
 
 - (void) addOffsetOutlinePath: (NSBezierPath*) bpath;
 - (void) removeAllOffsetOutlinePaths;

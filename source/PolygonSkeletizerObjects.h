@@ -15,15 +15,12 @@
 @interface PSVertex : NSObject
 @property(nonatomic) vector_t position;
 @property(nonatomic) double time;
-@property(nonatomic, readonly) NSArray* edges;
-@property(nonatomic, readonly) PSSourceEdge* prevEdge;
-@property(nonatomic, readonly) PSSourceEdge* nextEdge;
+@property(nonatomic) PSSourceEdge* leftEdge;
+@property(nonatomic) PSSourceEdge* rightEdge;
 @property(nonatomic, readonly) NSArray* incomingMotorcycles;
 @property(nonatomic, readonly) NSArray* outgoingMotorcycles;
 @property(nonatomic, readonly) NSArray* outgoingSpokes;
 
-- (void) addEdge: (PSEdge*) edge;
-- (void) removeEdge: (PSEdge*) edge;
 - (PSSpoke*) nextSpokeClockwiseFrom: (vector_t) startDir to: (vector_t) endDir;
 
 - (void) addMotorcycle: (PSMotorcycle*) cycle;
@@ -52,12 +49,11 @@
 
 
 @interface PSEdge : NSObject
-@property(nonatomic, weak) PSVertex* startVertex, *endVertex;
+@property(nonatomic, weak) PSVertex* leftVertex, *rightVertex;
 @property(nonatomic) vector_t normal, edge;
 @end
 
 @interface PSSourceEdge : PSEdge
-@property(nonatomic, weak) PSSourceEdge *next, *prev;
 @end
 
 @interface PSSpoke : NSObject
@@ -66,6 +62,9 @@
 @property(nonatomic, weak) PSWaveFront* leftWaveFront;
 @property(nonatomic, weak) PSWaveFront* rightWaveFront;
 @property(nonatomic, readonly) BOOL convex;
+
+- (vector_t) positionAtTime: (double) t;
+
 @end
 
 @interface PSSimpleSpoke : PSSpoke

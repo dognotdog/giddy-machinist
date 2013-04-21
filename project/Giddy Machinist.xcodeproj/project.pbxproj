@@ -54,10 +54,8 @@
 		DA5FCA80171BE2B000A374C3 /* LayerInspectorWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = DA5FCA7E171BE2B000A374C3 /* LayerInspectorWindow.xib */; };
 		DA5FCA83171BE4FD00A374C3 /* GMDocumentWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = DA5FCA82171BE4FD00A374C3 /* GMDocumentWindowController.m */; };
 		DA5FCA86171BEEDA00A374C3 /* LayerInspectorView.m in Sources */ = {isa = PBXBuildFile; fileRef = DA5FCA85171BEEDA00A374C3 /* LayerInspectorView.m */; };
-		DA88D7411618DD44001CE353 /* motion_control_fixp32.c in Sources */ = {isa = PBXBuildFile; fileRef = DA88D73F1618DD44001CE353 /* motion_control_fixp32.c */; };
 		DA88D7451618E324001CE353 /* MachineSimulator.m in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7441618E324001CE353 /* MachineSimulator.m */; };
 		DA88D7481618E3E5001CE353 /* MotionPlanner.m in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7471618E3E4001CE353 /* MotionPlanner.m */; };
-		DA88D74A1618F63E001CE353 /* motion_planner_fixp32.c in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7491618F63E001CE353 /* motion_planner_fixp32.c */; };
 		DAE47E25164818F00036AACF /* PolygonExtender.m in Sources */ = {isa = PBXBuildFile; fileRef = DAE47E24164818F00036AACF /* PolygonExtender.m */; };
 /* End PBXBuildFile section */
 
@@ -480,10 +478,8 @@
 				DA50F08D15F0F8230047CEF9 /* VectorMath.m in Sources */,
 				DA50F0A315F24A870047CEF9 /* RS274Interpreter.m in Sources */,
 				DA3F68DA15F4F050002EC2C6 /* PathView2D.m in Sources */,
-				DA88D7411618DD44001CE353 /* motion_control_fixp32.c in Sources */,
 				DA88D7451618E324001CE353 /* MachineSimulator.m in Sources */,
 				DA88D7481618E3E5001CE353 /* MotionPlanner.m in Sources */,
-				DA88D74A1618F63E001CE353 /* motion_planner_fixp32.c in Sources */,
 				DA2F148C163309C2008BC99F /* ModelView3D.m in Sources */,
 				DA2E5E7516359B630047CD0A /* Slicer.m in Sources */,
 				DA239D311636C27F0035200F /* SlicedOutline.m in Sources */,

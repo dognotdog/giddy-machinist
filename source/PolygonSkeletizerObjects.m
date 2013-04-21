@@ -106,14 +106,13 @@ static double _maxBoundsDimension(NSArray* vertices)
 {
 }
 
-@synthesize edges, incomingMotorcycles, outgoingMotorcycles, outgoingSpokes;
+@synthesize leftEdge, rightEdge, incomingMotorcycles, outgoingMotorcycles, outgoingSpokes;
 
 - (id) init
 {
 	if (!(self = [super init]))
 		return nil;
 	
-	edges = [NSArray array];
 	incomingMotorcycles = [NSArray array];
 	outgoingMotorcycles = [NSArray array];
 	outgoingSpokes = [NSArray array];
@@ -121,32 +120,6 @@ static double _maxBoundsDimension(NSArray* vertices)
 	return self;
 }
 
-- (void) addEdge:(PSEdge *)edge
-{
-	edges = [edges arrayByAddingObject: edge];
-}
-
-- (void) removeEdge:(PSEdge *)edge
-{
-	edges = [edges arrayByRemovingObject: edge];
-	
-}
-
-- (PSSourceEdge*) prevEdge
-{
-	for (PSEdge* edge in edges)
-		if ([edge isKindOfClass: [PSSourceEdge class]] && (self == edge.endVertex))
-			return (PSSourceEdge*)edge;
-	return nil;
-}
-
-- (PSSourceEdge*) nextEdge
-{
-	for (PSEdge* edge in edges)
-		if ([edge isKindOfClass: [PSSourceEdge class]] && (self == edge.startVertex))
-			return (PSSourceEdge*)edge;
-	return nil;
-}
 
 
 - (void) addMotorcycle:(PSMotorcycle *)cycle
@@ -301,10 +274,20 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 @implementation	PSSpoke
 
+- (vector_t) positionAtTime: (double) t
+{
+	[self doesNotRecognizeSelector: _cmd];
+	return vZero();
+}
 
 @end
 
 @implementation PSSimpleSpoke
+
+- (vector_t) positionAtTime: (double) t
+{
+	return v3Add(self.sourceVertex.position, v3MulScalar(self.velocity, t - self.start));
+}
 
 - (void) setVelocity:(vector_t)velocity
 {
@@ -326,6 +309,11 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 
 @implementation PSFastSpoke
+
+- (vector_t) positionAtTime: (double) t
+{
+	return (self.sourceVertex.position);
+}
 
 - (NSString *)description
 {

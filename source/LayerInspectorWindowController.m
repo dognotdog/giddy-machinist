@@ -117,7 +117,12 @@
 	[layerView removeAllOffsetOutlinePaths];
 	SlicedLayer* slice = [self currentLayer];
 	
-	for (SlicedOutline* outline in slice.outlinePaths)
+	NSMutableArray* outlinePaths = [NSMutableArray array];
+	NSMutableArray* cyclePaths = [NSMutableArray array];
+	NSMutableArray* spokePaths = [NSMutableArray array];
+
+	//for (SlicedOutline* outline in slice.outlinePaths)
+	SlicedOutline* outline = [slice.outlinePaths objectAtIndex: [self.outlineSelector indexOfSelectedItem]];
 	{
 		skeletizer = [[PolygonSkeletizer alloc] init];
 		skeletizer.mergeThreshold = slice.mergeThreshold;
@@ -129,9 +134,14 @@
 		[outline addPathsToSkeletizer: skeletizer];
 		[skeletizer generateSkeleton];
 		
-		layerView.motorcyclePaths = [skeletizer motorcycleDisplayPaths];
-		layerView.spokePaths = [skeletizer spokeDisplayPaths];
+		[outlinePaths addObjectsFromArray: [skeletizer outlineDisplayPaths]];
+		[spokePaths addObjectsFromArray: [skeletizer spokeDisplayPaths]];
+		[cyclePaths addObjectsFromArray: [skeletizer motorcycleDisplayPaths]];
 	}
+	
+	layerView.motorcyclePaths = cyclePaths;
+	layerView.spokePaths = spokePaths;
+	layerView.outlinePaths = outlinePaths;
 
 }
 
