@@ -11,13 +11,14 @@
 
 @implementation PSEvent
 
-@synthesize time, location;
+@synthesize time, creationTime, location;
 
 - (id) init
 {
 	if (!(self = [super init]))
 		return nil;
 	
+	creationTime = NAN;
 	time = NAN;
 	location = vCreate(NAN, NAN, NAN, NAN);
 	

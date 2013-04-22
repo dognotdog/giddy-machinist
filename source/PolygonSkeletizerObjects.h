@@ -124,6 +124,7 @@
 
 @interface PSEvent : NSObject
 
+@property(nonatomic) double creationTime;
 @property(nonatomic) double time;
 @property(nonatomic) vector_t location;
 
