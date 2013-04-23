@@ -164,7 +164,7 @@ static double _angle2d_ccw(vector_t from, vector_t to)
 {
 	double angle = _angle2d(from, to);
 	if (angle < 0.0)
-		angle = M_PI - angle;
+		angle = 2.0*M_PI - angle;
 	return angle;
 }
 
@@ -172,7 +172,7 @@ static double _angle2d_cw(vector_t from, vector_t to)
 {
 	double angle = -_angle2d(from, to);
 	if (angle < 0.0)
-		angle = M_PI - angle;
+		angle = 2.0*M_PI - angle;
 	return angle;
 }
 
