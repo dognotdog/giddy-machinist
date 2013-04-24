@@ -60,25 +60,6 @@
    // Implement this method to handle any initialization after your window controller's window has been loaded from its nib file.
 }
 
-/*
-- (void) setupSkeletizer
-{
-	skeletizer = [[PolygonSkeletizer alloc] init];
-	SlicedLayer* slice = [self currentLayer];
-	skeletizer.mergeThreshold = slice.mergeThreshold;
-	
-	for (SlicedOutline* outline in slice.outlinePaths)
-	{
-			[outline generateSkeletonWithMergeThreshold: 0.5*mergeThreshold];
-	}
-
-	
-	[slice addPathsToSkeletizer: skeletizer];
-	
-	[skeletizer generateSkeleton];
-
-}
-*/
 - (void) layersChanged
 {
 	NSArray* layers = [self.document slicedLayers];

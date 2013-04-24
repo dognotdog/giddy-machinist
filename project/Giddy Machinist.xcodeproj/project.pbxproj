@@ -57,6 +57,7 @@
 		DA88D7451618E324001CE353 /* MachineSimulator.m in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7441618E324001CE353 /* MachineSimulator.m */; };
 		DA88D7481618E3E5001CE353 /* MotionPlanner.m in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7471618E3E4001CE353 /* MotionPlanner.m */; };
 		DAE47E25164818F00036AACF /* PolygonExtender.m in Sources */ = {isa = PBXBuildFile; fileRef = DAE47E24164818F00036AACF /* PolygonExtender.m */; };
+		DAF9B5A6172846B700B8989D /* GMAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = DAF9B5A5172846B700B8989D /* GMAppDelegate.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -169,6 +170,8 @@
 		DA88D74B1618F661001CE353 /* fixp32.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fixp32.h; sourceTree = "<group>"; };
 		DAE47E23164818F00036AACF /* PolygonExtender.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolygonExtender.h; sourceTree = "<group>"; };
 		DAE47E24164818F00036AACF /* PolygonExtender.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PolygonExtender.m; sourceTree = "<group>"; };
+		DAF9B5A4172846B700B8989D /* GMAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GMAppDelegate.h; sourceTree = "<group>"; };
+		DAF9B5A5172846B700B8989D /* GMAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GMAppDelegate.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -312,6 +315,8 @@
 				DA5FCA85171BEEDA00A374C3 /* LayerInspectorView.m */,
 				DA5FCA7C171BE2B000A374C3 /* LayerInspectorWindowController.h */,
 				DA5FCA7D171BE2B000A374C3 /* LayerInspectorWindowController.m */,
+				DAF9B5A4172846B700B8989D /* GMAppDelegate.h */,
+				DAF9B5A5172846B700B8989D /* GMAppDelegate.m */,
 			);
 			path = source;
 			sourceTree = "<group>";
@@ -489,6 +494,7 @@
 				DA5FCA7F171BE2B000A374C3 /* LayerInspectorWindowController.m in Sources */,
 				DA5FCA83171BE4FD00A374C3 /* GMDocumentWindowController.m in Sources */,
 				DA5FCA86171BEEDA00A374C3 /* LayerInspectorView.m in Sources */,
+				DAF9B5A6172846B700B8989D /* GMAppDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

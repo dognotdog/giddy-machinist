@@ -28,6 +28,26 @@
 			<key>NSDocumentClass</key>
 			<string>GMDocument</string>
 		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>stl</string>
+			</array>
+			<key>CFBundleTypeMIMETypes</key>
+			<array>
+				<string>application/sla</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>STLDocumentType</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.elmonkey.stl</string>
+			</array>
+			<key>NSDocumentClass</key>
+			<string>GMDocument</string>
+		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>${EXECUTABLE_NAME}</string>
@@ -71,6 +91,27 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>gmachina</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Stereolitography 3D data</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.elmonkey.stl</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>stl</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/sla</string>
 				</array>
 			</dict>
 		</dict>

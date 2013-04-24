@@ -24,12 +24,9 @@
 #import "FoundationExtensions.h"
 
 
-GfxMesh* LoadSTLFileAtPath(NSString* path)
+GfxMesh* LoadSTLFileFromData(NSData* data)
 {
-	NSData* data = [NSData dataWithContentsOfFile: path];
-	if (!data)
-		return nil;
-	
+
 	const size_t headerLength = 80;
 	const size_t trianglesStart = 84;
 	const size_t triangleLength = 50;
@@ -91,6 +88,15 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	mesh = [mesh meshWithoutDegenerateTriangles];
 	
 	return mesh;
+}
+
+GfxMesh* LoadSTLFileAtPath(NSString* path)
+{
+	NSData* data = [NSData dataWithContentsOfFile: path];
+	if (!data)
+		return nil;
+
+	return LoadSTLFileFromData(data);
 }
 
 @implementation GMDocument
@@ -155,6 +161,14 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	// Insert code here to read your document from the given data of the specified type. If outError != NULL, ensure that you create and set an appropriate error when returning NO.
 	// You can also choose to override -readFromFileWrapper:ofType:error: or -readFromURL:ofType:error: instead.
 	// If you override either of these, you should also override -isEntireFileLoaded to return NO if the contents are lazily loaded.
+	
+	if ([typeName isEqual: @"com.elmonkey.stl"])
+	{
+		[self loadSTLFromData: data];
+		return YES;
+	}
+	
+	
 	NSException *exception = [NSException exceptionWithName:@"UnimplementedMethod" reason:[NSString stringWithFormat:@"%@ is unimplemented", NSStringFromSelector(_cmd)] userInfo:nil];
 	@throw exception;
 	return YES;
@@ -225,11 +239,11 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	
 }
 
-- (void) loadSTLAtPath: (NSString*) path
+- (void) loadSTLFromData: (NSData*) data
 {
 	
-	GfxMesh* mesh = LoadSTLFileAtPath(path);
-
+	GfxMesh* mesh = LoadSTLFileFromData(data);
+	
 	if (!mesh)
 		[[self.mainWindowController.statusTextView.textStorage mutableString] appendString: @"oops, failed to load STL file"];
 	
@@ -252,13 +266,22 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	}];
 	
 	/*
-	NSArray* layers = [slicer sliceModel: mesh intoLayers: heights];
+	 NSArray* layers = [slicer sliceModel: mesh intoLayers: heights];
+	 
+	 
+	 for (SlicedLayer* layer in layers)
+	 [layerMesh appendMesh: [layer layerMesh]];
+	 */
 	
+}
+
+- (void) loadSTLAtPath: (NSString*) path
+{
+	NSData* data = [NSData dataWithContentsOfFile: path];
+	if (!data)
+		return;
 	
-	for (SlicedLayer* layer in layers)
-		[layerMesh appendMesh: [layer layerMesh]];
-	*/
-	
+	[self loadSTLFromData: data];
 }
 
 - (IBAction) importSTL:(id)sender
