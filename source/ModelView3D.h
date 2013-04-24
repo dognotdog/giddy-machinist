@@ -11,8 +11,8 @@
 
 @interface ModelView3D : GLBaseView
 
-@property(nonatomic, strong) NSArray* models;
-@property(nonatomic, strong) NSDictionary* layers;
+@property(strong) NSArray* models;
+@property(strong) NSDictionary* layers;
 
 - (void) generateMovePathWithMachineCommands:(NSArray *)commands;
 

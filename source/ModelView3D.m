@@ -281,11 +281,11 @@
 	[gfxState submitState];
 
 	
-	for (GfxMesh* model in models)
+	for (GfxMesh* model in self.models)
 	{
 		[model drawHierarchyWithState: gfxState];
 	}
-	for (GfxMesh* model in [layers allValues])
+	for (GfxMesh* model in [self.layers allValues])
 	{
 		[model drawHierarchyWithState: gfxState];
 	}

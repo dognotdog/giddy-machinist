@@ -78,14 +78,16 @@
 @end
 
 @interface PSMotorcycleSpoke : PSSimpleSpoke
-@property(nonatomic, weak) PSMotorcycle *motorcycle;
-@property(nonatomic, weak) PSAntiSpoke	*antiSpoke;
-@property(nonatomic, weak) PSEvent		*upcomingEvent;
+@property(nonatomic, weak) PSMotorcycle		*motorcycle;
+@property(nonatomic, weak) PSAntiSpoke		*antiSpoke;
+@property(nonatomic, weak) PSEvent			*upcomingEvent;
+@property(nonatomic, weak) PSCrashVertex	*passedCrashVertex;
 @end
 
 @interface PSAntiSpoke : PSSimpleSpoke
 @property(nonatomic, weak) PSMotorcycle			*motorcycle;
 @property(nonatomic, weak) PSMotorcycleSpoke	*motorcycleSpoke;
+@property(nonatomic, weak) PSCrashVertex		*passedCrashVertex;
 
 @end
 
