@@ -183,7 +183,7 @@
 		NSInteger k = 0;
 		for (NSBezierPath* outlinePath in outlinePaths)
 		{
-			if (k == self.indexOfSelectedOutline)
+			if (k++ == self.indexOfSelectedOutline)
 				[[[NSColor yellowColor] colorWithAlphaComponent: 1.0] set];
 			else
 				[[[NSColor yellowColor] colorWithAlphaComponent: 0.2] set];
