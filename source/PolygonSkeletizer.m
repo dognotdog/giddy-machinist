@@ -13,6 +13,10 @@
 #import "FoundationExtensions.h"
 #import "PolygonSkeletizerObjects.h"
 
+static NSComparisonResult fcompare(double a, double b)
+{
+	return ((a < b) ? NSOrderedAscending : ((a > b) ? NSOrderedDescending : NSOrderedSame));
+}
 
 
 
@@ -455,6 +459,44 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 	splitVertices = [splitVertices arrayByAddingObject: vertex];
 }
 
+static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* cycle1)
+{
+	vector_t p0 = cycle0.sourceVertex.position;
+	vector_t p1 = cycle1.sourceVertex.position;
+	vector_t x0 = cycle0.terminalVertex.position;
+	vector_t x1 = cycle1.terminalVertex.position;
+	vector_t v0 = v3Sub(x0, p0);
+	vector_t v1 = v3Sub(x1, p1);
+	
+	double angle = vAngleBetweenVectors2D(v0, vNegate(v1));
+	
+	// parallel
+	if (fabs(angle) < FLT_EPSILON)
+	{
+		
+		double anglepv0 = vAngleBetweenVectors2D(v0, v3Sub(p1,p0));
+		double anglepv1 = vAngleBetweenVectors2D(v1, v3Sub(p0,p1));
+		
+		// collinear
+		if ((fabs(anglepv0) < FLT_EPSILON) && (fabs(anglepv1) < FLT_EPSILON))
+		{
+		
+			double ll0 = vDot(v3Sub(x0, p0), v0);
+			double ll1 = vDot(v3Sub(x1, p1), v1);
+			double lx0 = vDot(v3Sub(x1, p0), v0);
+			double lx1 = vDot(v3Sub(x0, p1), v1);
+
+			BOOL x1InC0 = (lx0 > 0.0) && (lx0 < ll0);
+			BOOL x0InC1 = (lx1 > 0.0) && (lx1 < ll1);
+			
+			// overlapping
+			if (x1InC0 || x0InC1 )
+				return YES;
+		}
+	}
+	
+	return NO;
+}
 
 - (void) runMotorcycles
 {
@@ -777,6 +819,176 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 			crashes = [self crashMotorcycles: motorcycles atTime: tmin withLimit: motorLimit executedCrashes: executedCrashes];
 		}
 	}
+	
+
+#pragma mark Post-Process Motorcycles
+
+	// adjust motorcycles that were nudged to terminate in a vertex
+	for (PSMotorcycle* motorcycle in terminatedMotorcycles)
+	{
+		vector_t r0 = v3Sub(motorcycle.terminalVertex.position, motorcycle.sourceVertex.position);
+		for (PSCrashVertex* crashVertex in motorcycle.crashVertices)
+		{
+			vector_t x0 = v3Sub(crashVertex.position, motorcycle.sourceVertex.position);
+			
+			double angle = vAngleBetweenVectors2D(r0, x0);
+			
+			if (fabs(angle) > FLT_EPSILON)
+			{
+				vector_t px = v3Add(motorcycle.sourceVertex.position, vProjectAOnB(x0, r0));
+				crashVertex.position = px;
+			}
+		}
+	}
+	
+	
+	// check for opposing motorcycles ending on same vertices, and replace with a single motorcycle
+	// FIXME: motorcycles may not share any vertex...
+	
+	/*
+	 Conditions for opposition:
+		colinear traces
+		in opposite directions
+		shared segment
+	 easy conditions:
+		shared, but opposing, source and terminal vertices
+		one shared vertex, the other a crash site
+	 hard condition:
+		no shared vertices
+		both ends crash sites
+	 */
+	BOOL opposingMotorcyclesFound = YES;
+	while (opposingMotorcyclesFound)
+	{
+		opposingMotorcyclesFound = NO;
+		for (PSMotorcycle* cycle0 in [terminatedMotorcycles copy])
+		{
+			for (PSMotorcycle* cycle1 in [terminatedMotorcycles copy])
+			{
+				if ((cycle0.sourceVertex == cycle1.terminalVertex) && (cycle0.terminalVertex == cycle1.sourceVertex))
+				{
+					terminatedMotorcycles = [terminatedMotorcycles arrayByRemovingObject: cycle1];
+					
+					[cycle1.sourceVertex removeMotorcycle: cycle1];
+					[cycle1.terminalVertex removeMotorcycle: cycle1];
+					
+					NSArray* crashVertices = cycle1.crashVertices;
+					
+					for (PSCrashVertex* vertex in crashVertices)
+					{
+						[vertex removeMotorcycle: cycle1];
+						NSArray* incoming = vertex.incomingMotorcycles;
+
+						for (PSMotorcycle* crashedCycle in incoming)
+						{
+							
+							crashedCycle.terminator = cycle0;
+						}
+						[vertex addMotorcycle: cycle0];
+					}
+					
+					// merge crash vertices, and sort
+					crashVertices = [crashVertices arrayByAddingObjectsFromArray: cycle0.crashVertices];
+					
+					vector_t p0 = cycle0.sourceVertex.position;
+					vector_t v0 = cycle0.velocity;
+					
+					crashVertices = [crashVertices sortedArrayWithOptions: NSSortStable usingComparator: ^NSComparisonResult(PSCrashVertex* obj1, PSCrashVertex* obj2) {
+						double u1 = vDot(v0, v3Sub(obj1.position, p0));
+						double u2 = vDot(v0, v3Sub(obj2.position, p0));
+						
+						return fcompare(u1, u2);
+					}];
+					
+					cycle0.crashVertices = crashVertices;
+					
+					
+					opposingMotorcyclesFound = YES;
+				}
+				else if (
+						 (cycle1.terminalVertex == cycle0.sourceVertex)
+						 && (![cycle1.terminalVertex isKindOfClass: [PSCrashVertex class]])
+						 && ([cycle0.terminalVertex isKindOfClass: [PSCrashVertex class]])
+						 && _terminatedMotorcyclesOpposing(cycle1, cycle0)
+						 )
+				{
+					// do nothing, handled when cycle0/cycle1 are checked in reverse
+				}
+				else if (
+						 (cycle0.terminalVertex == cycle1.sourceVertex)
+						 && (![cycle0.terminalVertex isKindOfClass: [PSCrashVertex class]])
+						 && ([cycle1.terminalVertex isKindOfClass: [PSCrashVertex class]])
+						 && _terminatedMotorcyclesOpposing(cycle0, cycle1)
+						 )
+				{
+					// the wrong crash vertex should have an equivalent crash vertex on cycle0
+					PSCrashVertex* wrongCrashVertex = (id)cycle1.terminalVertex;
+					
+					NSLog(@"fixing asymmetric opposing motorcycles");
+					
+					assert(wrongCrashVertex.outgoingMotorcycles.count == 1);
+					
+					PSMotorcycle* outCycle = [wrongCrashVertex.outgoingMotorcycles lastObject];
+					outCycle.crashVertices = [outCycle.crashVertices arrayByRemovingObject: wrongCrashVertex];
+					
+					vertices = [vertices arrayByRemovingObject: wrongCrashVertex];
+					[traceCrashVertices removeObject: wrongCrashVertex];
+					
+					
+					terminatedMotorcycles = [terminatedMotorcycles arrayByRemovingObject: cycle1];
+					
+					[cycle1.sourceVertex removeMotorcycle: cycle1];
+					[cycle1.terminalVertex removeMotorcycle: cycle1];
+					
+					NSArray* crashVertices = cycle1.crashVertices;
+					
+					for (PSCrashVertex* vertex in crashVertices)
+					{
+						
+						
+						
+						[vertex removeMotorcycle: cycle1];
+						NSArray* incoming = vertex.incomingMotorcycles;
+						
+						for (PSMotorcycle* crashedCycle in incoming)
+						{							
+							crashedCycle.terminator = cycle0;
+						}
+						[vertex addMotorcycle: cycle0];
+					}
+					
+					// merge crash vertices, and sort
+					crashVertices = [crashVertices arrayByAddingObjectsFromArray: cycle0.crashVertices];
+					
+					vector_t p0 = cycle0.sourceVertex.position;
+					vector_t v0 = cycle0.velocity;
+					
+					crashVertices = [crashVertices sortedArrayWithOptions: NSSortStable usingComparator: ^NSComparisonResult(PSCrashVertex* obj1, PSCrashVertex* obj2) {
+						double u1 = vDot(v0, v3Sub(obj1.position, p0));
+						double u2 = vDot(v0, v3Sub(obj2.position, p0));
+						
+						if (u1 < u2)
+							return NSOrderedAscending;
+						else if (u1 > u2)
+							return NSOrderedDescending;
+						else return NSOrderedSame;
+					}];
+					
+					cycle0.crashVertices = crashVertices;
+					
+					opposingMotorcyclesFound = YES;
+				}
+				else if (_terminatedMotorcyclesOpposing(cycle0, cycle1))
+					assert(0); // FIXME: not implemented yet
+				
+				if (opposingMotorcyclesFound)
+					break;
+			}
+			if (opposingMotorcyclesFound)
+				break;
+		}
+	}
+	
 	
 	// we shouldn't have any motorcycles left at this point. But if we do, we want to see them
 	
@@ -2238,7 +2450,8 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 					{
 						PSSpoke* newSpoke = _createSpokeBetweenFronts(antiSpoke.leftWaveFront, motorcycleSpoke.rightWaveFront, newVertex,  event.time);
 						
-						assert(_angleBetweenSpokes(antiSpoke, newSpoke) > 0.0);
+						// FIXME: is it ok to remove this assert?
+						//assert(_angleBetweenSpokes(antiSpoke, newSpoke) > 0.0);
 						newSpoke.leftWaveFront = antiSpoke.leftWaveFront;
 						newSpoke.rightWaveFront = motorcycleSpoke.rightWaveFront;
 												

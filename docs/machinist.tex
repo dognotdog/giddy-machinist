@@ -125,11 +125,18 @@ Three different events may happen during motorcycle tracing:
 \item[Merge Crash] When two motorcycles reach the same point in space at the same time, they merge, and may emit one or two new motorcycles in new directions, depending on the crash geometry. This kind of crash can be ignored, and a trace crash can be used instead.
 \end{description}
 
+
+\subsubsection{Special Considerations}
+
 The times for potential crashes do not change during tracing, but new motorcycles may be generated during merges.
 
 Events are treated as simultaneous if they occur within some limit of location and time. As motorcycle events are point-like in nature, there is no danger of invalidating the graph.
 
-A special degenerate case can occur when two motorcycles are collinear, but in opposite directions. In such a case, one of the motorcycles may be discarded. This commonly occurs in CAD data with aligned holes.
+\paragraph{Collinear Motorcycles}
+
+A special degenerate case can occur when two motorcycles are collinear, but in opposite directions. In such a case, one of the motorcycles may be discarded. This commonly occurs in CAD data with aligned holes. Cases can occur when only one endpoint is shared, but the other is a trace crash site.
+
+A special difficulty occurs when a motorcycle terminates near an outline vertex, and consequently slightly changes direction as it's nudged into the vertex.
 
 
 \subsubsection{Tracing Algorithm}

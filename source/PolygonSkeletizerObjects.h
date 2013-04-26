@@ -24,6 +24,7 @@
 - (PSSpoke*) nextSpokeClockwiseFrom: (vector_t) startDir to: (vector_t) endDir;
 
 - (void) addMotorcycle: (PSMotorcycle*) cycle;
+- (void) removeMotorcycle: (PSMotorcycle*) cycle;
 - (void) addSpoke: (PSSpoke*) spoke;
 - (void) removeSpoke: (PSSpoke*) spoke;
 @end

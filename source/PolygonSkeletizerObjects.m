@@ -152,6 +152,12 @@ static double _maxBoundsDimension(NSArray* vertices)
 	outgoingSpokes = [outgoingSpokes arrayByRemovingObject: spoke];
 }
 
+- (void) removeMotorcycle: (PSMotorcycle *)cycle
+{
+	outgoingMotorcycles = [outgoingMotorcycles arrayByRemovingObject: cycle];
+	incomingMotorcycles = [incomingMotorcycles arrayByRemovingObject: cycle];
+}
+
 
 static double _angle2d(vector_t from, vector_t to)
 {
