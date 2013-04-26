@@ -97,11 +97,11 @@
 @property(nonatomic, weak) PSVertex* sourceVertex;
 @property(nonatomic, weak) PSVertex* terminalVertex;
 @property(nonatomic, weak) id terminator;
+@property(nonatomic) double terminationTime;
 @property(nonatomic) vector_t velocity;
 @property(nonatomic, weak) PSSourceEdge *leftEdge, *rightEdge;
 @property(nonatomic, weak) PSMotorcycle *leftNeighbour, *rightNeighbour;
 @property(nonatomic, weak) PSMotorcycle *leftParent, *rightParent;
-@property(nonatomic) double start;
 
 @property(nonatomic) vector_t	reverseWaveVelocity;
 @property(nonatomic) double		reverseHitTime;

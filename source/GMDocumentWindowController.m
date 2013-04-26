@@ -137,6 +137,8 @@
 	int k = 0;
 	for (SlicedOutline* outline in [self currentLayer].outlinePaths)
 		[self.outlineSelector addItemWithTitle: [NSString stringWithFormat:@"Outline #%d", k++]];
+	if ([self currentLayer].outlinePaths.count)
+		[self.outlineSelector selectItemAtIndex: 0];
 	
 	[self outlineSelected: self.outlineSelector];
 }

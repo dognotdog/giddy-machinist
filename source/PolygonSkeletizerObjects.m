@@ -77,7 +77,7 @@ static double _maxBoundsDimension(NSArray* vertices)
 
 @implementation PSMotorcycle
 
-@synthesize crashVertices;
+@synthesize crashVertices, terminationTime;
 
 - (id) init
 {
@@ -85,6 +85,7 @@ static double _maxBoundsDimension(NSArray* vertices)
 		return nil;
 	
 	crashVertices = @[];
+	terminationTime = INFINITY;
 	
 	
 	return self;
@@ -92,7 +93,7 @@ static double _maxBoundsDimension(NSArray* vertices)
 
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p @%f (%.3f, %.3f)", self, self.start, self.velocity.farr[0], self.velocity.farr[1]];
+	return [NSString stringWithFormat: @"%p (%.3f, %.3f)", self, self.velocity.farr[0], self.velocity.farr[1]];
 }
 
 @end
