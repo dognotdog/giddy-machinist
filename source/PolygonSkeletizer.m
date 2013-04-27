@@ -1217,7 +1217,6 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes, NSM
 	if (antiEdge)
 	{
 		antiSpoke.velocity = vReverseProject(antiEdge.normal, cycle.velocity);
-		cycle.reverseWaveVelocity = antiEdge.normal;
 	}
 	
 	[antiSpokes addObject: antiSpoke];
@@ -1241,6 +1240,9 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes, NSMut
 	PSAntiSpoke* antiSpoke = cycleSpoke.antiSpoke;
 	
 	if (vLength(antiSpoke.velocity) == 0)
+		return nil;
+	
+	if (cycleSpoke.motorcycle.terminatedWithoutSplit)
 		return nil;
 	
 	double ts0 = cycleSpoke.start;
@@ -2233,6 +2235,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 						 
 						 
 						 */
+						motorcycle.terminatedWithoutSplit = YES;
 
 						[eventLog addObject: [NSString stringWithFormat: @"  steamrolled motorcycle %@", motorSpoke]];
 						[eventLog addObject: [NSString stringWithFormat: @"    leftFront %@", leftFront]];
@@ -2426,6 +2429,11 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 			
 			// FIXME: still some splits occur that shouldn't
 			// example: z-carriage 10.5mm @2.964930
+			
+			assert(!motorcycleSpoke.motorcycle.terminatedWithoutSplit);
+			assert(!motorcycleSpoke.motorcycle.terminatedWithSplit);
+			
+			motorcycleSpoke.motorcycle.terminatedWithSplit = YES;
 						
 			if (!motorcycleSpoke.leftWaveFront || !motorcycleSpoke.rightWaveFront)
 			{

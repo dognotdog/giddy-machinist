@@ -104,11 +104,10 @@
 @property(nonatomic, weak) PSMotorcycle *leftNeighbour, *rightNeighbour;
 @property(nonatomic, weak) PSMotorcycle *leftParent, *rightParent;
 
-@property(nonatomic) vector_t	reverseWaveVelocity;
-@property(nonatomic) double		reverseHitTime;
-
 @property(nonatomic, weak) PSAntiSpoke* antiSpoke;
 @property(nonatomic, weak) PSMotorcycleSpoke* spoke;
+@property(nonatomic) BOOL terminatedWithoutSplit;
+@property(nonatomic) BOOL terminatedWithSplit;
 
 
 @end
