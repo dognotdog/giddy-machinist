@@ -468,17 +468,30 @@ static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* c
 	vector_t v0 = v3Sub(x0, p0);
 	vector_t v1 = v3Sub(x1, p1);
 	
+	double anglev = vAngleBetweenVectors2D(cycle0.velocity, vNegate(cycle1.velocity));
+
+	
+	
+//	double asin = vCross(v0, vNegate(v1)).farr[2]/(vLength(v0)*vLength(v1));
+	
 	double angle = vAngleBetweenVectors2D(v0, vNegate(v1));
 	
 	// parallel
-	if (fabs(angle) < FLT_EPSILON)
+	if ((fabs(angle) < FLT_EPSILON) || ((fabs(anglev) < FLT_EPSILON)))
 	{
 		
-		double anglepv0 = vAngleBetweenVectors2D(v0, v3Sub(p1,p0));
-		double anglepv1 = vAngleBetweenVectors2D(v1, v3Sub(p0,p1));
+		if ((cycle0.sourceVertex == cycle1.terminalVertex) || (cycle0.terminalVertex == cycle1.sourceVertex))
+		{
+			return YES;
+		}
 		
+		double anglep0 = vAngleBetweenVectors2D(v0, v3Sub(p1,p0));
+		double anglep1 = vAngleBetweenVectors2D(v1, v3Sub(p0,p1));
+		double anglepv0 = vAngleBetweenVectors2D(cycle0.velocity, v3Sub(p1,p0));
+		double anglepv1 = vAngleBetweenVectors2D(cycle1.velocity, v3Sub(p0,p1));
+
 		// collinear
-		if ((fabs(anglepv0) < FLT_EPSILON) && (fabs(anglepv1) < FLT_EPSILON))
+		if (((fabs(anglep0) < FLT_EPSILON) && (fabs(anglep1) < FLT_EPSILON)) || ((fabs(anglepv0) < FLT_EPSILON) && (fabs(anglepv1) < FLT_EPSILON)))
 		{
 		
 			double ll0 = vDot(v3Sub(x0, p0), v0);
@@ -865,6 +878,11 @@ static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* c
 		{
 			for (PSMotorcycle* cycle1 in [terminatedMotorcycles copy])
 			{
+				BOOL sharedEnd = cycle0.terminalVertex == cycle1.sourceVertex;
+				
+				if (sharedEnd)
+					sharedEnd = sharedEnd;
+				
 				if ((cycle0.sourceVertex == cycle1.terminalVertex) && (cycle0.terminalVertex == cycle1.sourceVertex))
 				{
 					terminatedMotorcycles = [terminatedMotorcycles arrayByRemovingObject: cycle1];
@@ -1069,7 +1087,9 @@ static BOOL _spokesSameDir(PSSimpleSpoke* spoke0, PSSimpleSpoke* spoke1)
 	if (vLength(v1) == 0.0)
 		return NO;
 	
-	return (fabs(atan2(vCross(v0, v1).farr[2], vDot(v0, v1))) <= FLT_EPSILON);
+	double angle = atan2(vCross(v0, v1).farr[2], vDot(v0, v1));
+	
+	return (fabs(angle) < FLT_EPSILON);
 	
 }
 
@@ -1301,9 +1321,6 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes, NSMut
 
 - (PSCollapseEvent*) computeCollapseEvent: (PSWaveFront*) waveFront
 {
-	// FIXME: should we have split AND collapse?
-//	if (!waveFront.leftSpoke.convex && !waveFront.rightSpoke.convex) // non-convex means it's going to split, basically
-//		return nil;
 
 	if ([waveFront.leftSpoke isKindOfClass: [PSSimpleSpoke class]] && [waveFront.rightSpoke isKindOfClass: [PSSimpleSpoke class]])
 		return [self computeSimpleCollapseEvent: waveFront];
@@ -1552,20 +1569,32 @@ static NSBezierPath* _bezierPathFromOffsetSegments(vector_t* vertices, size_t nu
 	return _bezierPathFromOffsetSegments(vs, count);
 }
 
+static BOOL _directionsAreAntiParallel(vector_t a, vector_t b)
+{
+	double lrdot = vDot(a, b);
+	double lrcross = vCross(a, b).farr[2];
+	
+	return ((fabs(lrdot + 1.0) < FLT_EPSILON) && (fabs(lrcross) < FLT_EPSILON));
+	//return fabs(atan2(l-rcross, lrdot)) < FLT_EPSILON;
+	
+}
+
+static BOOL _vectorsAreAntiParallel(vector_t a, vector_t b)
+{
+	return _directionsAreAntiParallel(vSetLength(a, 1.0), vSetLength(b, 1.0));
+	
+}
+
+
 static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* rightFront)
 {
-	double lrdot = vDot(leftFront.direction, rightFront.direction);
-	double lrcross = vCross(leftFront.direction, rightFront.direction).farr[2];
-	
-	return ((fabs(lrdot + 1.0) < FLT_EPSILON) && (fabs(lrcross) < FLT_EPSILON)); // test for anti-parallel faces
+	return _directionsAreAntiParallel(leftFront.direction, rightFront.direction);
 
 }
 
 - (void) terminateWaveFront: (PSWaveFront*) waveFront
 {
 	[terminatedWaveFronts addObject: waveFront];
-//	[terminatedSpokes addObject: waveFront.leftSpoke];
-//	[terminatedSpokes addObject: waveFront.rightSpoke];
 }
 
 - (PSEvent*) nextEventForMotorcycle: (PSMotorcycle*) motorcycle atTime: (double) theTime
@@ -1771,6 +1800,7 @@ static PSSpoke* _createSpokeBetweenFronts(PSWaveFront* leftFront, PSWaveFront* r
 		newSpoke.sourceVertex = vertex;
 		newSpoke.start = time;
 		newSpoke.direction = newDirection;
+		[vertex addSpoke: newSpoke];
 		
 		return newSpoke;
 	}
@@ -2170,14 +2200,68 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 					 is too narrow and does not work for the same purpose.
 					 */
 					
+					PSSimpleSpoke* motorSpoke = (id)(leftCycle ? leftSpoke : rightSpoke);
+					PSMotorcycle* motorcycle = [(id)motorSpoke motorcycle];
+					
+					// make a "steamrolled" test
+					//BOOL steamRolled = (vDot(motorSpoke.velocity, leftFront.direction) <= 0.0)
+					//				|| (vDot(motorSpoke.velocity, rightFront.direction) <= 0.0);
+					
+					
 					BOOL motorContinues = NO;
+					
+					BOOL antiParallel =
+						_vectorsAreAntiParallel(motorSpoke.velocity, _normalToEdge(leftFront.direction))
+					|| _vectorsAreAntiParallel(motorSpoke.velocity, _normalToEdge(rightFront.direction))
+					|| _vectorsAreAntiParallel(motorSpoke.velocity, vNegate(_normalToEdge(leftFront.direction)))
+					|| _vectorsAreAntiParallel(motorSpoke.velocity, vNegate(_normalToEdge(rightFront.direction)));
+					
+
+					
 					
 					if (leftCycle && (vDot(rightFront.direction, ((PSMotorcycleSpoke*)leftSpoke).velocity) > 0.0))
 						motorContinues = YES;
 					else if (rightCycle && (vDot(leftFront.direction, ((PSMotorcycleSpoke*)rightSpoke).velocity) > 0.0))
 						motorContinues = YES;
 
-					if (motorContinues)
+					if (antiParallel)
+					{
+						//assert(0); //FIXME: implement degenerate case
+						/*
+						 
+						 in this case a more or less exactly perpendicular wavefront steamrolls the motorcycle from the side. the motorcycle will never split, so the motorcycle spokes can be stopped.
+						 
+						 
+						 */
+
+						[eventLog addObject: [NSString stringWithFormat: @"  steamrolled motorcycle %@", motorSpoke]];
+						[eventLog addObject: [NSString stringWithFormat: @"    leftFront %@", leftFront]];
+						[eventLog addObject: [NSString stringWithFormat: @"    rightFront %@", rightFront]];
+						
+						
+						motorSpoke.terminalVertex = newVertex;
+						[newVertex addSpoke: motorSpoke];
+						
+						PSSpoke* newSpoke = _createSpokeBetweenFronts(leftFront, rightFront, newVertex, event.time);
+						assert(newSpoke.sourceVertex);
+						[eventLog addObject: [NSString stringWithFormat: @"  new spoke to %@", newSpoke]];
+						
+						newSpoke.leftWaveFront = leftFront;
+						newSpoke.rightWaveFront = rightFront;
+						leftFront.rightSpoke = newSpoke;
+						rightFront.leftSpoke = newSpoke;
+						
+						[changedWaveFronts addObject: leftFront];
+						[changedWaveFronts addObject: rightFront];
+						
+						
+						
+						PSMotorcycleSpoke* motorcycleSpoke = motorcycle.spoke;
+						if (motorcycleSpoke.upcomingEvent)
+							[events removeObject: motorcycleSpoke.upcomingEvent];
+						
+					}
+					else if (motorContinues)
 					{
 						PSSimpleSpoke* motorSpoke = (id)(leftCycle ? leftSpoke : rightSpoke);
 						PSMotorcycle* motorcycle = [(id)motorSpoke motorcycle];
@@ -2253,7 +2337,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 					{
 						[eventLog addObject: [NSString stringWithFormat: @"  dead collapse, not continuing"]];
 						
-						
+						// FIXME: seems like we should look more carefully here, in case of a "backwards" steamroll
 						/*
 						leftFront.rightSpoke = newSpoke;
 						rightFront.leftSpoke = newSpoke;
@@ -2339,6 +2423,9 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 			PSSplitEvent* event = (id)firstEvent;
 			PSAntiSpoke* antiSpoke = event.antiSpoke;
 			PSMotorcycleSpoke* motorcycleSpoke = antiSpoke.motorcycleSpoke;
+			
+			// FIXME: still some splits occur that shouldn't
+			// example: z-carriage 10.5mm @2.964930
 						
 			if (!motorcycleSpoke.leftWaveFront || !motorcycleSpoke.rightWaveFront)
 			{
