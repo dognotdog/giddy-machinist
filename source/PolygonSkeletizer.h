@@ -23,6 +23,8 @@ typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, NSBezierPa
 
 @property(nonatomic) double extensionLimit;
 @property(nonatomic) double mergeThreshold;
+@property(nonatomic,strong) NSArray* emissionTimes;
+
 @property(nonatomic,strong) SkeletizerEventCallback eventCallback;
 @property(nonatomic,strong) SkeletizerEmitCallback emitCallback;
 

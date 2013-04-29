@@ -14,6 +14,8 @@
 \usepackage[numbers]{natbib} % use author/date bibliographic citations
 \usepackage{subfigure}
 \usepackage{url}
+%\usepackage{babelbib}
+\usepackage{booktabs}
 
 \usepackage{amsmath,amssymb}  % Better maths support & more symbols
 \usepackage{bm}  % Define \bm{} to use bold math fonts
@@ -309,17 +311,95 @@ It seems, at this point, that degenerate cases can be handled gracefully, and lo
 
 \section{FDM Features}
 
+\subsection {Perimeters and Infill}
+
+Typically, it is desired to trace the perimeters of a layer, with one or more traces, and fill the inner volume with a regular pattern, such as alternating straight lines, or a honeycomb.
+
+The outer trace is inset half the extrusion width from the outline, and every further trace a full extrusion width. After the innermost perimeter trace, the patterned area is also inset a full line width.
+
+\subsubsection{Thin Walls}
+
+A thin wall is a section of geometry which is too narrow for a deposited loop of material. It can occur as an original feature of the outline, or as the result of polygon insetting, and the question is how to identify these areas.
+
+It may be possible to look at the history of the wavefront tracing, to peek into the future at any given inset, and determine if a given polygon segment will border a thin wall or not.
+
+By keeping track of the wavefront associated with an emitted line segment, it can be determined if the wavefront terminates before the full trace width is reached. In such a case, the area may be infilled with a pattern, or the skeleton can be traced with a single extrusion. The extrusion width may even be varied, according to the timing of the straight skeleton.
+
+\subsection{Sparse Infill, Top and Bottom Layers}
+
+It may be desired to not fully fill the volume, in which case a sparse infill is used, which has traces wider apart than the extrusion width.
+
+However, it is usually desired to fully fill some number of the top and bottom layers. To find out which areas of the layer are top and bottom, respectively, the infill area is compared to the top and bottom layers with a boolean intersection. 
+
+\subsection {Deposition Model}
+
+Printing occurs at a feed rate $v$.
+
+\subsubsection {Nozzle Parameters}
+
+The nozzle is assumed to have a certain diameter $d_N$. From the nozzle, the filament extrudes with a free extrusion diameter $d_F$. The free extrusion diameter depends on other parameters, such as extrusion speed. It is slightly bigger than $d_N$. A default of $$d_F = d_N + \unit{0.08}{\milli\meter}$$ seems to work ok\footnote{Based on Josef Prusa's reprap calculator values.}.
+
+The behavior of $d_F$ should be investigated further, do determine how temperature, extrusion rate, etc., affect it.
+
+From $d_F$ the free extrusion area $$A_F = \frac{1}{4}\pi d_F$$ can be computed.
+
+The extruder flow rate $Q_E = A_E \cdot v_E$, where $v_E$ is the extruder speed, and $A_E$ is the filament cross sectional area, given by $A_E = \frac{1}{4}\pi d_E$. As flow is constant, $Q_E = Q_F$, therefore $Q_F = Q_E$, and $$v_F = A_E / A_F \cdot v_E.$$
+
+\subsubsection {Layer height}
+
+Layer height $h_L$ can be between $20\% - 80\%$ of nozzle diameter\footnote{by anecdotal reference}.
+
+\subsubsection {Layer Width}
+
+The nominal layer width $w_L$ should be at least twice $h_L$. The suggested approach is that the flow rate should be matched to the feed rate, as \em slic3r \em does. This means that $w_L \cdot h_L = A_F$, therefore $$w_L = \frac{A_F}{h_L}.$$
+
+Layer width should not be excessively large, or it may overflow the nozzle left and right.
+
+Using this formula for a 0.35 mm nozzle with 0.2 mm layer height generates a wide layer of 0.72 mm, instead of the more usual 0.5 – 0.6 mm computed by other slicers.
+
+\subsection{Overhangs}
+
+What affects curling on overhangs? arc radius? speed? layer height? cooling? surface tension?
+
+Maybe lowering the print nozzle during overhang prints can counter the curling.
+
 \subsection{Start/End Overlap on Perimeters}
 
 \subsection{Infill generation}
 
-\subsection{Thin Wall Tracking}
+\subsection{Thermal Properties of PLA}
 
-A thin wall is a section of geometry which is too narrow for a deposited loop of material. It can occur as a result of polygon insetting, too, and the question is how to identify these areas.
+Table \ref{table:plaheat} contains the specific heat values for PLA. A glass transition temperature of $\unit{57}{\celsius}$ is indicated. This corresponds with a king in the specific heat graph.
 
-It may be possible to look at the history of the wavefront tracing, to peek into the future at any given inset, and determine if a given polygon segment will border a thin wall or not.
+
+\begin{table}[htdp]
+\caption{Specific heat of PLA, from \cite{mfr}.}
+\begin{center}
+\begin{tabular}{cc}
+\toprule Temperature & Specific Heat ($C_p$)\\
+$\celsius$ & $\dfrac{\joule}{\kilo\gram \cdot \kelvin}$ \\
+\midrule 52 & 1483 \\
+55 & 1590 \\
+58 & 1725 \\
+60 & 1804 \\
+62 & 1851 \\
+65 & 1880 \\
+70 & 1901 \\
+100 & 1955 \\
+140 & 1994 \\
+160 & 2020 \\
+190 & 2060 \\
+230 & 2114 \\
+\bottomrule 
+\end{tabular}
+\end{center}
+\label{table:plaheat}
+\end{table}%
+
+Based on flow rate and specific heat capacity, the amount of heat energy required to melt the filament can be computed, and it can be used for 
 
 %\printnomenclature
+\nocite{*}
 
 \bibliographystyle{ieeetr}
 \bibliography{machinist}

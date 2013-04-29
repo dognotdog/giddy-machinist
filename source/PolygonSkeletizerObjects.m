@@ -358,6 +358,32 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 
 @implementation PSWaveFront
+
+@synthesize retiredLeftSpokes, retiredRightSpokes, leftSpoke, rightSpoke;
+
+- (void) setLeftSpoke:(PSSpoke *)spoke
+{
+	if (!retiredLeftSpokes)
+		retiredLeftSpokes = @[];
+	
+	if (leftSpoke)
+		retiredLeftSpokes = [retiredLeftSpokes arrayByAddingObject: leftSpoke];
+	
+	leftSpoke = spoke;
+}
+
+- (void) setRightSpoke:(PSSpoke *)spoke
+{
+	if (!retiredRightSpokes)
+		retiredRightSpokes = @[];
+	
+	if (rightSpoke)
+		retiredRightSpokes = [retiredRightSpokes arrayByAddingObject: rightSpoke];
+	
+	rightSpoke = spoke;
+}
+
+
 - (NSString *)description
 {
 	return [NSString stringWithFormat: @"%p (%@): (%f, %f)", self, [self class], self.direction.farr[0], self.direction.farr[1]];

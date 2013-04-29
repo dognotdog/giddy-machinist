@@ -9,7 +9,6 @@
 #import "GMDocument.h"
 
 #import "GMDocumentWindowController.h"
-#import "LayerInspectorWindowController.h"
 
 #import "RS274Parser.h"
 #import "RS274Interpreter.h"
@@ -321,11 +320,5 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 	
 }
 
-- (IBAction) showLayerInspector:(id)sender
-{
-	LayerInspectorWindowController* inspector = [LayerInspectorWindowController sharedInspector];
-	[self addWindowController: inspector];
-	[[LayerInspectorWindowController sharedInspector] showWindow: sender];
-}
 
 @end

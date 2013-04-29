@@ -9,7 +9,6 @@
 #import "GMDocumentWindowController.h"
 
 #import "GMDocument.h"
-#import "LayerInspectorWindowController.h"
 #import "PathView2D.h"
 #import "ModelView3D.h"
 #import "Slicer.h"
@@ -17,8 +16,10 @@
 #import "Slicer.h"
 #import "SlicedOutline.h"
 #import "PolygonSkeletizer.h"
+#import "GM3DPrinterDescription.h"
 
 #import "FoundationExtensions.h"
+
 
 @interface GMDocumentWindowController ()
 
@@ -46,8 +47,7 @@
 
 - (void) windowDidBecomeMain: (NSNotification*) notification
 {
-	LayerInspectorWindowController* inspector = [LayerInspectorWindowController sharedInspector];
-	[self.document addWindowController: inspector];
+
 }
 
 - (void) layerDidLoad: (SlicedLayer*) layer
@@ -99,12 +99,25 @@
 	NSMutableArray* cyclePaths = [NSMutableArray array];
 	NSMutableArray* spokePaths = [NSMutableArray array];
 	
+	GM3DPrintSettings* settings = [GM3DPrintSettings defaultPrintSettings];
+	
+	NSMutableArray* emissionTimes = [NSMutableArray arrayWithCapacity: settings.numPerimeters];
+	double extrusionWidth = [settings extrusionWidthForExtruder: 0];
+	
+	double offset = 0.5*extrusionWidth;
+	for (int i = 0; i < settings.numPerimeters; ++i)
+	{
+		double emit = offset + i*extrusionWidth;
+		[emissionTimes addObject: [NSNumber numberWithDouble: emit*1000.0]]; // scale m -> mm
+	}
+	
 	//for (SlicedOutline* outline in slice.outlinePaths)
 	SlicedOutline* outline = [slice.outlinePaths objectAtIndex: [self.outlineSelector indexOfSelectedItem]];
 	{
 		PolygonSkeletizer* skeletizer = [[PolygonSkeletizer alloc] init];
 		skeletizer.mergeThreshold = slice.mergeThreshold;
 		skeletizer.extensionLimit = [self.extensionLimitField doubleValue];
+		skeletizer.emissionTimes = emissionTimes;
 		skeletizer.emitCallback = ^(PolygonSkeletizer* skel, NSBezierPath* bpath)
 		{
 			SuppressSelfCaptureWarning([layerView addOffsetOutlinePath: bpath]);

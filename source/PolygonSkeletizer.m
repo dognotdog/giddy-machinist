@@ -12,6 +12,7 @@
 #import "VectorMath.h"
 #import "FoundationExtensions.h"
 #import "PolygonSkeletizerObjects.h"
+#import "PSWaveFrontSnapshot.h"
 
 static NSComparisonResult fcompare(double a, double b)
 {
@@ -36,14 +37,13 @@ static NSComparisonResult fcompare(double a, double b)
 	NSMutableArray* terminatedWaveFronts;
 	
 	NSMutableArray* outlineMeshes;
-	NSArray* emissionTimes;
 	
 	NSMutableDictionary* motorcycleEdgeCrashes;
 	NSMutableDictionary* motorcycleMotorcycleCrashes;
 	
 }
 
-@synthesize extensionLimit, mergeThreshold, eventCallback, emitCallback;
+@synthesize extensionLimit, mergeThreshold, eventCallback, emitCallback, emissionTimes;
 
 - (id) init
 {
@@ -559,7 +559,7 @@ static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* c
 	
 	if (motorcycles.count)
 	{
-		NSLog(@"some motorcycles!");
+		//NSLog(@"some motorcycles!");
 	}
 	
 	// next up: figure out collisions
@@ -942,7 +942,7 @@ static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* c
 					// the wrong crash vertex should have an equivalent crash vertex on cycle0
 					PSCrashVertex* wrongCrashVertex = (id)cycle1.terminalVertex;
 					
-					NSLog(@"fixing asymmetric opposing motorcycles");
+					//NSLog(@"fixing asymmetric opposing motorcycles");
 					
 					assert(wrongCrashVertex.outgoingMotorcycles.count == 1);
 					
@@ -1405,9 +1405,44 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes, NSMut
 	}
 }
 
+- (PSWaveFrontSnapshot*) emitSnapshot: (NSArray*) waveFronts atTime: (double) time
+{
+	NSMutableSet* remainingWaveFronts = [NSMutableSet setWithArray: waveFronts];
+	
+	PSWaveFrontSnapshot* snapshot = [[PSWaveFrontSnapshot alloc] init];
+	snapshot.time = time;
+	
+	NSMutableArray* loops = [NSMutableArray array];
+	
+	while (remainingWaveFronts.count)
+	{		
+		PSWaveFront* refFront = [remainingWaveFronts anyObject];
+		[remainingWaveFronts removeObject: refFront];
+
+		NSMutableArray* loop = [NSMutableArray arrayWithObject: refFront];
+
+		PSWaveFront* otherFront = refFront.rightSpoke.rightWaveFront;
+		while (otherFront && (otherFront != refFront))
+		{
+			[loop addObject: otherFront];
+			[remainingWaveFronts removeObject: otherFront];
+			
+			otherFront = otherFront.rightSpoke.rightWaveFront;
+		}
+		
+		[loops addObject: loop];
+	}
+	
+	snapshot.loops = loops;
+	
+	return snapshot;
+}
+
 - (void) emitOffsetOutlineForWaveFronts: (NSArray*) waveFronts atTime: (double) time
 {
 	// FIXME: emit not just visual outline, but proper outline path
+	
+	PSWaveFrontSnapshot* snapshot = [self emitSnapshot: waveFronts atTime: time];
 	
 	size_t numVertices = waveFronts.count*2;
 	
@@ -1506,7 +1541,7 @@ static void _generateCycleSpokes(PSVertex* vertex, NSMutableArray* spokes, NSMut
 	
 	if (emitCallback)
 	{
-		NSBezierPath* path = [self bezierPathFromOffsetSegments: vs count: numVertices];
+		NSBezierPath* path = [snapshot waveFrontPath];
 		emitCallback(self, path);
 	}
 	
@@ -1594,8 +1629,9 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 
 }
 
-- (void) terminateWaveFront: (PSWaveFront*) waveFront
+- (void) terminateWaveFront: (PSWaveFront*) waveFront atTime: (double) time
 {
+	waveFront.terminationTime = time;
 	[terminatedWaveFronts addObject: waveFront];
 }
 
@@ -1744,10 +1780,12 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 	simpleSpoke.rightWaveFront.leftSpoke = simpleSpoke;
 	
 	[simpleSpoke.sourceVertex removeSpoke: motorcycleSpoke];
+	motorcycleSpoke.sourceVertex = nil;
 	[simpleSpoke.sourceVertex addSpoke: simpleSpoke];
 	if (simpleSpoke.terminalVertex)
 	{
 		[simpleSpoke.terminalVertex removeSpoke: motorcycleSpoke];
+		motorcycleSpoke.terminalVertex = nil;
 		[simpleSpoke.terminalVertex addSpoke: simpleSpoke];
 	}
 	if ([terminatedSpokes containsObject: motorcycleSpoke])
@@ -2104,7 +2142,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 			
 			[activeWaveFronts removeObject: waveFront];
 			[changedWaveFronts addObject: waveFront];
-			[self terminateWaveFront: waveFront];
+			[self terminateWaveFront: waveFront atTime: event.time];
 
 			if (leftSpoke.terminalVertex && rightSpoke.terminalVertex)
 			{
@@ -2428,8 +2466,10 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 			PSMotorcycleSpoke* motorcycleSpoke = antiSpoke.motorcycleSpoke;
 			
 			// FIXME: still some splits occur that shouldn't
-			// example: z-carriage 10.5mm @2.964930
+			// z-carriage 10.5mm @2.964930
 			
+			assert(motorcycleSpoke);
+			assert(motorcycleSpoke.motorcycle);
 			assert(!motorcycleSpoke.motorcycle.terminatedWithoutSplit);
 			assert(!motorcycleSpoke.motorcycle.terminatedWithSplit);
 			
@@ -2530,13 +2570,13 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 						
 						if ([activeWaveFronts containsObject: rightWaveFront])
 						{
-							[self terminateWaveFront: rightWaveFront];
+							[self terminateWaveFront: rightWaveFront atTime: event.time];
 							[activeWaveFronts removeObject: rightWaveFront];
 							[changedWaveFronts addObject: rightWaveFront];
 						}
 						if ([activeWaveFronts containsObject: leftWaveFront])
 						{
-							[self terminateWaveFront: leftWaveFront];
+							[self terminateWaveFront: leftWaveFront atTime: event.time];
 							[activeWaveFronts removeObject: leftWaveFront];
 							[changedWaveFronts addObject: leftWaveFront];
 						}
@@ -2582,13 +2622,13 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 						
 						if ([activeWaveFronts containsObject: rightWaveFront])
 						{
-							[self terminateWaveFront: rightWaveFront];
+							[self terminateWaveFront: rightWaveFront atTime: event.time];
 							[activeWaveFronts removeObject: rightWaveFront];
 							[changedWaveFronts addObject: rightWaveFront];
 						}
 						if ([activeWaveFronts containsObject: leftWaveFront])
 						{
-							[self terminateWaveFront: leftWaveFront];
+							[self terminateWaveFront: leftWaveFront atTime: event.time];
 							[activeWaveFronts removeObject: leftWaveFront];
 							[changedWaveFronts addObject: leftWaveFront];
 						}

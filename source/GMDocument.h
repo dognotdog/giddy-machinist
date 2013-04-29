@@ -8,13 +8,15 @@
 
 #import <Cocoa/Cocoa.h>
 
-@class GMDocumentWindowController;
+@class GMDocumentWindowController,GM3DPrintSettings;
 
 @interface GMDocument : NSDocument
 
 @property(nonatomic, strong) GMDocumentWindowController*  mainWindowController;
 
 @property(nonatomic, strong, readonly) NSArray* slicedLayers;
+
+@property(nonatomic, strong) GM3DPrintSettings* printSettings;
 
 - (IBAction) importGCode: (id) sender;
 

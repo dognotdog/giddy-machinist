@@ -7,8 +7,7 @@
 //
 
 #import "LayerInspectorView.h"
-
-#import "LayerInspectorWindowController.h"
+#import "GMDocumentWindowController.h"
 
 #import "Slicer.h"
 #import "SlicedOutline.h"

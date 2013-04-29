@@ -10,6 +10,9 @@
 
 #import "VectorMath.h"
 
+// FIXME: for debugging purposes, remove all weak references and put strong ones in place
+//#define weak strong
+
 @class PSEdge, PSSourceEdge, PSSpoke, PSAntiSpoke, PSMotorcycle, PSWaveFront, PSCollapseEvent, PSSplitEvent, PSMergeEvent, PSReverseMergeEvent, PSReverseBranchEvent, PSEvent, PSBranchEvent;
 
 @interface PSVertex : NSObject
@@ -104,8 +107,8 @@
 @property(nonatomic, weak) PSMotorcycle *leftNeighbour, *rightNeighbour;
 @property(nonatomic, weak) PSMotorcycle *leftParent, *rightParent;
 
-@property(nonatomic, weak) PSAntiSpoke* antiSpoke;
-@property(nonatomic, weak) PSMotorcycleSpoke* spoke;
+@property(nonatomic) PSAntiSpoke* antiSpoke;
+@property(nonatomic) PSMotorcycleSpoke* spoke;
 @property(nonatomic) BOOL terminatedWithoutSplit;
 @property(nonatomic) BOOL terminatedWithSplit;
 
@@ -120,6 +123,12 @@
 @property(nonatomic, strong) PSSpoke* rightSpoke;
 @property(nonatomic, weak) PSCollapseEvent* collapseEvent;
 @property(nonatomic) vector_t direction;
+
+@property(nonatomic) double startTime, terminationTime;
+@property(nonatomic, weak) PSWaveFront* successor;
+
+@property(nonatomic, strong) NSArray* retiredLeftSpokes;
+@property(nonatomic, strong) NSArray* retiredRightSpokes;
 
 @end
 

@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DA1FA0F1172D63B6001AD46A /* GM3DPrinterDescription.m in Sources */ = {isa = PBXBuildFile; fileRef = DA1FA0F0172D63B6001AD46A /* GM3DPrinterDescription.m */; };
+		DA1FA0F4172DCD18001AD46A /* PSWaveFrontSnapshot.m in Sources */ = {isa = PBXBuildFile; fileRef = DA1FA0F3172DCD17001AD46A /* PSWaveFrontSnapshot.m */; };
 		DA239D2D163615040035200F /* flat.fs in Resources */ = {isa = PBXBuildFile; fileRef = DA239D2A163614F80035200F /* flat.fs */; };
 		DA239D2E163615050035200F /* flat.vs in Resources */ = {isa = PBXBuildFile; fileRef = DA239D2B163614F80035200F /* flat.vs */; };
 		DA239D311636C27F0035200F /* SlicedOutline.m in Sources */ = {isa = PBXBuildFile; fileRef = DA239D301636C27F0035200F /* SlicedOutline.m */; };
@@ -50,7 +52,6 @@
 		DA50F09B15F223610047CEF9 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA50F09A15F223610047CEF9 /* IOKit.framework */; };
 		DA50F0A315F24A870047CEF9 /* RS274Interpreter.m in Sources */ = {isa = PBXBuildFile; fileRef = DA50F0A215F24A870047CEF9 /* RS274Interpreter.m */; };
 		DA58E5681637031100AA4F8C /* PolygonSkeletizer.m in Sources */ = {isa = PBXBuildFile; fileRef = DA58E5671637031100AA4F8C /* PolygonSkeletizer.m */; };
-		DA5FCA7F171BE2B000A374C3 /* LayerInspectorWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = DA5FCA7D171BE2B000A374C3 /* LayerInspectorWindowController.m */; };
 		DA5FCA80171BE2B000A374C3 /* LayerInspectorWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = DA5FCA7E171BE2B000A374C3 /* LayerInspectorWindow.xib */; };
 		DA5FCA83171BE4FD00A374C3 /* GMDocumentWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = DA5FCA82171BE4FD00A374C3 /* GMDocumentWindowController.m */; };
 		DA5FCA86171BEEDA00A374C3 /* LayerInspectorView.m in Sources */ = {isa = PBXBuildFile; fileRef = DA5FCA85171BEEDA00A374C3 /* LayerInspectorView.m */; };
@@ -72,6 +73,10 @@
 /* End PBXBuildRule section */
 
 /* Begin PBXFileReference section */
+		DA1FA0EF172D63B5001AD46A /* GM3DPrinterDescription.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GM3DPrinterDescription.h; sourceTree = "<group>"; };
+		DA1FA0F0172D63B6001AD46A /* GM3DPrinterDescription.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GM3DPrinterDescription.m; sourceTree = "<group>"; };
+		DA1FA0F2172DCD17001AD46A /* PSWaveFrontSnapshot.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PSWaveFrontSnapshot.h; sourceTree = "<group>"; };
+		DA1FA0F3172DCD17001AD46A /* PSWaveFrontSnapshot.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PSWaveFrontSnapshot.m; sourceTree = "<group>"; };
 		DA23560016222F2700F3DC24 /* motion_planner_fixp32.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = motion_planner_fixp32.h; sourceTree = "<group>"; };
 		DA239D2A163614F80035200F /* flat.fs */ = {isa = PBXFileReference; explicitFileType = sourcecode.glsl; path = flat.fs; sourceTree = "<group>"; };
 		DA239D2B163614F80035200F /* flat.vs */ = {isa = PBXFileReference; explicitFileType = sourcecode.glsl; path = flat.vs; sourceTree = "<group>"; };
@@ -153,8 +158,6 @@
 		DA50F0A215F24A870047CEF9 /* RS274Interpreter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RS274Interpreter.m; sourceTree = "<group>"; };
 		DA58E5661637031100AA4F8C /* PolygonSkeletizer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolygonSkeletizer.h; sourceTree = "<group>"; };
 		DA58E5671637031100AA4F8C /* PolygonSkeletizer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PolygonSkeletizer.m; sourceTree = "<group>"; };
-		DA5FCA7C171BE2B000A374C3 /* LayerInspectorWindowController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LayerInspectorWindowController.h; sourceTree = "<group>"; };
-		DA5FCA7D171BE2B000A374C3 /* LayerInspectorWindowController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LayerInspectorWindowController.m; sourceTree = "<group>"; };
 		DA5FCA7E171BE2B000A374C3 /* LayerInspectorWindow.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; name = LayerInspectorWindow.xib; path = en.lproj/LayerInspectorWindow.xib; sourceTree = "<group>"; };
 		DA5FCA81171BE4FD00A374C3 /* GMDocumentWindowController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GMDocumentWindowController.h; sourceTree = "<group>"; };
 		DA5FCA82171BE4FD00A374C3 /* GMDocumentWindowController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GMDocumentWindowController.m; sourceTree = "<group>"; };
@@ -313,10 +316,12 @@
 				DA292B031705D29C00942D12 /* PolygonSkeletizerObjects.m */,
 				DA5FCA84171BEEDA00A374C3 /* LayerInspectorView.h */,
 				DA5FCA85171BEEDA00A374C3 /* LayerInspectorView.m */,
-				DA5FCA7C171BE2B000A374C3 /* LayerInspectorWindowController.h */,
-				DA5FCA7D171BE2B000A374C3 /* LayerInspectorWindowController.m */,
 				DAF9B5A4172846B700B8989D /* GMAppDelegate.h */,
 				DAF9B5A5172846B700B8989D /* GMAppDelegate.m */,
+				DA1FA0EF172D63B5001AD46A /* GM3DPrinterDescription.h */,
+				DA1FA0F0172D63B6001AD46A /* GM3DPrinterDescription.m */,
+				DA1FA0F2172DCD17001AD46A /* PSWaveFrontSnapshot.h */,
+				DA1FA0F3172DCD17001AD46A /* PSWaveFrontSnapshot.m */,
 			);
 			path = source;
 			sourceTree = "<group>";
@@ -491,10 +496,11 @@
 				DA58E5681637031100AA4F8C /* PolygonSkeletizer.m in Sources */,
 				DAE47E25164818F00036AACF /* PolygonExtender.m in Sources */,
 				DA292B041705D29C00942D12 /* PolygonSkeletizerObjects.m in Sources */,
-				DA5FCA7F171BE2B000A374C3 /* LayerInspectorWindowController.m in Sources */,
 				DA5FCA83171BE4FD00A374C3 /* GMDocumentWindowController.m in Sources */,
 				DA5FCA86171BEEDA00A374C3 /* LayerInspectorView.m in Sources */,
 				DAF9B5A6172846B700B8989D /* GMAppDelegate.m in Sources */,
+				DA1FA0F1172D63B6001AD46A /* GM3DPrinterDescription.m in Sources */,
+				DA1FA0F4172DCD18001AD46A /* PSWaveFrontSnapshot.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
