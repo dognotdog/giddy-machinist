@@ -75,6 +75,58 @@
 	return bpath;
 }
 
+- (NSBezierPath*) thinWallAreaLessThanWidth: (double) width
+{
+	NSBezierPath* bpath = [NSBezierPath bezierPath];
+	
+	for (NSArray* loop in loops)
+	{
+		NSMutableArray* thinWaveFronts = [NSMutableArray array];
+		
+		for (PSWaveFrontSegment* segment in loop)
+		{
+			if (segment.waveFront.terminationTime < self.time+width)
+			{
+				[thinWaveFronts addObject: segment];
+			}
+		}
+		
+		for (PSWaveFrontSegment* segment in thinWaveFronts)
+		{
+			NSMutableArray* vertices = [NSMutableArray arrayWithObject: segment.rightVertex];
+			
+			for (PSSpoke* spoke in segment.waveFront.retiredRightSpokes)
+			{
+				assert(spoke.terminationTime < INFINITY);
+				if (spoke.terminationTime > segment.time)
+					[vertices addObject: spoke.terminalVertex];
+			}
+			for (PSSpoke* spoke in [segment.waveFront.retiredLeftSpokes reverseObjectEnumerator])
+			{
+				
+				if (spoke.start > segment.time)
+					[vertices addObject: spoke.sourceVertex];
+			}
+			[vertices addObject: segment.leftVertex];
+			
+			for (size_t i = 0; i < vertices.count; ++i)
+			{
+				vector_t pos = [(PSVertex*)[vertices objectAtIndex: i] position];
+				if (i == 0)
+					[bpath moveToPoint: CGPointMake(pos.farr[0], pos.farr[1])];
+				else
+					[bpath lineToPoint: CGPointMake(pos.farr[0], pos.farr[1])];
+
+			}
+			
+			[bpath closePath];
+		}		
+
+	}
+	
+	return bpath;
+}
+
 @end
 
 

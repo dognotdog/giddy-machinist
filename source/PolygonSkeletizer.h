@@ -12,11 +12,11 @@
 
 
 
-@class GfxMesh, PolygonSkeletizer;
+@class GfxMesh, PolygonSkeletizer, PSWaveFrontSnapshot;
 
 
 typedef void (^SkeletizerEventCallback)(PolygonSkeletizer* skeletizer, id event);
-typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, NSBezierPath* path);
+typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, PSWaveFrontSnapshot* snapshot);
 
 
 @interface PolygonSkeletizer : NSObject

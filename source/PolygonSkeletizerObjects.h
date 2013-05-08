@@ -62,10 +62,12 @@
 
 @interface PSSpoke : NSObject
 @property(nonatomic, weak) PSVertex *sourceVertex, *terminalVertex;
-@property(nonatomic) double start;
+@property(nonatomic) double start, terminationTime;
 @property(nonatomic, weak) PSWaveFront* leftWaveFront;
 @property(nonatomic, weak) PSWaveFront* rightWaveFront;
 @property(nonatomic, readonly) BOOL convex;
+@property(nonatomic, strong, readonly) NSMutableArray* retiredWaveFronts;
+
 
 - (vector_t) positionAtTime: (double) t;
 
@@ -129,6 +131,8 @@
 
 @property(nonatomic, strong) NSArray* retiredLeftSpokes;
 @property(nonatomic, strong) NSArray* retiredRightSpokes;
+
+- (void) swapSpoke: (PSSpoke*) oldSpoke forSpoke: (PSSpoke*) newSpoke;
 
 @end
 

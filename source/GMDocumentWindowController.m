@@ -17,6 +17,7 @@
 #import "SlicedOutline.h"
 #import "PolygonSkeletizer.h"
 #import "GM3DPrinterDescription.h"
+#import "PSWaveFrontSnapshot.h"
 
 #import "FoundationExtensions.h"
 
@@ -98,16 +99,18 @@
 	NSMutableArray* outlinePaths = [NSMutableArray array];
 	NSMutableArray* cyclePaths = [NSMutableArray array];
 	NSMutableArray* spokePaths = [NSMutableArray array];
+	NSMutableArray* snapshots = [NSMutableArray array];
+	NSMutableArray* thinWallPaths = [NSMutableArray array];
 	
 	GM3DPrintSettings* settings = [GM3DPrintSettings defaultPrintSettings];
 	
 	NSMutableArray* emissionTimes = [NSMutableArray arrayWithCapacity: settings.numPerimeters];
-	double extrusionWidth = [settings extrusionWidthForExtruder: 0];
+	double extrusionWidth_m = [settings extrusionWidthForExtruder: 0];
 	
-	double offset = 0.5*extrusionWidth;
+	double offset_m = 0.5*extrusionWidth_m;
 	for (int i = 0; i < settings.numPerimeters; ++i)
 	{
-		double emit = offset + i*extrusionWidth;
+		double emit = offset_m + i*extrusionWidth_m;
 		[emissionTimes addObject: [NSNumber numberWithDouble: emit*1000.0]]; // scale m -> mm
 	}
 	
@@ -118,8 +121,10 @@
 		skeletizer.mergeThreshold = slice.mergeThreshold;
 		skeletizer.extensionLimit = [self.extensionLimitField doubleValue];
 		skeletizer.emissionTimes = emissionTimes;
-		skeletizer.emitCallback = ^(PolygonSkeletizer* skel, NSBezierPath* bpath)
+		skeletizer.emitCallback = ^(PolygonSkeletizer* skeletizer, PSWaveFrontSnapshot* snapshot)
 		{
+			[snapshots addObject: snapshot];
+			id bpath = [snapshot waveFrontPath];
 			SuppressSelfCaptureWarning([layerView addOffsetOutlinePath: bpath]);
 		};
 		[outline addPathsToSkeletizer: skeletizer];
@@ -128,11 +133,20 @@
 		[outlinePaths addObjectsFromArray: [skeletizer outlineDisplayPaths]];
 		[spokePaths addObjectsFromArray: [skeletizer spokeDisplayPaths]];
 		[cyclePaths addObjectsFromArray: [skeletizer motorcycleDisplayPaths]];
+		
+		for (PSWaveFrontSnapshot* snapshot in snapshots)
+		{
+			[thinWallPaths addObject: [snapshot thinWallAreaLessThanWidth: 0.5*extrusionWidth_m*1e3]];
+		}
+		
 	}
+	
+	
 	
 	layerView.motorcyclePaths = cyclePaths;
 	layerView.spokePaths = spokePaths;
 	layerView.outlinePaths = outlinePaths;
+	layerView.thinWallPaths	= thinWallPaths;
 	
 }
 

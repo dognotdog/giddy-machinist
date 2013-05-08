@@ -18,11 +18,12 @@
  */
 @interface PSWaveFrontSnapshot : NSObject
 
-@property(nonatomic) double time;
-
-@property(nonatomic, strong) NSArray* loops;
+@property(nonatomic)			double		time;
+@property(nonatomic, strong)	NSArray*	loops;
 
 @property(nonatomic, readonly) NSBezierPath* waveFrontPath;
+
+- (NSBezierPath*) thinWallAreaLessThanWidth: (double) width;
 
 @end
 

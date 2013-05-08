@@ -22,7 +22,7 @@
 	NSArray* motorcyclePaths;
 }
 
-@synthesize slice, indexOfSelectedOutline, motorcyclePaths, spokePaths, outlinePaths;
+@synthesize slice, indexOfSelectedOutline, motorcyclePaths, spokePaths, outlinePaths, thinWallPaths;
 
 - (id)initWithFrame:(NSRect)frame
 {
@@ -59,6 +59,7 @@
 	offsetPaths = [NSMutableArray array];
 	motorcyclePaths = @[];
 	spokePaths = @[];
+	thinWallPaths = @[];
 	
 	for (SlicedOutline* path in slice.outlinePaths)
 	{
@@ -174,6 +175,7 @@
 	BOOL displayMotorcycles = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 1];
 	BOOL displaySpokes = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 2];
 	BOOL displayWavefronts = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 3];
+	BOOL displayThinWalls = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 4];
 
 	[transform concat];
 	
@@ -221,6 +223,15 @@
 			[[[NSColor grayColor] colorWithAlphaComponent: 1.0] set];
 			
 			[path setLineWidth: 1.0/scale];
+			[path stroke];
+		}
+	if (displayThinWalls)
+		for (NSBezierPath* path in thinWallPaths)
+		{
+			[[[NSColor greenColor] colorWithAlphaComponent: 0.8] set];
+			
+			[path setLineWidth: 1.0/scale];
+			[path fill];
 			[path stroke];
 		}
 	

@@ -282,6 +282,21 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 @implementation	PSSpoke
 
+@synthesize retiredWaveFronts, terminationTime, start;
+
+- (id) init
+{
+	if (!(self = [super init]))
+		return nil;
+	
+	terminationTime = INFINITY;
+	start = INFINITY;
+	
+	retiredWaveFronts = [[NSMutableArray alloc] init];
+	
+	return self;
+}
+
 - (vector_t) positionAtTime: (double) t
 {
 	[self doesNotRecognizeSelector: _cmd];
@@ -359,26 +374,96 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 @implementation PSWaveFront
 
-@synthesize retiredLeftSpokes, retiredRightSpokes, leftSpoke, rightSpoke;
+@synthesize retiredLeftSpokes, retiredRightSpokes, leftSpoke, rightSpoke, terminationTime;
+
+- (id) init
+{
+	if (!(self = [super init]))
+		return nil;
+	
+	terminationTime = INFINITY;
+	
+	return self;
+}
+
+- (void) swapSpoke: (PSSpoke*) oldSpoke forSpoke: (PSSpoke*) newSpoke
+{
+	if (leftSpoke == oldSpoke)
+		leftSpoke = newSpoke;
+	if (rightSpoke == oldSpoke)
+		rightSpoke = newSpoke;
+	
+	assert(oldSpoke.sourceVertex == newSpoke.sourceVertex);
+	assert(oldSpoke.terminalVertex == newSpoke.terminalVertex);
+	assert(oldSpoke.start == newSpoke.start);
+	assert(oldSpoke.terminationTime == newSpoke.terminationTime);
+	
+	if ([retiredLeftSpokes containsObject: oldSpoke])
+	{
+		assert(![retiredLeftSpokes containsObject: newSpoke]);
+		NSMutableArray* ary = [retiredLeftSpokes mutableCopy];
+		[ary replaceObjectAtIndex: [ary indexOfObject: oldSpoke] withObject: newSpoke];
+		retiredLeftSpokes = ary;
+	}
+	if ([retiredRightSpokes containsObject: oldSpoke])
+	{
+		assert(![retiredRightSpokes containsObject: newSpoke]);
+		NSMutableArray* ary = [retiredRightSpokes mutableCopy];
+		[ary replaceObjectAtIndex: [ary indexOfObject: oldSpoke] withObject: newSpoke];
+		retiredRightSpokes = ary;
+	}
+}
 
 - (void) setLeftSpoke:(PSSpoke *)spoke
 {
+	if (spoke == leftSpoke)
+		return;
+	
 	if (!retiredLeftSpokes)
 		retiredLeftSpokes = @[];
 	
-	if (leftSpoke)
-		retiredLeftSpokes = [retiredLeftSpokes arrayByAddingObject: leftSpoke];
+	if (spoke)
+	{
+		assert(![retiredLeftSpokes containsObject: spoke]);
+		assert(spoke.terminationTime >= spoke.start);
+	}
 	
+	if (leftSpoke && spoke)
+	{
+		assert(leftSpoke.terminalVertex == spoke.sourceVertex);
+		assert(leftSpoke.terminationTime <= spoke.start);
+		assert(leftSpoke.terminationTime != INFINITY);
+		assert(spoke.start != INFINITY);
+	}
+	
+	if (retiredLeftSpokes.count && leftSpoke)
+	{
+		assert([[retiredLeftSpokes lastObject] terminalVertex] == leftSpoke.sourceVertex);
+	}
+	
+	if (leftSpoke)
+	{
+		assert(![retiredLeftSpokes containsObject: spoke]);
+		assert(leftSpoke.terminalVertex == spoke.sourceVertex);
+		retiredLeftSpokes = [retiredLeftSpokes arrayByAddingObject: leftSpoke];
+		[leftSpoke.retiredWaveFronts addObject: self];
+	}
 	leftSpoke = spoke;
 }
 
 - (void) setRightSpoke:(PSSpoke *)spoke
 {
+	if (spoke == rightSpoke)
+		return;
+	
 	if (!retiredRightSpokes)
 		retiredRightSpokes = @[];
 	
 	if (rightSpoke)
+	{
 		retiredRightSpokes = [retiredRightSpokes arrayByAddingObject: rightSpoke];
+		[rightSpoke.retiredWaveFronts addObject: self];
+	}
 	
 	rightSpoke = spoke;
 }

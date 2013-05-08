@@ -17,6 +17,7 @@
 @property(nonatomic, strong) NSArray* motorcyclePaths;
 @property(nonatomic, strong) NSArray* spokePaths;
 @property(nonatomic, strong) NSArray* outlinePaths;
+@property(nonatomic, strong) NSArray* thinWallPaths;
 @property(nonatomic) CGPoint cursor;
 
 - (void) addOffsetOutlinePath: (NSBezierPath*) bpath;
