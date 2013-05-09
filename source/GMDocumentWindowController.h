@@ -24,6 +24,7 @@
 @property(nonatomic,strong) IBOutlet NSSegmentedControl* displayOptionsControl;
 @property(nonatomic,strong) IBOutlet NSTextField* extensionLimitField;
 
+
 - (IBAction) layerSelected: (id) sender;
 - (IBAction) outlineSelected: (id) sender;
 - (IBAction) displayOptionsChanged: (id) sender;

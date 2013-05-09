@@ -339,6 +339,19 @@
 
 }
 
+- (void) flagsChanged: (NSEvent *) theEvent;
+{
+	NSUInteger flags = [theEvent modifierFlags];
+	
+	if (flags & NSShiftKeyMask)
+		[self.modelViewScrollModeControl selectSegmentWithTag: 1];
+	else if (flags & NSControlKeyMask)
+		[self.modelViewScrollModeControl selectSegmentWithTag: 2];
+	else
+		[self.modelViewScrollModeControl selectSegmentWithTag: 0];
+
+}
+
 - (void) scrollWheel:(NSEvent *) event
 {
 	NSUInteger flags = [event modifierFlags];

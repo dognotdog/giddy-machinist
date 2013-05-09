@@ -14,6 +14,8 @@
 @property(strong) NSArray* models;
 @property(strong) NSDictionary* layers;
 
+@property(nonatomic,strong) IBOutlet NSSegmentedControl* modelViewScrollModeControl;
+
 - (void) generateMovePathWithMachineCommands:(NSArray *)commands;
 
 @end

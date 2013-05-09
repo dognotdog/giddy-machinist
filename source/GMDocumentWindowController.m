@@ -119,8 +119,15 @@
 	{
 		PolygonSkeletizer* skeletizer = [[PolygonSkeletizer alloc] init];
 		skeletizer.mergeThreshold = slice.mergeThreshold;
-		skeletizer.extensionLimit = [self.extensionLimitField doubleValue];
-		skeletizer.emissionTimes = emissionTimes;
+		NSString* extensionString = [self.extensionLimitField stringValue];
+		if (!extensionString.length)
+			skeletizer.emissionTimes = emissionTimes;
+		else
+		{
+			double limit = [self.extensionLimitField doubleValue];
+			skeletizer.extensionLimit = limit;
+		}
+
 		skeletizer.emitCallback = ^(PolygonSkeletizer* skeletizer, PSWaveFrontSnapshot* snapshot)
 		{
 			[snapshots addObject: snapshot];
