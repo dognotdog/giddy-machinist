@@ -8,6 +8,20 @@ Any of the stages so far often crashes or produces incorrect output.
 
 For some layer outline, generate properly offset perimeters and infill, while detecting thin segments and filling them properly.
 
+# The Plan
+
+## Phase One
+
+Generate naive sliced paths without crashing all the time, with perimeters and infill.
+
+## Phase Two
+
+Generate G-Code that runs on common reprap firmware, such as Marlin, and connect to 3d printer via USB as a host program.
+
+## Phase Three
+
+Create custom firmware for Arduino Due or other 32bit ARM platform, bypassing G-Code.
+
 # Dependencies
 
 Requires stuff from http://github.com/dognotdog/mac-common/
