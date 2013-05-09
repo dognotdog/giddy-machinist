@@ -43,7 +43,7 @@ GfxMesh* LoadSTLFileFromData(NSData* data)
 	
 	for (size_t i = 0; i < numTris; ++i)
 	{
-		size_t vertexOffset = trianglesStart+triangleLength*i + 12;
+		size_t vertexOffset = trianglesStart+triangleLength*i;
 		float n[3];
 		memcpy(n, buf+vertexOffset, 12);
 		for (size_t j = 0; j < 3; ++j)
@@ -55,7 +55,7 @@ GfxMesh* LoadSTLFileFromData(NSData* data)
 		for (size_t j = 0; j < 3; ++j)
 		{
 			float x[3];
-			memcpy(x, buf+vertexOffset+j*12, 12);
+			memcpy(x, buf+vertexOffset+12+j*12, 12);
 			vertices[3*i+j] = vCreatePos(x[0], x[1], x[2]);
 		}
 		uint16_t color = CFSwapInt16LittleToHost(*(uint16_t*)(buf+vertexOffset+4*12));

@@ -1985,7 +1985,8 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 	
 	NSMutableArray* events = [NSMutableArray array];
 	
-	for (NSNumber* timeval in [emissionTimes arrayByAddingObject: [NSNumber numberWithDouble: extensionLimit]])
+//	for (NSNumber* timeval in [emissionTimes arrayByAddingObject: [NSNumber numberWithDouble: extensionLimit]])
+	for (NSNumber* timeval in emissionTimes)
 	{
 		PSEmitEvent* event = [[PSEmitEvent alloc] init];
 		event.time = [timeval doubleValue];
@@ -2230,6 +2231,9 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 						motorContinues = YES;
 					else if (rightCycle && (vDot(leftFront.direction, ((PSMotorcycleSpoke*)rightSpoke).velocity) > 0.0))
 						motorContinues = YES;
+					
+					// if terminatedWithoutSplit is set, should not continue.
+					motorContinues = motorContinues && !motorcycle.terminatedWithoutSplit;
 
 					if (antiParallel)
 					{
@@ -2677,12 +2681,19 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 				{
 					/* check to make sure that motorcycle would ever exit the face. if it propagates opposite to the wavefront, its already obsolete
 					 */
-					 double dotAlpha = vDot(rightFront.direction, motorcycle.velocity);
-					 
-					 if (dotAlpha >= 0.0)
-						 continue;
-
+					double dotAlpha = vDot(rightFront.direction, motorcycle.velocity);
 					
+					//FIXME: motorcycle spoke should be terminated
+					if (dotAlpha >= 0.0)
+					{
+						motorcycle.terminatedWithoutSplit = YES;
+						PSMotorcycleSpoke* cycleSpoke = motorcycle.spoke;
+						cycleSpoke.terminationTime = event.time;
+						cycleSpoke.terminalVertex = event.branchVertex;
+						[terminatedSpokes addObject: cycleSpoke];
+						continue;
+					}
+
 					newFront.direction = rightFront.direction;
 					newSpoke.leftWaveFront = newFront;
 					newSpoke.rightWaveFront = rightFront;
@@ -2695,6 +2706,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 					rootMotorcycleSpoke.rightWaveFront = newFront;
 					
 					[changedWaveFronts addObject: rightFront];
+
 					
 				}
 				else // to the left
@@ -2702,8 +2714,14 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 					double dotAlpha = vDot(leftFront.direction, motorcycle.velocity);
 					
 					if (dotAlpha >= 0.0)
+					{
+						motorcycle.terminatedWithoutSplit = YES;
+						PSMotorcycleSpoke* cycleSpoke = motorcycle.spoke;
+						cycleSpoke.terminationTime = event.time;
+						cycleSpoke.terminalVertex = event.branchVertex;
+						[terminatedSpokes addObject: cycleSpoke];
 						continue;
-
+					}
 					
 					newFront.direction = leftFront.direction;
 					newSpoke.leftWaveFront = leftFront;
@@ -2776,7 +2794,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 			[vertex addSpoke: reverseAntiSpoke];
 			
 
-			[eventLog addObject: [NSString stringWithFormat: @"  root %@", reverseSpoke]];
+			[eventLog addObject: [NSString stringWithFormat: @"  root %@", reverseAntiSpoke]];
 			[eventLog addObject: [NSString stringWithFormat: @"  vertex %@", vertex]];
 			
 			reverseAntiSpoke.passedCrashVertex = vertex;
@@ -2791,11 +2809,12 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 			NSArray* incomingMotorcycles = [vertex incomingMotorcyclesCCW];
 			
 			// dump those cycles that are going the wrong way
+			// cycle goes the wrong way if: 
 			incomingMotorcycles = [incomingMotorcycles select: ^BOOL(PSMotorcycle* motorcycle) {
-				double asinAlpha = vCross(reverseSpoke.velocity, motorcycle.velocity).farr[2];
+				double asinAlpha = vCross(reverseSpoke.velocity, vNegate(motorcycle.velocity)).farr[2];
 				if (asinAlpha > 0.0)
 				{
-					double dotAlpha = vDot(rightFront.direction, motorcycle.velocity);
+					double dotAlpha = vDot(leftFront.direction, motorcycle.velocity);
 					if (dotAlpha > 0.0)
 						return NO;
 				}
@@ -2829,42 +2848,52 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 
 				}
 				
-				for (int i = 0; i+1 < incomingMotorcycles.count; ++i)
+				if (incomingMotorcycles.count == 1)
 				{
-					PSAntiSpoke* rightSpoke = [[incomingMotorcycles objectAtIndex: i] antiSpoke];
-					PSAntiSpoke* leftSpoke = [[incomingMotorcycles objectAtIndex: i+1] antiSpoke];
-					PSWaveFront* newFront = [[PSWaveFront alloc] init];
-					
-					newFront.leftSpoke = leftSpoke;
-					newFront.rightSpoke = rightSpoke;
-					leftSpoke.rightWaveFront = newFront;
-					rightSpoke.leftWaveFront = newFront;
-					
-					if (i == 0)
+					reverseAntiSpoke.leftWaveFront = leftFront;
+					reverseAntiSpoke.rightWaveFront = rightFront;
+					leftFront.rightSpoke = reverseAntiSpoke;
+					rightFront.leftSpoke = reverseAntiSpoke;
+				}
+				else
+				{
+					for (int i = 0; i+1 < incomingMotorcycles.count; ++i)
 					{
-						rightSpoke.rightWaveFront = rightFront;
-						rightFront.leftSpoke = rightSpoke;
-					}
-					if (i+1 == incomingMotorcycles.count-1)
-					{
-						leftSpoke.leftWaveFront = leftFront;
-						leftFront.rightSpoke = leftSpoke;
-					}
-					
-					
-						double angle = vAngleBetweenVectors2D(reverseSpoke.velocity, leftSpoke.velocity);
-						if (leftSpoke == reverseAntiSpoke)
-							newFront.direction = rightFront.direction;
-						else if (angle > 0.0)
-							newFront.direction = leftFront.direction;
-						else
-							newFront.direction = rightFront.direction;
+						PSAntiSpoke* rightSpoke = [[incomingMotorcycles objectAtIndex: i] antiSpoke];
+						PSAntiSpoke* leftSpoke = [[incomingMotorcycles objectAtIndex: i+1] antiSpoke];
+						PSWaveFront* newFront = [[PSWaveFront alloc] init];
 						
-					_assertWaveFrontConsistent(newFront);
-					[changedWaveFronts addObject: newFront];
-					[activeWaveFronts addObject: newFront];
-					
+						newFront.leftSpoke = leftSpoke;
+						newFront.rightSpoke = rightSpoke;
+						leftSpoke.rightWaveFront = newFront;
+						rightSpoke.leftWaveFront = newFront;
+						
+						if (i == 0)
+						{
+							rightSpoke.rightWaveFront = rightFront;
+							rightFront.leftSpoke = rightSpoke;
+						}
+						if (i+1 == incomingMotorcycles.count-1)
+						{
+							leftSpoke.leftWaveFront = leftFront;
+							leftFront.rightSpoke = leftSpoke;
+						}
+						
+						
+							double angle = vAngleBetweenVectors2D(reverseSpoke.velocity, leftSpoke.velocity);
+							if (leftSpoke == reverseAntiSpoke)
+								newFront.direction = rightFront.direction;
+							else if (angle > 0.0)
+								newFront.direction = leftFront.direction;
+							else
+								newFront.direction = rightFront.direction;
+							
+						_assertWaveFrontConsistent(newFront);
+						[changedWaveFronts addObject: newFront];
+						[activeWaveFronts addObject: newFront];
+						
 
+					}
 				}
 				
 				for (PSMotorcycle* motorcycle in incomingMotorcycles)
@@ -2961,6 +2990,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 - (PSReverseBranchEvent*) computeReverseBranchEventForMotorcycle: (PSMotorcycle*) motorcycle vertex: (PSCrashVertex*) crashVertex;
 {
 	PSAntiSpoke* antiSpoke = motorcycle.antiSpoke;
+	assert([antiSpoke isKindOfClass: [PSAntiSpoke class]]);
 	
 	assert (vLength(antiSpoke.velocity) != 0.0);
 	

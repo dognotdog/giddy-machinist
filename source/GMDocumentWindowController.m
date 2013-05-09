@@ -126,6 +126,18 @@
 		{
 			double limit = [self.extensionLimitField doubleValue];
 			skeletizer.extensionLimit = limit;
+			extrusionWidth_m = 0.001;
+			
+			NSMutableArray* times = [NSMutableArray array];
+
+			for (int i = 1; i < limit; ++i)
+			{
+				NSNumber* num = [NSNumber numberWithDouble: i];
+				[times addObject: num];
+			}
+			[times addObject: [NSNumber numberWithDouble: limit]];
+			skeletizer.emissionTimes = times;
+			
 		}
 
 		skeletizer.emitCallback = ^(PolygonSkeletizer* skeletizer, PSWaveFrontSnapshot* snapshot)
