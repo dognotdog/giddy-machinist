@@ -1566,12 +1566,6 @@ static BOOL _waveFrontsAreAntiParallel(PSWaveFront* leftFront, PSWaveFront* righ
 {
 	waveFront.terminationTime = time;
 	
-	//FIXME: setting no nil good? for crashing doublet spoke error
-	// not setting this at all, here
-	//waveFront.leftSpoke = nil;
-	//waveFront.rightSpoke = nil;
-	//waveFront.retiredLeftSpokes = [waveFront.retiredLeftSpokes arrayByAddingObject: waveFront.leftSpoke];
-	//waveFront.retiredRightSpokes = [waveFront.retiredRightSpokes arrayByAddingObject: waveFront.rightSpoke];
 	[terminatedWaveFronts addObject: waveFront];
 }
 
@@ -2048,7 +2042,8 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 		assert(firstEvent.time >= lastEventTime);
 		lastEventTime = firstEvent.time;
 		
-		NSMutableSet* changedWaveFronts = [NSMutableSet set];
+		// an array, not a set, to keep the relative ordering of "changes", eg first change should also result in first event if event times are equal.
+		NSMutableArray* changedWaveFronts = [NSMutableArray array];
 		
 		if ([firstEvent isKindOfClass: [PSCollapseEvent class]])
 		{
@@ -2615,8 +2610,8 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 						
 						[eventLog addObject: [NSString stringWithFormat: @"  new spoke to the right %@", newSpoke]];
 						
-					//FIXME: maybe assert not cool here? z-car @10.5mm 3.357668s
-					//FIXME: hit on heisenbug issue #1
+						//FIXME: zcar @10.5mm 3.357668s when reversed order on changedWaveFronts
+						//FIXME: zcar @10.5mm 2.500000s
 						assert(_angleBetweenSpokes(antiSpoke, newSpoke) < 0.0);
 					}
 				}
@@ -2650,8 +2645,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 			rootMotorcycleSpoke.start = event.time;
 			[event.branchVertex addSpoke: rootMotorcycleSpoke];
 
-			// FIXME: wavefronts of rootMotoSpoke need to be reconnected after swap
-
+			// FIXME: zcar 11.5mm @ 2.500000s
 			assert(event.branchVertex.incomingMotorcycles.count < 3);
 			for (PSMotorcycle* motorcycle in event.branchVertex.incomingMotorcycles)
 			{
@@ -2971,14 +2965,20 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 		{
 			if (waveFront.collapseEvent)
 				[invalidEvents addObject: waveFront.collapseEvent];
+			waveFront.collapseEvent = nil;
 		}
 		
 		[events removeObjectsInArray: invalidEvents];
 		
-		[changedWaveFronts intersectSet: [NSSet setWithArray: activeWaveFronts]];
 		
 		for (PSWaveFront* waveFront in changedWaveFronts)
 		{
+			// while waveFronts shouldnt be added to the changedWaveFronts more than once, it could happen, and we want to handle it gracefully at this point.
+			if (waveFront.collapseEvent)
+				continue;
+			if (![activeWaveFronts containsObject: waveFront])
+				continue;
+			
 			PSCollapseEvent* event = [self computeCollapseEvent: waveFront];
 			
 			waveFront.collapseEvent = event;

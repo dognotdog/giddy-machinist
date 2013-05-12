@@ -474,6 +474,9 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 
 @implementation PSWaveFront
+{
+	NSUInteger hashCache;
+}
 
 @synthesize retiredLeftSpokes, retiredRightSpokes, leftSpoke, rightSpoke, terminationTime;
 
@@ -585,6 +588,40 @@ static double _angle2d_cw(vector_t from, vector_t to)
 	rightSpoke = spoke;
 }
 
+- (BOOL) isEqual: (PSWaveFront*) object
+{
+	if ([self class] != [object class])
+		return NO;
+	if (self.startTime != object.startTime)
+		return NO;
+	if (self.terminationTime != object.terminationTime)
+		return NO;
+	if (self.leftSpoke != object.leftSpoke)
+		return NO;
+	if (self.rightSpoke != object.rightSpoke)
+		return NO;
+	if (!v3Equal(self.direction, object.direction))
+		return NO;
+	
+	
+	return YES;
+}
+
+- (NSString*) hashString
+{
+	NSString* str = [NSString stringWithFormat: @"%f %f %@ %f %f %f %f %f %f", self.startTime, self.terminationTime, [self class], self.direction.farr[0], self.direction.farr[1], self.leftSpoke.sourceVertex.position.farr[0], self.leftSpoke.sourceVertex.position.farr[1], self.rightSpoke.sourceVertex.position.farr[0], self.rightSpoke.sourceVertex.position.farr[1]];
+	return str;
+}
+
+- (NSUInteger) hash
+{
+	if (!hashCache)
+	{
+		NSString* str = [self hashString];
+		hashCache = [str hash];
+	}
+	return hashCache;
+}
 
 - (NSString *)description
 {
