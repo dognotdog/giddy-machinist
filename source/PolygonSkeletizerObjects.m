@@ -10,6 +10,9 @@
 #import "FoundationExtensions.h"
 
 @implementation PSEvent
+{
+	NSUInteger hashCache;
+}
 
 @synthesize time, creationTime, location;
 
@@ -25,6 +28,37 @@
 	return self;
 }
 
+- (BOOL) isEqual: (PSEvent*) object
+{
+	if ([self class] != [object class])
+		return NO;
+	if (self.creationTime != object.creationTime)
+		return NO;
+	if (self.time != object.time)
+		return NO;
+	if (!v3Equal(self.location, object.location))
+		return NO;
+	
+	
+	return YES;
+}
+
+- (NSString*) hashString
+{
+	NSString* str = [NSString stringWithFormat: @"%f %f %@ %f %f", self.creationTime, time, [self class], location.farr[0], location.farr[1]];
+	return str;
+}
+
+- (NSUInteger) hash
+{
+	if (!hashCache)
+	{
+		NSString* str = [self hashString];
+		hashCache = [str hash];
+	}
+	return hashCache;
+}
+
 - (NSString *)description
 {
 	return [NSString stringWithFormat: @"%p @%f (%@)", self, time, [self class]];
@@ -34,24 +68,91 @@
 
 
 @implementation PSBranchEvent
-@end
 
-@implementation PSMergeEvent
+- (BOOL) isEqual: (PSBranchEvent*) object
+{
+	if (![super isEqual: object])
+		return NO;
+	if (self.branchVertex != object.branchVertex)
+		return NO;
+	if (self.rootSpoke != object.rootSpoke)
+		return NO;
+	
+	
+	return YES;
+}
+
+- (NSString*) hashString
+{
+	NSString* str = [NSString stringWithFormat: @"%@ %f %f", [super hashString], self.branchVertex.position.farr[0], self.branchVertex.position.farr[1]];
+	return str;
+}
+
 @end
 
 @implementation PSCollapseEvent
+
+- (BOOL) isEqual: (PSCollapseEvent*) object
+{
+	if (![super isEqual: object])
+		return NO;
+	if (self.collapsingWaveFront != object.collapsingWaveFront)
+		return NO;
+	
+	
+	return YES;
+}
+
+- (NSString*) hashString
+{
+	NSString* str = [NSString stringWithFormat: @"%@ %f %f", [super hashString], self.collapsingWaveFront.direction.farr[0], self.collapsingWaveFront.direction.farr[1]];
+	return str;
+}
 @end
 
 @implementation PSSplitEvent
+
+- (BOOL) isEqual: (PSSplitEvent*) object
+{
+	if (![super isEqual: object])
+		return NO;
+	if (self.antiSpoke != object.antiSpoke)
+		return NO;
+	
+	
+	return YES;
+}
+
+- (NSString*) hashString
+{
+	NSString* str = [NSString stringWithFormat: @"%@ %f %f", [super hashString], self.antiSpoke.velocity.farr[0], self.antiSpoke.velocity.farr[1]];
+	return str;
+}
 @end
 
 @implementation PSEmitEvent
 @end
 
-@implementation PSReverseMergeEvent
-@end
-
 @implementation PSReverseBranchEvent
+
+- (BOOL) isEqual: (PSReverseBranchEvent*) object
+{
+	if (![super isEqual: object])
+		return NO;
+	if (self.branchVertex != object.branchVertex)
+		return NO;
+	if (self.rootSpoke != object.rootSpoke)
+		return NO;
+	
+	
+	return YES;
+}
+
+- (NSString*) hashString
+{
+	NSString* str = [NSString stringWithFormat: @"%@ %f %f", [super hashString], self.branchVertex.position.farr[0], self.branchVertex.position.farr[1]];
+	return str;
+}
 @end
 
 static double _maxBoundsDimension(NSArray* vertices)
@@ -388,15 +489,23 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 - (void) swapSpoke: (PSSpoke*) oldSpoke forSpoke: (PSSpoke*) newSpoke
 {
+	assert(!([retiredLeftSpokes containsObject: oldSpoke] && (leftSpoke == oldSpoke)));
+	assert(!([retiredRightSpokes containsObject: oldSpoke] && (rightSpoke == oldSpoke)));
+	assert(![retiredRightSpokes containsObject: newSpoke]);
+	assert(![retiredLeftSpokes containsObject: newSpoke]);
+	assert(leftSpoke != newSpoke);
+	assert(rightSpoke != newSpoke);
+
+	assert(oldSpoke.sourceVertex == newSpoke.sourceVertex);
+	assert(oldSpoke.terminalVertex == newSpoke.terminalVertex);
+	assert(oldSpoke.start == newSpoke.start);
+	assert(oldSpoke.terminationTime == newSpoke.terminationTime);
+	
 	if (leftSpoke == oldSpoke)
 		leftSpoke = newSpoke;
 	if (rightSpoke == oldSpoke)
 		rightSpoke = newSpoke;
 	
-	assert(oldSpoke.sourceVertex == newSpoke.sourceVertex);
-	assert(oldSpoke.terminalVertex == newSpoke.terminalVertex);
-	assert(oldSpoke.start == newSpoke.start);
-	assert(oldSpoke.terminationTime == newSpoke.terminationTime);
 	
 	if ([retiredLeftSpokes containsObject: oldSpoke])
 	{
@@ -436,15 +545,22 @@ static double _angle2d_cw(vector_t from, vector_t to)
 		assert(spoke.start != INFINITY);
 	}
 	
-	if (retiredLeftSpokes.count && leftSpoke)
-	{
-		assert([[retiredLeftSpokes lastObject] terminalVertex] == leftSpoke.sourceVertex);
-	}
-	
 	if (leftSpoke)
 	{
-		assert(![retiredLeftSpokes containsObject: spoke]);
-		assert(leftSpoke.terminalVertex == spoke.sourceVertex);
+
+		if (retiredLeftSpokes.count && leftSpoke)
+		{
+			if ([retiredLeftSpokes lastObject] != leftSpoke)
+				assert([[retiredLeftSpokes lastObject] terminalVertex] == leftSpoke.sourceVertex);
+		}
+	
+	}
+	
+	// hack against other error: ![retiredLeftSpokes containsObject: leftSpoke]
+	//if (leftSpoke && ![retiredLeftSpokes containsObject: leftSpoke])
+	if (leftSpoke)
+	{
+		assert(![retiredLeftSpokes containsObject: leftSpoke]);
 		retiredLeftSpokes = [retiredLeftSpokes arrayByAddingObject: leftSpoke];
 		[leftSpoke.retiredWaveFronts addObject: self];
 	}
@@ -461,6 +577,7 @@ static double _angle2d_cw(vector_t from, vector_t to)
 	
 	if (rightSpoke)
 	{
+		assert(![retiredRightSpokes containsObject: rightSpoke]);
 		retiredRightSpokes = [retiredRightSpokes arrayByAddingObject: rightSpoke];
 		[rightSpoke.retiredWaveFronts addObject: self];
 	}

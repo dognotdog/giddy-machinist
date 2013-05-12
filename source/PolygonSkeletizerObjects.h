@@ -164,18 +164,8 @@
 
 @end
 
-@interface PSMergeEvent : PSEvent
-
-@property(nonatomic,weak) PSMergeVertex* mergeVertex;
-
-@end
-
 @interface PSEmitEvent : PSEvent
 
-@end
-
-@interface PSReverseMergeEvent : PSEvent
-@property(nonatomic,weak) PSAntiSpoke* rootSpoke;
 @end
 
 @interface PSReverseBranchEvent : PSEvent
