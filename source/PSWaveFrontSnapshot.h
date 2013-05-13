@@ -32,6 +32,8 @@
 @property(nonatomic) double time;
 
 @property(nonatomic, strong) PSWaveFront* waveFront;
+@property(nonatomic, strong) PSWaveFrontSegment* leftSegment;
+@property(nonatomic, strong) PSWaveFrontSegment* rightSegment;
 @property(nonatomic, strong) PSVertex* leftVertex;
 @property(nonatomic, strong) PSVertex* rightVertex;
 

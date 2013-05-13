@@ -232,7 +232,7 @@
 			
 			[path setLineWidth: 1.0/scale];
 			[path fill];
-			[path stroke];
+			//[path stroke];
 		}
 	
 	[[NSColor whiteColor] set];

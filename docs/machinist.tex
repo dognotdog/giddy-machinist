@@ -325,6 +325,11 @@ It may be possible to look at the history of the wavefront tracing, to peek into
 
 By keeping track of the wavefront associated with an emitted line segment, it can be determined if the wavefront terminates before the full trace width is reached. In such a case, the area may be infilled with a pattern, or the skeleton can be traced with a single extrusion. The extrusion width may even be varied, according to the timing of the straight skeleton.
 
+\subsubsection{Thin Walls by Termination Tracking}
+
+Thin wall areas may also be identified by tracking termination time of wavefronts.
+
+
 \subsection{Sparse Infill, Top and Bottom Layers}
 
 It may be desired to not fully fill the volume, in which case a sparse infill is used, which has traces wider apart than the extrusion width.

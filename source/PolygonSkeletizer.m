@@ -3370,6 +3370,69 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 	return mesh;
 }
 
+- (NSArray*) waveFrontsTerminatedAfter: (double) tBegin upTo: (double) tEnd
+{
+	NSArray* waveFronts = [terminatedWaveFronts select: ^BOOL(PSWaveFront* waveFront) {
+		return ((waveFront.terminationTime > tBegin) && (waveFront.terminationTime <= tEnd));
+	}];
+	return waveFronts;
+}
+
+- (NSArray*) waveFrontOutlinesTerminatedAfter: (double) tBegin upTo: (double) tEnd
+{
+	NSArray* waveFronts = [self waveFrontsTerminatedAfter: tBegin upTo: tEnd];
+	
+	NSArray* paths = [waveFronts map: ^id(PSWaveFront* waveFront) {
+		
+		NSBezierPath* bpath = [NSBezierPath bezierPath];
+		NSMutableArray* verts = [NSMutableArray array];
+		
+		PSSpoke* lastRighty = [waveFront.retiredRightSpokes lastObject];
+
+		for (PSSpoke* spoke in waveFront.retiredRightSpokes)
+		{
+			if ((spoke.start >= tBegin))
+				[verts addObject: spoke.sourceVertex];
+			else if ((spoke.terminationTime >= tBegin))
+			{
+				PSVertex* vertex = [[PSVertex alloc] init];
+				vertex.position = [spoke positionAtTime: tBegin];
+				[verts addObject: vertex];
+			}
+			
+		}
+		
+		[verts addObject: lastRighty.terminalVertex];
+
+		for (PSSpoke* spoke in [waveFront.retiredLeftSpokes reverseObjectEnumerator])
+		{
+			
+			if ((spoke.start >= tBegin))
+				[verts addObject: spoke.sourceVertex];
+			else if ((spoke.terminationTime >= tBegin))
+			{
+				PSVertex* vertex = [[PSVertex alloc] init];
+				vertex.position = [spoke positionAtTime: tBegin];
+				[verts addObject: vertex];
+			}
+		}
+		
+		for (size_t i = 0; i < verts.count; ++i)
+		{
+			vector_t pos = [(PSVertex*)[verts objectAtIndex: i] position];
+			if (i == 0)
+				[bpath moveToPoint: CGPointMake(pos.farr[0], pos.farr[1])];
+			else
+				[bpath lineToPoint: CGPointMake(pos.farr[0], pos.farr[1])];
+			
+		}
+
+		[bpath closePath];
+		return bpath;
+	}];
+	
+	return paths;
+}
 
 @end
 

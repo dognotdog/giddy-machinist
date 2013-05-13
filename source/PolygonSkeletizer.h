@@ -37,4 +37,7 @@ typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, PSWaveFron
 - (NSArray*) spokeDisplayPaths;
 - (NSArray*) outlineDisplayPaths;
 
+- (NSArray*) waveFrontOutlinesTerminatedAfter: (double) tBegin upTo: (double) tEnd;
+
+
 @end

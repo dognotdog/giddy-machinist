@@ -53,6 +53,17 @@
 		}];
 	}];
 	
+	// link up segments
+	for (NSArray* loop in loops)
+	{
+		for (size_t i = 0; i < loop.count; ++i)
+		{
+			PSWaveFrontSegment* s0 = [loop objectAtIndex: i];
+			PSWaveFrontSegment* s1 = [loop objectAtIndex: (i+1) % loop.count];
+			s0.rightSegment = s1;
+			s1.leftSegment = s0;
+		}
+	}
 }
 
 - (NSBezierPath*) waveFrontPath
@@ -96,7 +107,7 @@
 		{
 			NSMutableArray* vertices = [NSMutableArray arrayWithObject: segment.rightVertex];
 			
-			//FIXME: regarding issue #2
+			//asserts regarding issue #2
 			{
 				NSArray* spokes = segment.waveFront.retiredLeftSpokes;
 				for (size_t i = 0; i+1 < spokes.count; ++i)
@@ -154,7 +165,5 @@
 
 
 @implementation PSWaveFrontSegment
-
-
 
 @end

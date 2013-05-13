@@ -132,7 +132,7 @@
 			
 			NSMutableArray* times = [NSMutableArray array];
 
-			for (int i = 1; i < limit; ++i)
+			for (double i = 0.5; i < limit; i += 1.0)
 			{
 				NSNumber* num = [NSNumber numberWithDouble: i];
 				[times addObject: num];
@@ -157,7 +157,8 @@
 		
 		for (PSWaveFrontSnapshot* snapshot in snapshots)
 		{
-			[thinWallPaths addObject: [snapshot thinWallAreaLessThanWidth: 0.5*extrusionWidth_m*1e3]];
+			[thinWallPaths addObjectsFromArray: [skeletizer waveFrontOutlinesTerminatedAfter:snapshot.time - 0.5*extrusionWidth_m*1e3 upTo: snapshot.time + 0.5*extrusionWidth_m*1e3]];
+			//[thinWallPaths addObject: [snapshot thinWallAreaLessThanWidth: 0.5*extrusionWidth_m*1e3]];
 		}
 		
 	}
