@@ -86,6 +86,7 @@
 	//pathBounds = CGRectMake(minp.x, minp.y, maxp.x-minp.x, maxp.y-minp.y);
 	movePaths = mesh;
 	
+	[self setNeedsRendering];
 }
 
 
@@ -181,14 +182,27 @@
 	printableVolume.maxv = vCreatePos(200.0, 200.0, 200.0);
 	
 	[self createGrid];
+	
+	[self pauseRendering];
+	[self setNeedsRendering];
 }
 
 - (void) awakeFromNib
 {
 	[[self window] setAcceptsMouseMovedEvents: YES];
+	[self setNeedsRendering];
 	
 }
-
+- (void) viewDidUnhide
+{
+	[self setNeedsRendering];
+	[super viewDidUnhide];
+}
+- (void) drawRect: (NSRect) rect
+{
+	[super drawRect: rect];
+	[self setNeedsRendering];
+}
 - (BOOL) acceptsFirstResponder
 {
 	return YES;
@@ -384,6 +398,7 @@
 		camPos = v3Sub(camLookAt, camDelta);
 	}
 	
+	[self setNeedsRendering];
 }
 
 @end

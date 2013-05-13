@@ -74,6 +74,8 @@
 	
 	
 	[self layerSelected: self.layerSelector];
+	
+	[self.modelView setNeedsRendering];
 }
 
 - (SlicedLayer*) currentLayer
