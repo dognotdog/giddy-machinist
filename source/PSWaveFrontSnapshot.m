@@ -22,6 +22,7 @@
 		return [inLoop map: ^id(PSWaveFront* waveFront) {
 			PSWaveFrontSegment* segment = [[PSWaveFrontSegment alloc] init];
 			segment.waveFront = waveFront;
+			segment.time = self.time;
 			
 			PSSpoke* leftSpoke = waveFront.leftSpoke;
 			PSSpoke* rightSpoke = waveFront.rightSpoke;
@@ -95,16 +96,38 @@
 		{
 			NSMutableArray* vertices = [NSMutableArray arrayWithObject: segment.rightVertex];
 			
+			//FIXME: regarding issue #2
+			{
+				NSArray* spokes = segment.waveFront.retiredLeftSpokes;
+				for (size_t i = 0; i+1 < spokes.count; ++i)
+				{
+					PSSpoke* spoke0 = [spokes objectAtIndex: i];
+					PSSpoke* spoke1 = [spokes objectAtIndex: i+1];
+					assert(spoke0.terminalVertex == spoke1.sourceVertex);
+				}
+			}
+			{
+				NSArray* spokes = segment.waveFront.retiredRightSpokes;
+				for (size_t i = 0; i+1 < spokes.count; ++i)
+				{
+					PSSpoke* spoke0 = [spokes objectAtIndex: i];
+					PSSpoke* spoke1 = [spokes objectAtIndex: i+1];
+					assert(spoke0.terminalVertex == spoke1.sourceVertex);
+				}
+			}
+			
+			
+			
 			for (PSSpoke* spoke in segment.waveFront.retiredRightSpokes)
 			{
 				assert(spoke.terminationTime < INFINITY);
-				if (spoke.terminationTime > segment.time)
+				if (spoke.terminationTime > self.time)
 					[vertices addObject: spoke.terminalVertex];
 			}
 			for (PSSpoke* spoke in [segment.waveFront.retiredLeftSpokes reverseObjectEnumerator])
 			{
 				
-				if (spoke.start > segment.time)
+				if (spoke.start > self.time)
 					[vertices addObject: spoke.sourceVertex];
 			}
 			[vertices addObject: segment.leftVertex];
