@@ -42,6 +42,7 @@
 @property(nonatomic, weak) PSReverseBranchEvent* reverseEvent;
 @property(nonatomic, weak) PSBranchEvent* forwardEvent;
 - (NSArray*) incomingMotorcyclesCCW;
+- (NSArray*) multiBranchMotorcyclesCCW;
 @end
 
 @interface PSMergeVertex : PSVertex

@@ -328,6 +328,30 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 @implementation PSCrashVertex
 
+- (NSArray*) multiBranchMotorcyclesCCW
+{
+	PSMotorcycle* outCycle = [self.outgoingMotorcycles objectAtIndex: 0];
+	NSArray* angles = [self.incomingMotorcycles map: ^id (PSMotorcycle* obj) {
+		
+		vector_t a = vNegate(outCycle.velocity);
+		vector_t b = vNegate(obj.velocity);
+		double angle = vAngleBetweenVectors2D(a, b);
+		if (angle < 0.0)
+			angle += 2.0*M_PI;
+		if (outCycle == obj)
+			return @M_PI; // FIXME: 0.0 or M_PI?
+		return [NSNumber numberWithDouble: angle];
+	}];
+	
+	NSDictionary* dict = [NSDictionary dictionaryWithObjects: self.incomingMotorcycles forKeys: angles];
+	
+	angles = [angles sortedArrayUsingSelector: @selector(compare:)];
+	
+	
+	return [dict objectsForKeys: angles notFoundMarker: [NSNull null]];
+
+}
+
 - (NSArray*) incomingMotorcyclesCCW
 {
 	PSMotorcycle* outCycle = [self.outgoingMotorcycles objectAtIndex: 0];
