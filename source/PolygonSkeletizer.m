@@ -1236,13 +1236,27 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes, NSM
 	vector_t p0 = waveFront.leftSpoke.sourceVertex.position;
 	vector_t p1 = waveFront.rightSpoke.sourceVertex.position;
 	
+	double vv0 = vDot(v0, v0);
+	double vv1 = vDot(v1, v1);
+	
 	double t0 = waveFront.leftSpoke.start;
 	double t1 = waveFront.rightSpoke.start;
 	
-	vector_t tx = xRays2D(v3Add(p0, v3MulScalar(v0, -t0)), v0, v3Add(p1, v3MulScalar(v1, -t1)), v1);
+	// FIXME: using a virtual starting point at t=0.0 seems like a numerically stupid idea.
+	//vector_t tx = xRays2D(v3Add(p0, v3MulScalar(v0, -t0)), v0, v3Add(p1, v3MulScalar(v1, -t1)), v1);
+	vector_t tx = xRays2D(p0, v0, p1, v1);
 	
+	double ta = tx.farr[0] + t0;
+	double tb = tx.farr[1] + t1;
 	
-	double tc = 0.5*(tx.farr[0]+tx.farr[1]);
+	double tc = 0.5*(ta+tb);
+	
+	// TODO: verify if this is better numerically if one spoke is quite fast
+	if (vv0 < vv1)
+		tc = tb;
+	else
+		tc = ta;
+	
 	
 	if (tc < MAX(t0,t1))
 		tc = MAX(t0,t1);
@@ -1292,7 +1306,8 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes, NSM
 			return nil;
 
 
-		vector_t tx = xRays2D(p0, r0, v3Add(p1, v3MulScalar(v1, -t1)), v1);
+		vector_t tx = xRays2D(p0, r0, p1, v1);
+		tx.farr[1] += t1;
 		
 		double tc = fmax(fmax(t0,t1), tx.farr[1]);
 		
@@ -1317,8 +1332,9 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes, NSM
 			return nil;
 		
 
-		vector_t tx = xRays2D(v3Add(p0, v3MulScalar(v0, -t0)), v0, p1, r1);
-
+		vector_t tx = xRays2D(p0, v0, p1, r1);
+		tx.farr[0] += t0;
+		
 		double tc = fmax(fmax(t0,t1), tx.farr[0]);
 
 		assert(tc >= 0.0);
@@ -2187,7 +2203,8 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 				
 				assert(newVertex);
 				
-				
+				[eventLog addObject: [NSString stringWithFormat: @"  newvertex %@", newVertex]];
+
 				if ((leftCycle) || (rightCycle))
 				{
 					/*
@@ -2459,6 +2476,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 
 				if (antiSpoke.terminalVertex && motorcycleSpoke.terminalVertex)
 				{
+					[eventLog addObject: [NSString stringWithFormat: @"  both spokes already terminated %@", motorcycleSpoke]];
 					newVertex = motorcycleSpoke.terminalVertex;
 				}
 				else if (motorcycleSpoke.terminalVertex)
@@ -2498,6 +2516,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 				}
 				else
 				{
+					[eventLog addObject: [NSString stringWithFormat: @"  creating new vertex"]];
 					
 					_assertSpokeConsistent(antiSpoke);
 					_assertSpokeConsistent(motorcycleSpoke);
@@ -2509,7 +2528,9 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 					
 					newVertex = [[PSVertex alloc] init];
 					newVertex.time = event.time;
-					newVertex.position = v3Add(antiSpoke.sourceVertex.position, v3MulScalar(antiSpoke.velocity, event.time - antiSpoke.start));
+					// FIXME: which spoke to chose, anti or normal?
+					//newVertex.position = v3Add(antiSpoke.sourceVertex.position, v3MulScalar(antiSpoke.velocity, event.time - antiSpoke.start));
+					newVertex.position = v3Add(motorcycleSpoke.sourceVertex.position, v3MulScalar(motorcycleSpoke.velocity, event.time - motorcycleSpoke.start));
 					[collapsedVertices addObject: newVertex];
 					
 					antiSpoke.terminalVertex = newVertex;
@@ -2522,6 +2543,17 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 				
 				assert(newVertex);
 
+				{
+					
+					vector_t dx = v3Sub(newVertex.position, motorcycleSpoke.motorcycle.sourceVertex.position);
+					double delta = fabs(vDot(dx, motorcycleSpoke.motorcycle.velocity) - vLength(dx)*vLength(motorcycleSpoke.motorcycle.velocity));
+					if (delta > sqrt(FLT_EPSILON))
+					{
+						[eventLog addObject: [NSString stringWithFormat: @"  large deviation in vertex angle: %f", delta]];
+						[eventLog addObject: [NSString stringWithFormat: @"    %@", newVertex]];
+					}
+					//assert(fabs(vDot(dx, motorcycleSpoke.motorcycle.velocity) - vLength(dx)*vLength(motorcycleSpoke.motorcycle.velocity)) < sqrt(FLT_EPSILON));
+				}
 				
 				{
 					if (antiSpoke.leftWaveFront.leftSpoke == motorcycleSpoke.rightWaveFront.rightSpoke)
@@ -2575,6 +2607,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 						
 						[eventLog addObject: [NSString stringWithFormat: @"  new spoke to the left %@", newSpoke]];
 						
+						assert(_angleBetweenSpokes(antiSpoke, newSpoke) > 0.0);
 					}
 					
 					if (antiSpoke.rightWaveFront.rightSpoke == motorcycleSpoke.leftWaveFront.leftSpoke)
