@@ -96,13 +96,15 @@
 - (IBAction) runSlicing: (id) sender
 {
 	[layerView removeAllOffsetOutlinePaths];
+	[layerView removeAllOffsetBoundaryPaths];
 	SlicedLayer* slice = [self currentLayer];
 	
 	NSMutableArray* outlinePaths = [NSMutableArray array];
 	NSMutableArray* cyclePaths = [NSMutableArray array];
 	NSMutableArray* spokePaths = [NSMutableArray array];
 	NSMutableArray* snapshots = [NSMutableArray array];
-	NSMutableArray* thinWallPaths = [NSMutableArray array];
+	NSMutableArray* overfillPaths = [NSMutableArray array];
+	NSMutableArray* underfillPaths = [NSMutableArray array];
 	
 	GM3DPrintSettings* settings = [GM3DPrintSettings defaultPrintSettings];
 	
@@ -132,7 +134,7 @@
 			
 			NSMutableArray* times = [NSMutableArray array];
 
-			for (double i = 0.5; i < limit; i += 1.0)
+			for (double i = 0.0; i < limit; i += 0.5)
 			{
 				NSNumber* num = [NSNumber numberWithDouble: i];
 				[times addObject: num];
@@ -141,24 +143,37 @@
 			skeletizer.emissionTimes = times;
 			
 		}
+		
+		__block BOOL isBoundary = NO;
 
 		skeletizer.emitCallback = ^(PolygonSkeletizer* skeletizer, PSWaveFrontSnapshot* snapshot)
 		{
 			[snapshots addObject: snapshot];
 			id bpath = [snapshot waveFrontPath];
-			SuppressSelfCaptureWarning([layerView addOffsetOutlinePath: bpath]);
+			if (isBoundary)
+				SuppressSelfCaptureWarning([layerView addOffsetOutlinePath: bpath]);
+			else
+				SuppressSelfCaptureWarning([layerView addOffsetBoundaryPath: bpath]);
+			isBoundary = !isBoundary;
 		};
 		[outline addPathsToSkeletizer: skeletizer];
 		[skeletizer generateSkeleton];
+		
 		
 		[outlinePaths addObjectsFromArray: [skeletizer outlineDisplayPaths]];
 		[spokePaths addObjectsFromArray: [skeletizer spokeDisplayPaths]];
 		[cyclePaths addObjectsFromArray: [skeletizer motorcycleDisplayPaths]];
 		
+		isBoundary = NO;
+		
 		for (PSWaveFrontSnapshot* snapshot in snapshots)
 		{
-			[thinWallPaths addObjectsFromArray: [skeletizer waveFrontOutlinesTerminatedAfter:snapshot.time - 0.5*extrusionWidth_m*1e3 upTo: snapshot.time + 0.5*extrusionWidth_m*1e3]];
-			//[thinWallPaths addObject: [snapshot thinWallAreaLessThanWidth: 0.5*extrusionWidth_m*1e3]];
+			//[thinWallPaths addObjectsFromArray: [skeletizer waveFrontOutlinesTerminatedAfter:snapshot.time - 0.5*extrusionWidth_m*1e3 upTo: snapshot.time + 0.5*extrusionWidth_m*1e3]];
+			if (isBoundary)
+				[overfillPaths addObject: [snapshot thinWallAreaLessThanWidth: 0.5*extrusionWidth_m*1e3 + 0.01]];
+			else
+				[underfillPaths addObject: [snapshot thinWallAreaLessThanWidth: 0.5*extrusionWidth_m*1e3 + 0.01]];
+			isBoundary = !isBoundary;
 		}
 		
 	}
@@ -168,7 +183,8 @@
 	layerView.motorcyclePaths = cyclePaths;
 	layerView.spokePaths = spokePaths;
 	layerView.outlinePaths = outlinePaths;
-	layerView.thinWallPaths	= thinWallPaths;
+	layerView.underfillPaths = underfillPaths;
+	layerView.overfillPaths	= overfillPaths;
 	
 }
 

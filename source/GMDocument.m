@@ -83,8 +83,9 @@ GfxMesh* LoadSTLFileFromData(NSData* data)
 	
 	free(indices);
 	
-	mesh = [mesh meshWithCoalescedVertices];
-	mesh = [mesh meshWithoutDegenerateTriangles];
+	//FIXME: removed as really slows down loading large models without any benefit
+	//mesh = [mesh meshWithCoalescedVertices];
+	//mesh = [mesh meshWithoutDegenerateTriangles];
 	
 	return mesh;
 }

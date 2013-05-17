@@ -30,10 +30,11 @@
 @interface PSWaveFrontSegment : NSObject
 
 @property(nonatomic) double time;
+@property(nonatomic, readonly) double finalTerminationTime;
 
-@property(nonatomic, strong) PSWaveFront* waveFront;
-@property(nonatomic, strong) PSWaveFrontSegment* leftSegment;
-@property(nonatomic, strong) PSWaveFrontSegment* rightSegment;
+@property(nonatomic, strong) NSArray* waveFronts;
+@property(nonatomic, weak) PSWaveFrontSegment* leftSegment;
+@property(nonatomic, weak) PSWaveFrontSegment* rightSegment;
 @property(nonatomic, strong) PSVertex* leftVertex;
 @property(nonatomic, strong) PSVertex* rightVertex;
 

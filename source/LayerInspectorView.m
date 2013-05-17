@@ -18,11 +18,12 @@
 {
 	NSArray* outlinePaths;
 	NSMutableArray* offsetPaths;
+	NSMutableArray* offsetBoundaryPaths;
 	NSMutableArray* openPaths;
 	NSArray* motorcyclePaths;
 }
 
-@synthesize slice, indexOfSelectedOutline, motorcyclePaths, spokePaths, outlinePaths, thinWallPaths;
+@synthesize slice, indexOfSelectedOutline, motorcyclePaths, spokePaths, outlinePaths, overfillPaths, underfillPaths;
 
 - (id)initWithFrame:(NSRect)frame
 {
@@ -38,9 +39,20 @@
 	[self setNeedsDisplay: YES];
 }
 
+- (void) addOffsetBoundaryPath: (NSBezierPath*) bpath
+{
+	[offsetBoundaryPaths addObject: bpath];
+	[self setNeedsDisplay: YES];
+}
+
 - (void) removeAllOffsetOutlinePaths
 {
 	[offsetPaths removeAllObjects];
+	[self setNeedsDisplay: YES];
+}
+- (void) removeAllOffsetBoundaryPaths
+{
+	[offsetBoundaryPaths removeAllObjects];
 	[self setNeedsDisplay: YES];
 }
 - (void) setIndexOfSelectedOutline:(NSInteger)index
@@ -57,9 +69,11 @@
 	NSMutableArray* outlines = [NSMutableArray array];
 	openPaths = [NSMutableArray array];
 	offsetPaths = [NSMutableArray array];
+	offsetBoundaryPaths = [NSMutableArray array];
 	motorcyclePaths = @[];
 	spokePaths = @[];
-	thinWallPaths = @[];
+	overfillPaths = @[];
+	underfillPaths = @[];
 	
 	for (SlicedOutline* path in slice.outlinePaths)
 	{
@@ -218,6 +232,7 @@
 		}
 	
 	if (displayWavefronts)
+	{
 		for (NSBezierPath* path in offsetPaths)
 		{
 			[[[NSColor grayColor] colorWithAlphaComponent: 1.0] set];
@@ -225,16 +240,33 @@
 			[path setLineWidth: 1.0/scale];
 			[path stroke];
 		}
-	if (displayThinWalls)
-		for (NSBezierPath* path in thinWallPaths)
+		for (NSBezierPath* path in offsetBoundaryPaths)
 		{
-			[[[NSColor greenColor] colorWithAlphaComponent: 0.8] set];
+			[[[NSColor grayColor] colorWithAlphaComponent: 0.5] set];
 			
 			[path setLineWidth: 1.0/scale];
-			[path fill];
-			//[path stroke];
+			[path stroke];
 		}
-	
+	}
+	if (displayThinWalls)
+	{
+		for (NSBezierPath* path in underfillPaths)
+		{
+			[[[NSColor greenColor] colorWithAlphaComponent: 0.4] set];
+			
+			[path setLineWidth: 0.5/scale];
+			[path fill];
+			[path stroke];
+		}
+		for (NSBezierPath* path in overfillPaths)
+		{
+			[[[NSColor orangeColor] colorWithAlphaComponent: 0.4] set];
+			
+			[path setLineWidth: 0.5/scale];
+			[path fill];
+			[path stroke];
+		}
+	}
 	[[NSColor whiteColor] set];
 	
 	[NSBezierPath setDefaultLineWidth: 1.0/scale];

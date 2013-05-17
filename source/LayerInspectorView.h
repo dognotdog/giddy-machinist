@@ -17,11 +17,15 @@
 @property(nonatomic, strong) NSArray* motorcyclePaths;
 @property(nonatomic, strong) NSArray* spokePaths;
 @property(nonatomic, strong) NSArray* outlinePaths;
-@property(nonatomic, strong) NSArray* thinWallPaths;
+//@property(nonatomic, strong) NSArray* thinWallPaths;
+@property(nonatomic, strong) NSArray* overfillPaths;
+@property(nonatomic, strong) NSArray* underfillPaths;
 @property(nonatomic) CGPoint cursor;
 
 - (void) addOffsetOutlinePath: (NSBezierPath*) bpath;
 - (void) removeAllOffsetOutlinePaths;
 
+- (void) addOffsetBoundaryPath: (NSBezierPath*) bpath;
+- (void) removeAllOffsetBoundaryPaths;
 
 @end

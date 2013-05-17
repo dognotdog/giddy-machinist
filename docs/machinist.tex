@@ -325,9 +325,15 @@ It may be possible to look at the history of the wavefront tracing, to peek into
 
 By keeping track of the wavefront associated with an emitted line segment, it can be determined if the wavefront terminates before the full trace width is reached. In such a case, the area may be infilled with a pattern, or the skeleton can be traced with a single extrusion. The extrusion width may even be varied, according to the timing of the straight skeleton.
 
-\subsubsection{Thin Walls by Termination Tracking}
+\subsubsection{Overfill/Underfill in Perimeter Extrusion}
 
-Thin wall areas may also be identified by tracking termination time of wavefronts.
+Thin perimeters are a variant of thin walls. For a perimeter extrusion, two possible scenarios exist:
+\begin{description}
+\item[Underfill] The trace is not even generated, but the previous perimeter doesn't fully fill the area.
+\item[Overfill] The trace is generated, but would result in overfilling.
+\end{description}
+
+Both may be detected by tracking half an extrusion width increments. 
 
 
 \subsection{Sparse Infill, Top and Bottom Layers}

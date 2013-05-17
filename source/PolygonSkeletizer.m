@@ -1197,6 +1197,7 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes, NSM
 						   v3Add(cycleSpoke.sourceVertex.position, v3MulScalar(cycleSpoke.velocity, tsx-ts0))
 						   );
 	
+	// FIXME: Bishop.stl
 	assert(vDot(vv, delta) >= 0.0);
 	
 	double tc = tsx + vLength(delta)/vLength(vv);
@@ -2817,7 +2818,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 			{
 				assert(motorcycle != rootMotorcycleSpoke.motorcycle);
 				
-				PSAntiSpoke* deadSpoke = motorcycle.antiSpoke;
+				//PSAntiSpoke* deadSpoke = motorcycle.antiSpoke;
 
 				[eventLog addObject: [NSString stringWithFormat: @"  killing spoke: %@", motorcycle.spoke]];
 				motorcycle.terminatedWithoutSplit = YES;
