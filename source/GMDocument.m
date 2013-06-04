@@ -21,83 +21,8 @@
 #import "PolygonSkeletizer.h"
 
 #import "FoundationExtensions.h"
+#import "STLFile.h"
 
-
-GfxMesh* LoadSTLFileFromData(NSData* data)
-{
-
-	const size_t headerLength = 80;
-	const size_t trianglesStart = 84;
-	const size_t triangleLength = 50;
-	
-	const void* buf = [data bytes];
-	assert([data length] > trianglesStart);
-	
-	size_t numTris = CFSwapInt32LittleToHost(*(uint32_t*)(buf+headerLength));
-	size_t datalen = [data length];
-	assert(datalen == trianglesStart+numTris*triangleLength);
-	
-	vector_t* vertices = calloc(numTris*3, sizeof(*vertices));
-	vector_t* colors = calloc(numTris*3, sizeof(*colors));
-	vector_t* normals = calloc(numTris*3, sizeof(*normals));
-	
-	for (size_t i = 0; i < numTris; ++i)
-	{
-		size_t vertexOffset = trianglesStart+triangleLength*i;
-		float n[3];
-		memcpy(n, buf+vertexOffset, 12);
-		for (size_t j = 0; j < 3; ++j)
-		{
-			normals[3*i+j] = vCreatePos(n[0], n[1], n[2]);
-		}
-		
-		
-		for (size_t j = 0; j < 3; ++j)
-		{
-			float x[3];
-			memcpy(x, buf+vertexOffset+12+j*12, 12);
-			vertices[3*i+j] = vCreatePos(x[0], x[1], x[2]);
-		}
-		uint16_t color = CFSwapInt16LittleToHost(*(uint16_t*)(buf+vertexOffset+4*12));
-		for (size_t j = 0; j < 3; ++j)
-		{
-			colors[3*i+j] = vCreatePos(((color & 0x001F)*255)/15L, (((color & 0x03E0) >> 5)*255)/15L, (((color & 0x7C0) >> 10)*255)/15L);
-		}
-		
-	}
-	
-	GfxMesh* mesh = [[GfxMesh alloc] init];
-	[mesh addVertices: vertices count: numTris*3];
-//	[mesh addColors: colors count: numTris*3];
-	[mesh addNormals: normals count: numTris*3];
-	free(vertices);
-	free(colors);
-	free(normals);
-	
-	uint32_t* indices = calloc(sizeof(*indices), numTris*3);
-	
-	for (size_t i = 0; i < numTris*3; ++i)
-		indices[i]=i;
-	
-	[mesh addDrawArrayIndices: indices count: numTris*3 withMode: GL_TRIANGLES];
-	
-	free(indices);
-	
-	//FIXME: removed as really slows down loading large models without any benefit
-	//mesh = [mesh meshWithCoalescedVertices];
-	//mesh = [mesh meshWithoutDegenerateTriangles];
-	
-	return mesh;
-}
-
-GfxMesh* LoadSTLFileAtPath(NSString* path)
-{
-	NSData* data = [NSData dataWithContentsOfFile: path];
-	if (!data)
-		return nil;
-
-	return LoadSTLFileFromData(data);
-}
 
 @implementation GMDocument
 {
@@ -242,6 +167,8 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 - (void) loadSTLFromData: (NSData*) data
 {
 	
+	STLFile* stl = [[STLFile alloc] initWithData: data scale: 16 transform: mIdentity()];
+	
 	GfxMesh* mesh = LoadSTLFileFromData(data);
 	
 	if (!mesh)
@@ -258,13 +185,19 @@ GfxMesh* LoadSTLFileAtPath(NSString* path)
 		[heights addObject: [NSNumber numberWithDouble: i]];
 	}
 	
+	[slicer asyncSliceSTL: stl intoLayers: heights layersWithCallbackOnQueue: dispatch_get_main_queue() block: ^(SlicedLayer* layer) {
+		slicedLayers = [slicedLayers arrayByAddingObject: layer];
+		[self layerDidLoad: layer];
+	}];
+	
+	/*
 	[slicer asyncSliceModel: mesh intoLayers: heights layersWithCallbackOnQueue: dispatch_get_main_queue() block: ^(SlicedLayer* layer) {
 		
 		slicedLayers = [slicedLayers arrayByAddingObject: layer];
 		[self layerDidLoad: layer];
 		
 	}];
-	
+	*/
 	/*
 	 NSArray* layers = [slicer sliceModel: mesh intoLayers: heights];
 	 

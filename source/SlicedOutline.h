@@ -8,33 +8,36 @@
 
 #import <Foundation/Foundation.h>
 
-#import "VectorMath.h"
+#import "VectorMath_fixp.h"
 
 @class PolygonSkeletizer, GfxMesh;
 
 @interface SlicedLineSegment : NSObject
-@property(nonatomic) vector_t begin, end;
-@property(nonatomic,readonly) vector_t* vertices;
+
+@property(nonatomic) v3i_t begin, end;
+@property(nonatomic,readonly) v3i_t* vertices;
 @property(nonatomic,readonly) size_t vertexCount;
 @property(nonatomic,readonly) BOOL isClosed;
 @property(nonatomic,readonly) BOOL isConvex;
 @property(nonatomic,readonly) BOOL isCCW;
 @property(nonatomic,readonly) BOOL isSelfIntersecting;
-@property(nonatomic,readonly) vector_t centroid;
-@property(nonatomic,readonly) range3d_t	bounds;
+@property(nonatomic,readonly) v3i_t centroid;
+@property(nonatomic,readonly) r3i_t	bounds;
 @property(nonatomic,readonly) double	area;
 
-- (void) addVertices: (vector_t*) v count: (size_t) count;
-- (void) insertVertexAtBeginning: (vector_t) v;
-- (void) insertVertexAtEnd: (vector_t) v;
+- (void) addVertices: (v3i_t*) v count: (size_t) count;
+- (void) insertVertexAtBeginning: (v3i_t) v;
+- (void) insertVertexAtEnd: (v3i_t) v;
 
 - (SlicedLineSegment*) joinSegment: (SlicedLineSegment*) seg atEnd: (BOOL) atEnd reverse: (BOOL) reverse;
 
-- (BOOL) closePolygonByMergingEndpoints: (double) threshold;
+- (NSArray*) booleanIntersectSegment: (SlicedLineSegment*) other;
+
+- (BOOL) closePolygonByMergingEndpoints;
 - (void) analyzeSegment;
 - (void) reverse;
-- (void) optimizeToThreshold: (double) threshold;
-- (void) optimizeColinears: (double) threshold;
+//- (void) optimizeToThreshold: (double) threshold;
+- (void) optimizeColinears: (long) threshold;
 
 
 - (BOOL) intersectsPath: (SlicedLineSegment*) segment;

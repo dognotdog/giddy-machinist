@@ -10,7 +10,7 @@
 
 #import "VectorMath.h"
 
-@class GfxMesh;
+@class GfxMesh, STLFile;
 
 
 @interface SlicedLayer : NSObject
@@ -33,6 +33,7 @@
 - (NSArray*) sliceModel: (GfxMesh*) model intoLayers: (NSArray*) layers;
 
 - (void) asyncSliceModel: (GfxMesh*) model intoLayers: (NSArray*) layers layersWithCallbackOnQueue: (dispatch_queue_t) queue block: (void (^)(id)) callback;
+- (void) asyncSliceSTL: (STLFile*) model intoLayers: (NSArray*) layers layersWithCallbackOnQueue: (dispatch_queue_t) queue block: (void (^)(id)) callback;
 
 @property(nonatomic) double mergeThreshold;
 

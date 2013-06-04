@@ -81,14 +81,14 @@
 		NSArray* segments = [path allNestedPaths];
 		for (SlicedLineSegment* segment in segments)
 		{
-			vector_t* vertices = segment.vertices;
+			v3i_t* vertices = segment.vertices;
 			for (size_t i = 0; i < segment.vertexCount; ++i)
 			{
-				vector_t vertex = vertices[i];
+				v3i_t vertex = vertices[i];
 				if (!i)
-					[outline moveToPoint: NSMakePoint(vertex.farr[0], vertex.farr[1])];
+					[outline moveToPoint: v3iToCGPoint(vertex)];
 				else
-					[outline lineToPoint: NSMakePoint(vertex.farr[0], vertex.farr[1])];
+					[outline lineToPoint: v3iToCGPoint(vertex)];
 			}
 			[outline closePath];
 		}
@@ -102,14 +102,14 @@
 	{
 		NSBezierPath* outline = [NSBezierPath bezierPath];
 		{
-			vector_t* vertices = segment.vertices;
+			v3i_t* vertices = segment.vertices;
 			for (size_t i = 0; i < segment.vertexCount; ++i)
 			{
-				vector_t vertex = vertices[i];
+				v3i_t vertex = vertices[i];
 				if (!i)
-					[outline moveToPoint: NSMakePoint(vertex.farr[0], vertex.farr[1])];
+					[outline moveToPoint: v3iToCGPoint(vertex)];
 				else
-					[outline lineToPoint: NSMakePoint(vertex.farr[0], vertex.farr[1])];
+					[outline lineToPoint: v3iToCGPoint(vertex)];
 			}
 		}
 		
@@ -161,11 +161,13 @@
 	CGRect outlineRect = [self contentRect];
 	
 	float scale = CGSizeFitScaleFactor(outlineRect.size, boundsSize);
-	
-	
-	[transform translateXBy: CGRectGetMidX(self.bounds) - scale*CGRectGetMidX(outlineRect) yBy: CGRectGetMidY(self.bounds) - scale*CGRectGetMidY(outlineRect)];
-	[transform scaleBy: scale];
-
+	if (scale != 0.0)
+	{
+		assert(scale);
+		
+		[transform translateXBy: CGRectGetMidX(self.bounds) - scale*CGRectGetMidX(outlineRect) yBy: CGRectGetMidY(self.bounds) - scale*CGRectGetMidY(outlineRect)];
+		[transform scaleBy: scale];
+	}
 	return transform;
 }
 
@@ -183,7 +185,7 @@
 	[ctx saveGraphicsState];
 		
 	float scale = transform.transformStruct.m11;
-	
+	assert(scale);
 
 	BOOL displayOutline = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 0];
 	BOOL displayMotorcycles = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 1];

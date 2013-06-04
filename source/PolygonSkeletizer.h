@@ -8,11 +8,11 @@
 
 #import <Foundation/Foundation.h>
 
-#import "VectorMath.h"
+#import "VectorMath_fixp.h"
 
 
 
-@class GfxMesh, PolygonSkeletizer, PSWaveFrontSnapshot;
+@class GfxMesh, PolygonSkeletizer, PSWaveFrontSnapshot, PSMotorcycle, PSEdge, PSVertex;
 
 
 typedef void (^SkeletizerEventCallback)(PolygonSkeletizer* skeletizer, id event);
@@ -28,7 +28,7 @@ typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, PSWaveFron
 @property(nonatomic,strong) SkeletizerEventCallback eventCallback;
 @property(nonatomic,strong) SkeletizerEmitCallback emitCallback;
 
-- (void) addClosedPolygonWithVertices: (vector_t*) vv count: (size_t) vcount;
+- (void) addClosedPolygonWithVertices: (v3i_t*) vv count: (size_t) vcount;
 - (void) generateSkeleton;
 
 - (GfxMesh*) skeletonMesh;
@@ -41,3 +41,5 @@ typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, PSWaveFron
 
 
 @end
+
+

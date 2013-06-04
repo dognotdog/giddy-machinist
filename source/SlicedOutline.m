@@ -122,7 +122,7 @@
 
 @implementation SlicedLineSegment
 {
-	vector_t* vertices;
+	v3i_t* vertices;
 	size_t vertexCount;
 }
 
@@ -135,14 +135,14 @@
 	vertexCount = newCount;
 }
 
-- (void) setBegin:(vector_t) v
+- (void) setBegin: (v3i_t) v
 {
 	[self expandVertexCount: 1];
 	
 	vertices[0] = v;
 }
 
-- (void) setEnd:(vector_t)v
+- (void) setEnd: (v3i_t)v
 {
 	if (vertexCount < 2)
 		[self expandVertexCount: 2];
@@ -150,25 +150,31 @@
 	vertices[vertexCount-1] = v;
 }
 
-- (vector_t) begin
+- (void) addVertices: (v3i_t*) v count: (size_t) count;
+{
+	[self expandVertexCount: vertexCount+2];
+	for (size_t i = 0; i < count; ++i)
+		vertices[vertexCount-count+i] = v[i];
+}
+- (v3i_t) begin
 {
 	assert(vertexCount > 0);
 	return vertices[0];
 }
 
-- (vector_t) end
+- (v3i_t) end
 {
 	assert(vertexCount > 1);
 	return vertices[vertexCount-1];
 }
 
-- (void) insertVertexAtBeginning: (vector_t) v
+- (void) insertVertexAtBeginning: (v3i_t) v
 {
 	[self expandVertexCount: vertexCount+1];
 	memmove(vertices+1,vertices, sizeof(*vertices)*(vertexCount-1));
 	vertices[0] = v;
 }
-- (void) insertVertexAtEnd: (vector_t) v
+- (void) insertVertexAtEnd: (v3i_t) v
 {
 	[self expandVertexCount: vertexCount+1];
 	vertices[vertexCount-1] = v;
@@ -182,38 +188,68 @@
 	size_t vi = 0;
 	
 	if (atEnd)
+	{
 		for (size_t i = 0; i < vertexCount; ++i)
 			newSegment->vertices[vi++] = vertices[i];
+	}
 	else
+	{
 		for (size_t i = vertexCount; i > 0; --i)
 			newSegment->vertices[vi++] = vertices[i-1];
+	}
 	
 	if (reverse)
-		for (size_t i = seg->vertexCount-1; i > 0; --i)
+	{
+		// need to deduplicate reversed segments
+		
+		size_t vcount = seg->vertexCount;
+		for (size_t i = 0; i < MIN(vertexCount, seg->vertexCount); ++i)
+		{
+			v3i_t v0 = newSegment->vertices[vertexCount-1-i];
+			v3i_t v1 = seg->vertices[seg->vertexCount-1-i];
+			if (v3iEqual(v0, v1))
+				vcount--;
+			else
+				break;
+		}
+		
+		for (size_t i = vcount; i > 0; --i)
 			newSegment->vertices[vi++] = seg->vertices[i-1];
+	}
 	else
-		for (size_t i = 1; i < seg->vertexCount; ++i)
-			newSegment->vertices[vi++] = seg->vertices[i];
-	
-	vector_t v0 = newSegment->vertices[vertexCount-1];
-	vector_t v1 = newSegment->vertices[vertexCount];
-	assert(!v3Equal(v0, v1));
+	{
+		size_t vcount = 0;
+		for (size_t i = 0; i < MIN(vertexCount, seg->vertexCount); ++i)
+		{
+			v3i_t v0 = newSegment->vertices[vertexCount-1-i];
+			v3i_t v1 = seg->vertices[i];
+			if (v3iEqual(v0, v1))
+				vcount++;
+			else
+				break;
+		}
 
+		for (size_t i = vcount; i < seg->vertexCount; ++i)
+			newSegment->vertices[vi++] = seg->vertices[i];
+	}
+	newSegment->vertexCount = vi;
+	
+	if (newSegment->vertexCount > vertexCount)
+	{
+		v3i_t v0 = newSegment->vertices[vertexCount-1];
+		v3i_t v1 = newSegment->vertices[vertexCount];
+		assert(!v3iEqual(v0, v1));
+	}
 	return newSegment;
 }
 
-- (BOOL) closePolygonByMergingEndpoints: (double) threshold;
+- (BOOL) closePolygonByMergingEndpoints
 {
 	if (vertexCount < 4)
 		return NO;
-	
-	vector_t delta = v3Sub(self.begin, self.end);
-	double dd = vDot(delta, delta);
-	
-	if (dd < threshold*threshold)
+		
+	if (v3iEqual(self.begin, self.end))
 	{
-		vector_t c = v3MulScalar(v3Add(self.begin, self.end), 0.5);
-		self.begin = c;
 		vertexCount--;
 		isClosed = YES;
 		return YES;
@@ -228,13 +264,13 @@
 	long count = vertexCount + isClosed-1;
 	for (long i = 0; i < count; ++i)
 	{
-		vector_t a0 = vertices[i];
-		vector_t b0 = vertices[(i+1)%vertexCount];
+		v3i_t a0 = vertices[i];
+		v3i_t b0 = vertices[(i+1)%vertexCount];
 		for (long j = i+2; j < count; ++j)
 		{
-			vector_t a1 = vertices[j];
-			vector_t b1 = vertices[(j+1)%vertexCount];
-			if (xLineSegments2D(a0, b0, a1, b1))
+			v3i_t a1 = vertices[j];
+			v3i_t b1 = vertices[(j+1)%vertexCount];
+			if (xiLineSegments2D(a0, b0, a1, b1))
 				return YES;
 			
 			
@@ -246,7 +282,7 @@
 - (void) analyzeSegment
 {
 	long signCounter = 0;
-	vector_t crossSum = vZero();
+	vmlong_t crossSum = 0L;
 	
 	isSelfIntersecting = [self checkSelfIntersection];
 	
@@ -255,15 +291,15 @@
 	
 	for (long i = 0; i < vertexCount; ++i)
 	{
-		vector_t a = vertices[i];
-		vector_t b = vertices[(i+1)%vertexCount];
-		vector_t cross = vCross(a, b);
+		v3i_t a = vertices[i];
+		v3i_t b = vertices[(i+1)%vertexCount];
+		vmlong_t cross = v3iCross2D(a, b).x;
 		
-		crossSum = v3Add(crossSum, cross);
-		signCounter += (cross.farr[2] > 0.0 ? 1 : (cross.farr[2] < 0.0 ? -1 : 0));
+		crossSum += cross;
+		signCounter += (cross > 0 ? 1 : (cross < 0 ? -1 : 0));
 	}
 	
-	if (crossSum.farr[2] > 0.0)
+	if (crossSum > 0)
 		isCCW = YES;
 	else
 		isCCW = NO;
@@ -273,6 +309,7 @@
 	
 }
 
+/*
 - (vector_t) centroid
 {
 	vector_t c = vZero();
@@ -280,14 +317,16 @@
 		c = v3Add(c, vertices[i]);
 	return v3MulScalar(c, 1.0/vertexCount);
 }
-
-- (range3d_t) bounds
+*/
+- (r3i_t) bounds
 {
-	range3d_t r = rInfRange();
+	r3i_t r = {v3iCreate(INT32_MAX, INT32_MAX, INT32_MAX, 0), v3iCreate(INT32_MIN, INT32_MIN, INT32_MIN, 0)};
 	for (long i = 0; i < vertexCount; ++i)
 	{
-		r.minv = vMin(r.minv, vertices[i]);
-		r.maxv = vMax(r.maxv, vertices[i]);
+		r.min.shift = vertices[i].shift;
+		r.max.shift = vertices[i].shift;
+		r.min = v3iMin(r.min, vertices[i]);
+		r.max = v3iMax(r.max, vertices[i]);
 	}
 	return r;
 }
@@ -296,17 +335,17 @@
 {
 	assert(isClosed);
 	
-	vector_t crossSum = vZero();
+	long crossSum = 0;
 		
 	for (long i = 0; i < vertexCount; ++i)
 	{
-		vector_t a = vertices[i];
-		vector_t b = vertices[(i+1)%vertexCount];
-		vector_t cross = vCross(a, b);
+		v3i_t a = vertices[i];
+		v3i_t b = vertices[(i+1)%vertexCount];
+		long cross = v3iCross2D(a, b).x;
 		
-		crossSum = v3Add(crossSum, cross);
+		crossSum += cross;
 	}
-	return 0.5*crossSum.farr[2];
+	return crossSum/2;
 }
 
 - (double) area
@@ -315,17 +354,17 @@
 	
 //	vector_t crossSum = vZero();
 	
-	double area = 0.0;
+	long area = 0.0;
 	
 	for (long i = 0; i < vertexCount; ++i)
 	{
-		vector_t a = vertices[i];
-		vector_t b = vertices[(i+1)%vertexCount];
+		v3i_t a = vertices[i];
+		v3i_t b = vertices[(i+1)%vertexCount];
 		
-		area += (b.farr[0] + a.farr[0])*(b.farr[1] - a.farr[1]);
+		area += (b.x + a.x)*(b.y - a.y);
 		
 	}
-	return 0.5*area;
+	return area/2;
 }
 
 
@@ -334,26 +373,40 @@
 	assert(isCCW && segment.isCCW);
 	assert(isClosed);
 	
-	vector_t sc = segment.begin;
-	range3d_t bounds = self.bounds;
+	v3i_t sc = segment.begin;
+	r3i_t bounds = self.bounds;
 	
 //	if (!rRangeContainsPointXYInclusiveMinExclusiveMax(bounds, sc))
 //		return NO;
 	
 	
-	vector_t ray = vCreateDir(bounds.maxv.farr[0]+1.0, 1.0, 0.0);
+	// ray is going along X
+	v3i_t ray = v3iCreate(bounds.max.x+1, 0, 0, bounds.max.shift);
+	v3i_t se = v3iAdd(sc, ray);
 	
 	long windingCounter = 0;
 	
 	for (long i = 0; i < vertexCount; ++i)
 	{
-		vector_t d = v3Sub(vertices[(i+1) % vertexCount], vertices[i]);
-		vector_t t = xRays2D(vertices[i], d, sc, ray);
-		if ((t.farr[0] >= 0.0) && (t.farr[1] >= 0.0) && (t.farr[0] < 1.0) && (t.farr[1] < 1.0))
+		v3i_t p0 = vertices[i];
+		v3i_t p1 = vertices[(i+1) % vertexCount];
+		v3i_t e = v3iSub(p1, p0);
+		vmlong_t numa = -1, numb = -1, den = 0;
+		xiLineSegments2DFrac(p0, p1, sc, se, &numa, &numb, &den);
+		
+		// as the test ray propagates in +X
+		// for edges going +Y, [0,den) is valid
+		// for edges going -Y, (0, den] is valid
+
+		if (((e.y > 0) && (numa >= 0) && (numb >= 0) && (numa < den) && (numb < den))
+			|| ((e.y < 0) && (numa > 0) && (numb > 0) && (numa <= den) && (numb <= den)))
 		{
-			double f = vCross(ray, d).farr[2];
-			assert(f != 0.0);
-			windingCounter += (f > 0.0 ? 1 : -1);
+			v3i_t d = v3iSub(sc, p0);
+			assert(e.z == 0);
+			v3i_t n = {-e.y, e.x, e.z, e.shift};
+			vmlong_t f = v3iDot(n, d).x;
+			assert(f != 0);
+			windingCounter += (f > 0 ? 1 : -1);
 		}
 	}
 	assert(ABS(windingCounter) < 2);
@@ -368,13 +421,14 @@
 {
 	for (long i = 0; i < vertexCount/2; ++i)
 	{
-		vector_t a = vertices[i];
-		vector_t b = vertices[vertexCount-i-1];
+		v3i_t a = vertices[i];
+		v3i_t b = vertices[vertexCount-i-1];
 		vertices[i] = b;
 		vertices[vertexCount-i-1] = a;
 	}
 }
 
+/*
 - (void) optimizeToThreshold: (double) threshold
 {
 	BOOL wasCCW = isCCW;
@@ -428,24 +482,24 @@
 	[self analyzeSegment];
 	assert(wasCCW == isCCW);
 }
-
-- (void) optimizeColinears: (double) threshold
+*/
+- (void) optimizeColinears: (long) threshold
 {
 //	BOOL wasCCW = self.isCCW;
 	BOOL foundOne = YES;
 	while (foundOne)
 	{
 		size_t smallestIndex = NSNotFound;
-		double smallestArea = threshold;
+		long smallestArea = threshold;
 		foundOne = NO;
 		for (size_t i = 0; i < vertexCount; ++i)
 		{
-			vector_t p = vertices[(vertexCount+i-1) % vertexCount];
-			vector_t c = vertices[i];
-			vector_t n = vertices[(i+1) % vertexCount];
-			vector_t e0 = v3Sub(c, p);
-			vector_t e1 = v3Sub(n, c);
-			double a = fabs(vCross(e0, e1).farr[2]);
+			v3i_t p = vertices[(vertexCount+i-1) % vertexCount];
+			v3i_t c = vertices[i];
+			v3i_t n = vertices[(i+1) % vertexCount];
+			v3i_t e0 = v3iSub(c, p);
+			v3i_t e1 = v3iSub(n, c);
+			long a = labs(v3iCross2D(e0, e1).x);
 			if (a < smallestArea)
 			{
 				foundOne = YES;
@@ -465,30 +519,37 @@
 //	assert(wasCCW == isCCW);
 }
 
-
-static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, vector_t e1)
+/*!
+ Returns closed polygons outlining the areas common to both input polygons. Both polygons must be closed and non self-intersecting. CCW polygons represent filled outlines, CW polygons are holes.
+ */
+- (NSArray*) booleanIntersectSegment: (SlicedLineSegment*) other
 {
-	double lv0 = vLength(v0);
-	double lv1 = vLength(v1);
-	double vx = vCross(v0, v1).farr[2]/(lv0*lv1);
-	
-	vector_t s = vCreateDir(0.0, 0.0, 0.0);
+	assert(self.isClosed && other.isClosed);
+	assert(!self.isSelfIntersecting && !other.isSelfIntersecting);
 	
 	
-	if (fabs(vx) < 1.0*sqrt(FLT_EPSILON))// nearly parallel, threshold is a guess
+	// lets start by finding the intersecting primitive segments
+	v3i_t* vertices0 = self.vertices;
+	v3i_t* vertices1 = other.vertices;
+	size_t count0 = self.vertexCount;
+	size_t count1 = other.vertexCount;
+	for (size_t i = 0; i < count0; ++i)
 	{
-		s = v3MulScalar(v3Add(v0, v1), 0.5);
-		//NSLog(@"nearly parallel %g, %g / %g, %g", v0.x, v0.y, v1.x, v1.y);
-	}
-	else
-	{
-		s = v3Add(vReverseProject(v0, e1), vReverseProject(v1, e0));
+		v3i_t pi0 = vertices0[i];
+		v3i_t pi1 = vertices0[(i+1)%count0];
+		for (size_t j = 0; j < count1; ++j)
+		{
+			v3i_t pj0 = vertices1[j];
+			v3i_t pj1 = vertices1[(j+1)%count1];
+			
+		}
+		
 	}
 	
-	return s;
 	
 }
 
+/*
 - (NSArray*) splitAtSelfIntersectionWithThreshold: (double) mergeThreshold
 {
 	if (!isClosed)
@@ -514,7 +575,10 @@ static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, v
 	}
 	assert(0);
 }
+*/
+extern vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, vector_t e1);
 
+/*
 - (NSArray*) offsetOutline: (double) offset withThreshold: (double) mergeThreshold
 {
 	if (!isClosed)
@@ -548,14 +612,17 @@ static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, v
 	
 	return [offsetLine splitAtSelfIntersectionWithThreshold: mergeThreshold];
 }
-
+*/
 - (id) description
 {
 	NSMutableArray* descs = [NSMutableArray array];
 	
 	for (size_t i = 0; i < vertexCount; ++i)
-		[descs addObject: [NSString stringWithFormat: @"%.4f %.4f %.4f", vertices[i].farr[0],vertices[i].farr[1],vertices[i].farr[2]]];
-	
+	{
+		v3i_t v = vertices[i];
+		double s = 1.0/(1 << v.shift);
+		[descs addObject: [NSString stringWithFormat: @"%.4f %.4f %.4f", vertices[i].x*s,vertices[i].y*s,vertices[i].z*s]];
+	}
 	return [NSString stringWithFormat: @"Vertices: %@", descs];
 }
 

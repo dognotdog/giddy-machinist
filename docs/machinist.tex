@@ -263,10 +263,12 @@ Unlike in the motorcycle tracing phase, degenerate events are not point-like. Re
 Fortunately, after the separate motorcycle phase, only two classes of degenerate events may occur:
 \begin{description}
 \item[Arc Collapse] The arc collapse happens when multiple wavefronts collapse into a single point. 
-\item[Opposing Wavefronts] This case occurs when the neighbouring wavefronts to the one collapsing are anti-parallel.
+\item[Opposing Wavefronts] This case occurs when the neighbouring wavefronts to the one collapsing are anti-parallel. Solved by fast spokes which have pseudo-infinite speed.
 \end{description}
 
 Simultaneous collapses should be resolvable sequentially, as long as the temporary resulting wavefronts are allowed to collapse immediately.
+
+Sequential resolution of events leads to some complicated logic, though, as the order of events may vary.
 
 \subsubsection{Opposing Wavefronts Collapse and Motorcycle Traces}
 
@@ -374,6 +376,17 @@ What affects curling on overhangs? arc radius? speed? layer height? cooling? sur
 
 Maybe lowering the print nozzle during overhang prints can counter the curling.
 
+\subsection{Overhang Support}
+
+\subsubsection{Gantry Support}
+
+As in \cite{gsh}.
+
+\subsubsection{Lamella Support}
+
+
+
+
 \subsection{Start/End Overlap on Perimeters}
 
 \subsection{Infill generation}
@@ -407,7 +420,162 @@ $\celsius$ & $\dfrac{\joule}{\kilo\gram \cdot \kelvin}$ \\
 \label{table:plaheat}
 \end{table}%
 
-Based on flow rate and specific heat capacity, the amount of heat energy required to melt the filament can be computed, and it can be used for 
+Based on flow rate and specific heat capacity, the amount of heat energy required to melt the filament can be computed, and it can be used for better heat regulation.
+
+\section{Exact Fixed Point Arithmetic for Polygon Offsetting}
+
+Fixed point math could get rid of numeric issues that plague floating point implementations for polygon offsetting.
+
+Based on the millimeter as a base unit, a 16.16 fixed point representation results in a work area of 65 by 65 meters, with a resolution of about 15 nanometers, which is quite sufficient for the intended target of FDM printing and milling.
+
+Furthermore, arbitrary scaling can be applied to increase the working area, or to increase resolution.
+
+\subsection{Exactness}
+
+All events during polygon offsetting result from angular bisectors, and the intersections of the angular bisectors and the segments of the source polygon.
+
+\subsubsection{3D Triangle-Plane Intersection}
+
+The Input for slicing is an STL file with floating point vertices. Several floating point vertices may map to a single fixed-point vertex. The line segment sliced by a plane is determined via the edges of the triangle intersecting the plane. A triangle intersects a plane in two points, which come from two different edges.
+
+For given vertices $A$ and $B$, the intersection point of the plane and the edges $AB$ and $BA$ must be the same point.
+
+\subsubsection{2D Line-Line Intersection}
+
+The intersection of two lines in 2D must also be exact. Reversing any of the lines must yield the same intersection point.
+
+For given points $P,Q$ and segments $R,S$: $$ P + u\cdot R = Q + v \cdot S = X$$
+The times are given by
+\begin{eqnarray*}
+d &=& R \times S \\
+u &=& \frac{(Q-P) \times R}{d} \\
+v &=& \frac{(P-Q) \times S}{d}
+\end{eqnarray*}
+
+Alternatively, as per \cite{mw:lli}, going by the determinant:
+\begin{eqnarray*}
+X &=& \frac{R (Q \times S )  - S (P \times R )}{R \times S}
+\end{eqnarray*}
+
+
+\subsubsection{2D Line Point Distance}
+
+%	vmfloat_t aDotB = vDot(a, b);
+%	vmfloat_t factor = aDotB/vDot(b,b);
+%	return v3MulScalar(b, factor);
+
+The distance of a point $P$ to line segment $AB$:
+\begin{eqnarray*}
+d &=& \left| (P-A) - AB\frac{(P-A) \cdot (AB)}{(AB) \cdot (AB)} \right|
+\end{eqnarray*}
+
+\subsubsection{Vector Scaling}
+
+As the intersection test yields parameters as a fraction of 64-bit integers, it must be examined if storing time in that format is reasonable.
+
+For two points $A,B$, the equations $A + t \cdot AB$ and $B + (1-t) \cdot BA$ must equal. This is easily accomplished if time is an integer fraction. The question is, how accurate does time have to be. Is a 32-bit fraction sufficient?
+
+To answer the question, at first, let's look at a line $R = (2^{31}-1,0)$. With a 32-bit time value between 0..1, this vector can be scaled to ANY point on the line, and at the same time the full range of possible values.
+
+Next, let's look at $S = (1,0)$. With a 32-bit value between $0..2^{31}-1$, this vector can be scaled to the full range of allowable values.
+
+Thus, it is necessary and sufficient to be able to represent $[2^{-31}, 2^{31})$ to scale any line to any point on itself. This can be accomplished with a 32-bit fraction. A 64-bit fraction is not needed, as the low bits would be rounded off anyway, and can be safely ignored.
+
+No velocity vector can be faster than $2^{31}$, either.
+
+\subsubsection{2D Angular Bisectors}
+
+The angular bisectors must also exactly represent the intersection point of the two offset source edges, for any given time. For given source vertices $A,B,C$, the angular bisector $S$ bisects edges $E_{AB}, E_{BC}$:
+$$ S = E_{BC} \frac{N_{AB} \cdot N_{AB}}{N_{AB} \cdot E_{BC}} +  E_{AB} \frac{N_{BC} \cdot N_{BC}}{N_{BC} \cdot E_{AB}}.$$
+
+For a given $t$, $X = S \cdot t$ must give the exact position of $X$.
+
+To be exact, during wavefront propagation, two neighbouring bisectors must reach their intersection point at the same time.
+
+The normal $N$ is composed of $N = (-y_E, x_E) / ||E||$, so\footnote{
+Substituting inversely, with $E = ||E||\cdot(y_N, -x_E)$ yields a very simple simplification, but with numeric pitfalls
+\begin{eqnarray*}
+S &=& \frac{E_{BC}}{||E_{BC}||} \frac{N_{AB} \cdot N_{AB}}{N_{AB} \times N_{BC}} +  \frac{E_{AB}}{||E_{AB}||} \frac{N_{BC} \cdot N_{BC}}{N_{BC} \times N_{AB}} \\
+S &=& {N_{BC}} \frac{N_{AB} \cdot N_{AB}}{N_{AB} \times N_{BC}} - N_{AB} \frac{N_{BC} \cdot N_{BC}}{N_{AB} \times N_{BC}} \\
+S &=& \frac{N_{BC} - N_{AB}}{N_{AB} \times N_{BC}}
+\end{eqnarray*}
+}
+
+\begin{eqnarray*}
+S &=& \frac{E_{BC}}{|| E_{AB} ||} \frac{E_{AB} \cdot E_{AB}}{N'_{AB} \cdot E_{BC}} +  \frac{E_{AB}}{|| E_{BC} ||} \frac{E_{BC} \cdot E_{BC}}{N'_{BC} \cdot E_{AB}} \\
+S &=& \frac{E_{BC}}{|| E_{AB} ||} \frac{E_{AB} \cdot E_{AB}}{E_{AB} \times E_{BC}} +  \frac{E_{AB}}{|| E_{BC} ||} \frac{E_{BC} \cdot E_{BC}}{E_{BC} \times E_{AB}} \\
+S &=& E_{BC} \frac{|| E_{AB} ||}{E_{AB} \times E_{BC}} +  E_{AB} \frac{|| E_{BC} ||}{E_{BC} \times E_{AB}} \\
+S &=& E_{BC} \frac{|| E_{AB} ||}{E_{AB} \times E_{BC}} - E_{AB} \frac{|| E_{BC} ||}{E_{AB} \times E_{BC}} \\
+S &=& \frac{E_{BC}|| E_{AB} || - E_{AB} || E_{BC} ||}{E_{AB} \times E_{BC}}
+\end{eqnarray*}
+
+A numeric problem occurs if $E_{AB} \times E_{BC}$ is zero. In that case, the lines are either parallel or anti-parallel to within numerical limits. If they are parallel, the term $E_{BC}|| E_{AB} || - E_{AB} || E_{BC} ||$ tends towards zero as well as the denominator, and a well-behaved bisector of the form
+$$ S = \frac{N_{AB} + N_{BC}}{2}$$
+results. In the other case, the bisector is collinear with both vectors, and of infinite velocity. The anti-parallel case results in the direction $ S' = E_{BC}|| E_{AB} || - E_{AB} || E_{BC} ||.$
+
+\paragraph{Motorcycle-Motorcycle Crash}
+
+Carrying on to the intersection of bisectors $ABC, UVW$:
+\begin{eqnarray*}
+R &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \times E_{BC}} \\
+S &=& \frac{E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||}{E_{UV} \times E_{VW}} \\
+R \times S &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \times E_{BC}} \times \frac{E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||}{E_{UV} \times E_{VW}} \\
+R \times S &=& \frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)}{(E_{AB} \times E_{BC}) \cdot (E_{UV} \times E_{VW})} \\
+u &=& \frac{(V-B) \times R}{R \times S} \\
+u &=& \frac{(V-B) \times \left( \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \times E_{BC}}\right)}{\frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)}{(E_{AB} \times E_{BC}) \cdot (E_{UV} \times E_{VW})}} \\
+u &=& \frac{(V-B) \times \left( {E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}\right) \cdot (E_{UV} \times E_{VW})}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)} \\
+%uR &=& (E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \frac{(V-B) \times \left( {E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}\right) \cdot (E_{UV} \times E_{VW})}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)} \\
+v &=& \frac{(B-V) \times S}{S \times R} \\
+v &=& \frac{(V-B) \times \left( {E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||}\right) \cdot (E_{AB} \times E_{BC})}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)} \\
+X &=& \frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \cdot (V \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)) }{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)} \\
+  &-& \frac{(E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||) \cdot (B \times (E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||)) }{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)}
+\end{eqnarray*}
+
+\paragraph{Motorcycle-Edge Crash}
+The crashing of bisector of $ABC$ and edge $UV$:
+\begin{eqnarray*}
+R &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \times E_{BC}} \\
+S &=& E_{UV} \\
+R \times S &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \times E_{BC}} \times E_{UV} \\
+u &=& \frac{(U-B) \times R}{R \times S} \\
+u &=& \frac{(U-B) \times \left( E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||\right)}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times E_{UV}} \\
+v &=& \frac{(B-U) \times S}{S \times R} \\
+v &=& \frac{\left((U-B) \times E_{UV}\right) \cdot (E_{AB} \times E_{BC})}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times E_{UV}} \\
+X &=& \frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \cdot (V \times E_{UV}) - E_{UV} (B \times (E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||))}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times E_{UV}}
+\end{eqnarray*}
+
+
+
+
+\subsubsection{Dealing with Rounding Errors}
+
+From the formula for bisector intersections, it can be seen that due to taking length of a vector, and the involved square root, no absolutely exact intersection time can be computed, even with arbitrary precision decimals. However, the intersection times can be computed exactly to arbitrary precision.
+
+Thus, the question is, what precision is necessary? The fixed point space has a Q16 precision. Attaining this spatial resolution for the intersection point is straight forward. However, for the order of events, the timing is important. How precise does the computed time have to be, to guarantee the right order of events?
+
+\subsubsection{Time and Order of Events}
+
+The order of events is important when dealing with degenerate cases of wavefront events.
+
+We know that the wavefronts move at a speed of one unit of length per unit of time. Thus, it takes one quantum of time to move one quantum of space.
+
+The tip of a spoke, as a point, describes the moving intersection point of the two wavefronts, as they are moved along their normals. When a wavefront collapses, the resulting spoke can be tracked from the virtual intersection point of the original source edges, resulting in no accumulating error in the geometry over successive collapses. On a split, a spoke can be tracked in the same manner.
+
+Assuming that the event locations tracked in this manner are accurate to the spatial quantum, it follows that all events at a given point must happen at the same time. With an exact computation, this would be the exact same time. Thus, we can assume that events in the same place also happen at the same time, provided no events occur before.
+
+How do we know that an event happens before a given spoke reaches our event location quantum? It's easy: any location is reached by the spoke either before, or after reaching the location in question. It is not necessary to compare with another spoke, thus compound rounding errors are not an issue. So for comparing the time on any two events for a given spoke, it is only necessary to compute time to the location quantum, and this comparison only has to be made with enough precision that the time to one location is distinct from the next.
+
+The remaining caveat are spokes with infinite velocity. Practically, they pose no problem. Their source segments cannot be intersected, so the intersection point must be computed differently. The intermediate point between any two points on the source segments is well enough.
+
+\paragraph{Event Time Definition}
+
+The time of an event is determined by when the last involved wavefront reaches the event location. The square of the time can be computed to high precision. This time will differ from the actual event time, but is a more reliable measure for event ordering\footnote{why? needs proof.}.
+
+\subsection{Conclusion}
+
+In conclusion, the quantization of space results in a reliable method for event ordering and coalescing.
+
+%$$ S = v3Add(vReverseProject(v0, e1), vReverseProject(v1, e0))$$
 
 %\printnomenclature
 \nocite{*}

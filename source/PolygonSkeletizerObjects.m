@@ -8,6 +8,9 @@
 
 #import "PolygonSkeletizerObjects.h"
 #import "FoundationExtensions.h"
+#import "PriorityQueue.h"
+#import "MPVector2D.h"
+#import "MPInteger.h"
 
 @implementation PSEvent
 {
@@ -23,7 +26,7 @@
 	
 	creationTime = NAN;
 	time = NAN;
-	location = vCreate(NAN, NAN, NAN, NAN);
+	location = v3iCreate(0,0,0,-1);
 	
 	return self;
 }
@@ -36,7 +39,7 @@
 		return NO;
 	if (self.time != object.time)
 		return NO;
-	if (!v3Equal(self.location, object.location))
+	if (!v3iEqual(self.location, object.location))
 		return NO;
 	
 	
@@ -45,7 +48,7 @@
 
 - (NSString*) hashString
 {
-	NSString* str = [NSString stringWithFormat: @"%f %f %@ %f %f", self.creationTime, time, [self class], location.farr[0], location.farr[1]];
+	NSString* str = [NSString stringWithFormat: @"%f %f %@ %d %d", self.creationTime, time, [self class], location.x, location.y];
 	return str;
 }
 
@@ -84,7 +87,7 @@
 
 - (NSString*) hashString
 {
-	NSString* str = [NSString stringWithFormat: @"%@ %f %f", [super hashString], self.branchVertex.position.farr[0], self.branchVertex.position.farr[1]];
+	NSString* str = [NSString stringWithFormat: @"%@ %d %d", [super hashString], self.branchVertex.position.x, self.branchVertex.position.y];
 	return str;
 }
 
@@ -105,7 +108,7 @@
 
 - (NSString*) hashString
 {
-	NSString* str = [NSString stringWithFormat: @"%@ %f %f", [super hashString], self.collapsingWaveFront.direction.farr[0], self.collapsingWaveFront.direction.farr[1]];
+	NSString* str = [NSString stringWithFormat: @"%@ %d %d", [super hashString], self.collapsingWaveFront.direction.x, self.collapsingWaveFront.direction.y];
 	return str;
 }
 @end
@@ -125,7 +128,7 @@
 
 - (NSString*) hashString
 {
-	NSString* str = [NSString stringWithFormat: @"%@ %f %f", [super hashString], self.antiSpoke.velocity.farr[0], self.antiSpoke.velocity.farr[1]];
+	NSString* str = [NSString stringWithFormat: @"%@ %f %f", [super hashString], self.antiSpoke.floatVelocity.farr[0], self.antiSpoke.floatVelocity.farr[1]];
 	return str;
 }
 @end
@@ -150,24 +153,27 @@
 
 - (NSString*) hashString
 {
-	NSString* str = [NSString stringWithFormat: @"%@ %f %f", [super hashString], self.branchVertex.position.farr[0], self.branchVertex.position.farr[1]];
+	
+	NSString* str = [NSString stringWithFormat: @"%@ %d %d %d", [super hashString], self.branchVertex.position.x, self.branchVertex.position.y, self.branchVertex.position.shift];
 	return str;
 }
 @end
 
 static double _maxBoundsDimension(NSArray* vertices)
 {
-	vector_t minv = vCreatePos(INFINITY, INFINITY, INFINITY);
-	vector_t maxv = vCreatePos(-INFINITY, -INFINITY, -INFINITY);
+	v3i_t minv = v3iCreate(INT32_MAX, INT32_MAX, INT32_MAX, 0);
+	v3i_t maxv = v3iCreate(INT32_MIN, INT32_MIN, INT32_MIN, 0);
 	
 	for (PSVertex* vertex in vertices)
 	{
-		minv = vMin(minv, vertex.position);
-		maxv = vMax(maxv, vertex.position);
+		minv.shift = vertex.position.shift;
+		maxv.shift = vertex.position.shift;
+		minv = v3iMin(minv, vertex.position);
+		maxv = v3iMax(maxv, vertex.position);
 	}
 	
-	vector_t r = v3Sub(maxv, minv);
-	return vLength(r);
+	v3i_t r = v3iSub(maxv, minv);
+	return vLength(v3iToFloat(r));
 }
 
 @implementation PSEdge
@@ -178,7 +184,7 @@ static double _maxBoundsDimension(NSArray* vertices)
 
 @implementation PSMotorcycle
 
-@synthesize crashVertices, terminationTime;
+@synthesize crashVertices, terminationTime, crashQueue;
 
 - (id) init
 {
@@ -186,15 +192,66 @@ static double _maxBoundsDimension(NSArray* vertices)
 		return nil;
 	
 	crashVertices = @[];
-	terminationTime = INFINITY;
+	terminationTime = (vmlongerfix_t){INT128_MAX,0};
 	
-	
+	crashQueue = [[PriorityQueue alloc] initWithCompareBlock: ^NSComparisonResult(PSMotorcycleCrash* obj0, PSMotorcycleCrash* obj1) {
+		vmlongerfix_t t0 = obj0.crashTimeSqr;
+		vmlongerfix_t t1 = obj1.crashTimeSqr;
+		assert(t0.shift == t1.shift);
+		
+		return i128compare(t0.x, t1.x);
+	}];
+
 	return self;
+}
+
+- (MPVector2D*) mpVelocity
+{
+	MPVector2D* E_AB = [MPVector2D vectorWith3i: self.leftEdge.edge];
+	MPVector2D* E_BC = [MPVector2D vectorWith3i: self.rightEdge.edge];
+	
+	MPDecimal* E_ABxBC = [E_AB cross: E_BC];
+	
+	MPDecimal* l_E_AB = [E_AB length];
+	MPDecimal* l_E_BC = [E_BC length];
+	
+	MPVector2D* RU = [[E_BC scale: l_E_AB] sub: [E_AB scale: l_E_BC]];
+	
+	MPVector2D* R = [RU scaleNum: [[MPDecimal alloc] initWithInt64: 1 shift: 0] den: E_ABxBC];
+
+	assert(!isinf(R.x.toDouble));
+	assert(!isinf(R.y.toDouble));
+	
+	
+	
+	return R;
+}
+
+- (vector_t) floatVelocity
+{
+	MPVector2D* mpv = self.mpVelocity;
+	vector_t v = vCreateDir(mpv.x.toDouble, mpv.y.toDouble, 0.0);
+	
+	return v;
 }
 
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p (%.3f, %.3f)", self, self.velocity.farr[0], self.velocity.farr[1]];
+	vector_t v = (self.floatVelocity);
+	return [NSString stringWithFormat: @"%p (%.3f, %.3f)", self, v.farr[0], v.farr[1]];
+}
+
+- (PSVertex*) getVertexOnMotorcycleAtLocation: (v3i_t) x
+{
+	if (self.sourceVertex && v3iEqual(self.sourceVertex.position, x))
+		return self.sourceVertex;
+	if (self.terminalVertex && v3iEqual(self.terminalVertex.position, x))
+		return self.terminalVertex;
+	for (PSVertex* vertex in self.crashVertices)
+		if (v3iEqual(vertex.position, x))
+			return vertex;
+	
+	return nil;
 }
 
 @end
@@ -260,15 +317,15 @@ static double _maxBoundsDimension(NSArray* vertices)
 }
 
 
-static double _angle2d(vector_t from, vector_t to)
+static double _angle2d(v3i_t from, v3i_t to)
 {
-	double x = vDot(from, to);
-	double y = vCross(from, to).farr[2];
-	double angle = atan2(y, x);
+	vmlongfix_t x = v3iDot(from, to);
+	vmlongfix_t y = v3iCross2D(from, to);
+	double angle = atan2(y.x, x.x);
 	return angle;
 }
 
-static double _angle2d_ccw(vector_t from, vector_t to)
+static double _angle2d_ccw(v3i_t from, v3i_t to)
 {
 	double angle = _angle2d(from, to);
 	if (angle < 0.0)
@@ -276,7 +333,7 @@ static double _angle2d_ccw(vector_t from, vector_t to)
 	return angle;
 }
 
-static double _angle2d_cw(vector_t from, vector_t to)
+static double _angle2d_cw(v3i_t from, v3i_t to)
 {
 	double angle = -_angle2d(from, to);
 	if (angle < 0.0)
@@ -284,14 +341,16 @@ static double _angle2d_cw(vector_t from, vector_t to)
 	return angle;
 }
 
-- (PSSpoke*) nextSpokeClockwiseFrom: (vector_t) startDir to: (vector_t) endDir
+- (PSSpoke*) nextSpokeClockwiseFrom: (v3i_t) startDir to: (v3i_t) endDir
 {
 	double alphaMin = 2.0*M_PI;
 	id outSpoke = nil;
 	
+	assert(0);
+	/*
 	for (PSSimpleSpoke* spoke in outgoingSpokes)
 	{
-		vector_t dir = spoke.velocity;
+		v3i_t dir = spoke.floatVelocity;
 		
 		double angleStart = _angle2d_cw(startDir, dir);
 		double angleEnd = _angle2d_cw(dir, endDir);
@@ -309,14 +368,14 @@ static double _angle2d_cw(vector_t from, vector_t to)
 		}
 		
 	}
-	
+	*/
 	
 	return outSpoke;
 }
 
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p (%@) @%f (%f, %f)", self, [self class], self.time, self.position.farr[0], self.position.farr[1]];
+	return [NSString stringWithFormat: @"%p (%@) @%f (%d, %d)", self, [self class], self.time, self.position.x, self.position.y];
 }
 
 
@@ -333,8 +392,8 @@ static double _angle2d_cw(vector_t from, vector_t to)
 	PSMotorcycle* outCycle = [self.outgoingMotorcycles objectAtIndex: 0];
 	NSArray* angles = [self.incomingMotorcycles map: ^id (PSMotorcycle* obj) {
 		
-		vector_t a = vNegate(outCycle.velocity);
-		vector_t b = vNegate(obj.velocity);
+		vector_t a = vNegate(outCycle.floatVelocity);
+		vector_t b = vNegate(obj.floatVelocity);
 		double angle = vAngleBetweenVectors2D(a, b);
 		if (angle < 0.0)
 			angle += 2.0*M_PI;
@@ -357,8 +416,8 @@ static double _angle2d_cw(vector_t from, vector_t to)
 	PSMotorcycle* outCycle = [self.outgoingMotorcycles objectAtIndex: 0];
 	NSArray* angles = [self.incomingMotorcycles map: ^id (PSMotorcycle* obj) {
 		
-		vector_t a = outCycle.velocity;
-		vector_t b = vNegate(obj.velocity);
+		vector_t a = outCycle.floatVelocity;
+		vector_t b = vNegate(obj.floatVelocity);
 		double angle = vAngleBetweenVectors2D(a, b);
 		if (angle < 0.0)
 			angle += 2.0*M_PI;
@@ -383,8 +442,8 @@ static double _angle2d_cw(vector_t from, vector_t to)
 	PSMotorcycle* outCycle = [self.outgoingMotorcycles objectAtIndex: 0];
 	NSArray* angles = [self.incomingMotorcycles map: ^id (PSMotorcycle* obj) {
 		
-		vector_t a = outCycle.velocity;
-		vector_t b = vNegate(obj.velocity);
+		vector_t a = outCycle.floatVelocity;
+		vector_t b = vNegate(obj.floatVelocity);
 		double angle = vAngleBetweenVectors2D(a, b);
 		if (angle < 0.0)
 			angle += 2.0*M_PI;
@@ -422,30 +481,34 @@ static double _angle2d_cw(vector_t from, vector_t to)
 	return self;
 }
 
-- (vector_t) positionAtTime: (double) t
+- (v3i_t) positionAtTime: (double) t
 {
 	[self doesNotRecognizeSelector: _cmd];
-	return vZero();
+	return v3iCreate(0, 0, 0, 0);
 }
 
 @end
 
 @implementation PSSimpleSpoke
 
-- (vector_t) positionAtTime: (double) t
+- (v3i_t) positionAtTime: (double) t
 {
-	return v3Add(self.sourceVertex.position, v3MulScalar(self.velocity, t - self.start));
+	assert(0);
+	return v3iCreate(0, 0, 0, 0);
+//	return v3Add(self.sourceVertex.position, v3MulScalar(self.velocity, t - self.start));
 }
 
+/*
 - (void) setVelocity:(vector_t)velocity
 {
 	assert(!vIsInf(velocity) && !vIsNAN(velocity));
 	_velocity = velocity;
 }
+*/
 
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p (%@) @%f: (%f, %f)", self, [self class], self.start, self.velocity.farr[0], self.velocity.farr[1]];
+	return [NSString stringWithFormat: @"%p (%@) @%f: (%f, %f)", self, [self class], self.start, self.floatVelocity.farr[0], self.floatVelocity.farr[1]];
 }
 
 - (BOOL) convex
@@ -458,14 +521,15 @@ static double _angle2d_cw(vector_t from, vector_t to)
 
 @implementation PSFastSpoke
 
+/*
 - (vector_t) positionAtTime: (double) t
 {
 	return (self.sourceVertex.position);
 }
-
+*/
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p (%@) @%f: (%f, %f)", self, [self class], self.start, self.direction.farr[0], self.direction.farr[1]];
+	return [NSString stringWithFormat: @"%p (%@) @%f: (%d, %d)", self, [self class], self.start, self.direction.x, self.direction.y];
 }
 
 - (BOOL) convex
@@ -624,18 +688,20 @@ static double _angle2d_cw(vector_t from, vector_t to)
 		return NO;
 	if (self.rightSpoke != object.rightSpoke)
 		return NO;
-	if (!v3Equal(self.direction, object.direction))
+	if (!v3iEqual(self.direction, object.direction))
 		return NO;
 	
 	
 	return YES;
 }
 
+/*
 - (NSString*) hashString
 {
 	NSString* str = [NSString stringWithFormat: @"%f %f %@ %f %f %f %f %f %f", self.startTime, self.terminationTime, [self class], self.direction.farr[0], self.direction.farr[1], self.leftSpoke.sourceVertex.position.farr[0], self.leftSpoke.sourceVertex.position.farr[1], self.rightSpoke.sourceVertex.position.farr[0], self.rightSpoke.sourceVertex.position.farr[1]];
 	return str;
 }
+
 
 - (NSUInteger) hash
 {
@@ -646,11 +712,28 @@ static double _angle2d_cw(vector_t from, vector_t to)
 	}
 	return hashCache;
 }
-
+*/
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p (%@): (%f, %f)", self, [self class], self.direction.farr[0], self.direction.farr[1]];
+	return [NSString stringWithFormat: @"%p (%@): (%d, %d)", self, [self class], self.direction.x, self.direction.y];
 }
+
+@end
+
+
+@implementation PSMotorcycleCrash
+
+@end
+
+@implementation PSMotorcycleMotorcycleCrash
+
+@end
+
+@implementation PSMotorcycleEdgeCrash
+
+@end
+
+@implementation PSMotorcycleVertexCrash
 
 @end
 

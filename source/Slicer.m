@@ -12,7 +12,9 @@
 #import "FoundationExtensions.h"
 #import "SlicedOutline.h"
 #import "PolygonSkeletizer.h"
+#import "STLFile.h"
 
+/*
 static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMutableArray* outSegments)
 {
 	vector_t pop = vCreate(0.0, 0.0, zh, 1.0);
@@ -54,7 +56,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 			_sliceZLayer(child, vertices, zh, outSegments);
 	}
 }
-
+*/
 @implementation Slicer
 
 @synthesize mergeThreshold;
@@ -69,6 +71,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 	return self;
 }
 
+/*
 - (void) asyncSliceModel: (GfxMesh*) model intoLayers: (NSArray*) layers layersWithCallbackOnQueue: (dispatch_queue_t) queue block: (void (^)(id)) callback;
 {
 //	dispatch_queue_t workQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
@@ -108,34 +111,55 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 	}
 
 }
-
-- (NSArray*) sliceModel: (GfxMesh*) model intoLayers: (NSArray*) layers
+*/
+- (void) asyncSliceSTL: (STLFile*) model intoLayers: (NSArray*) layers layersWithCallbackOnQueue: (dispatch_queue_t) queue block: (void (^)(id)) callback;
 {
-	MeshOctree* octree = [[MeshOctree alloc] init];
-	[model addTrianglesToOctree: octree];
-	MeshOctree_generateTree(octree);
-	NSMutableArray* segmentedLayers = [[NSMutableArray alloc] initWithCapacity: [layers count]];
+	//	dispatch_queue_t workQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+	dispatch_queue_t workQueue = dispatch_queue_create("com.elmonkey.giddy-machinist.slicing", 0);
 	
 	for (NSNumber* layerZ in layers)
 	{
 		double height = [layerZ doubleValue];
-		NSMutableArray* segments = [NSMutableArray array];
 		
-		_sliceZLayer(octree->baseNode, octree->vertices, height, segments);
+		vmint_t fixheight = height*(1 << model.scaleShift);
+		v3i_t zOffset = v3iCreate(0, 0, fixheight, model.scaleShift);
 		
-		[segmentedLayers addObject: segments];
+		dispatch_async(workQueue, ^{
+			@autoreleasepool {
+				
+				NSArray* segments = [model lineSegmentsIntersectingZLayer: zOffset];
+				
+				segments = [segments map: ^id(NSArray* obj) {
+					assert(obj.count == 2);
+					STLVertex* v0 = [obj objectAtIndex: 0];
+					STLVertex* v1 = [obj objectAtIndex: 1];
+					v3i_t v[2] = {v0.position, v1.position};
+					
+					SlicedLineSegment* segment = [[SlicedLineSegment alloc] init];
+					[segment addVertices: v count: 2];
+					return segment;
+				}];
+				
+				SlicedLayer* layer = [self connectSegments: segments];
+				layer.layerZ = height;
+				layer.mergeThreshold = mergeThreshold;
+				layer = [self nestPaths: layer];
+				
+				
+				dispatch_async(queue, ^{
+					@autoreleasepool {
+						callback(layer);
+					}
+				});
+			}
+		});
+		
+		
+		
 	}
 	
-	NSArray* workingLayers = [self connectAllSegments: segmentedLayers];
-	
-	workingLayers = [workingLayers map:^id(id obj) {
-		return [self nestPaths: obj];
-	}];
-	
-//	NSLog([workingLayers description]);
-	
-	return workingLayers;
 }
+
 
 - (SlicedLayer*) nestPaths: (SlicedLayer* ) inLayer
 {
@@ -185,7 +209,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 /*
  New concept: create a list of all possible links, and connect segments in order of "straightness" instead of minimum vertex distance only.
  */
-
+/*
 static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLineSegment* segment1)
 {
 	vector_t startDir0 = v3Sub(segment0.vertices[1], segment0.vertices[0]);
@@ -218,7 +242,7 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 
 	return distance;
 }
-
+*/
 - (SlicedLayer*) connectSegments: (NSArray* ) segments
 {
 	SlicedLayer* layer = [[SlicedLayer alloc] init];
@@ -248,18 +272,18 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 		size_t si = 0;
 		for (SlicedLineSegment* segment in unprocessedSegments)
 		{
-			vector_t delta[4] = {
-				v3Sub(referenceSegment.begin, segment.begin),
-				v3Sub(referenceSegment.begin, segment.end),
-				v3Sub(referenceSegment.end, segment.begin),
-				v3Sub(referenceSegment.end, segment.end),
+			v3i_t delta[4] = {
+				v3iSub(referenceSegment.begin, segment.begin),
+				v3iSub(referenceSegment.begin, segment.end),
+				v3iSub(referenceSegment.end, segment.begin),
+				v3iSub(referenceSegment.end, segment.end),
 			};
 			
-			double distance[4];
+			vmlong_t distance[4];
 			
 			for (size_t i = 0; i < 4; ++i)
 			{
-				distance[i] = vDot(delta[i], delta[i]);
+				distance[i] = v3iDot(delta[i], delta[i]).x;
 				if (distance[i] < foundDistanceSqr)
 				{
 					foundDistanceSqr = distance[i];
@@ -270,7 +294,7 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 			++si;
 		}
 		
-		if ((foundDistanceSqr) < mergeThreshold*mergeThreshold)
+		if ((foundDistanceSqr) < 1)
 		{
 			foundMerge = YES;
 			
@@ -284,7 +308,7 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 		
 		if (foundMerge)
 		{
-			if ([referenceSegment closePolygonByMergingEndpoints: mergeThreshold])
+			if ([referenceSegment closePolygonByMergingEndpoints])
 			{
 				double area = [referenceSegment area];
 				if (fabs(area) > mergeThreshold*mergeThreshold) // discard triangle if its too bloody small
@@ -312,7 +336,7 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 		assert(segment.vertexCount);
 
 		[segment optimizeColinears: mergeThreshold];
-		[segment optimizeToThreshold: mergeThreshold];
+		//[segment optimizeToThreshold: mergeThreshold];
 
 		[segment analyzeSegment];
 
@@ -405,9 +429,9 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 				double fb = (double)(i+1)/segment.vertexCount;
 				
 				colors[k] = (vCreate(fa, 1.0, 0.0, 1.0));
-				vertices[k++] = segment.vertices[i];
+				vertices[k++] = v3iToFloat(segment.vertices[i]);
 				colors[k] = (vCreate(fb, 1.0, 0.0, 1.0));
-				vertices[k++] = segment.vertices[(i+1)%segment.vertexCount];
+				vertices[k++] = v3iToFloat(segment.vertices[(i+1)%segment.vertexCount]);
 			}
 		}
 	}
@@ -416,9 +440,9 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 		for (size_t i = 0; i+1 < segment.vertexCount; ++i)
 		{
 			colors[k] = vCreate(1.0, 0.0, 0.0, 1.0);
-			vertices[k++] = segment.vertices[i];
+			vertices[k++] = v3iToFloat(segment.vertices[i]);
 			colors[k] = vCreate(1.0, 0.0, 0.0, 1.0);
-			vertices[k++] = segment.vertices[i+1];
+			vertices[k++] = v3iToFloat(segment.vertices[i+1]);
 		}
 	}
 	

@@ -10,25 +10,13 @@
 
 #import "gfx.h"
 #import "VectorMath.h"
+#import "VectorMath_fixp.h"
 #import "FoundationExtensions.h"
 #import "PolygonSkeletizerObjects.h"
 #import "PSWaveFrontSnapshot.h"
-
-static NSComparisonResult fcompare(double a, double b)
-{
-	return ((a < b) ? NSOrderedAscending : ((a > b) ? NSOrderedDescending : NSOrderedSame));
-}
-
-static NSComparisonResult ulcompare(unsigned long a, unsigned long b)
-{
-	return ((a < b) ? NSOrderedAscending : ((a > b) ? NSOrderedDescending : NSOrderedSame));
-}
-
-static NSComparisonResult fcompare_descending(double a, double b)
-{
-	return fcompare(b, a);
-}
-
+#import "PriorityQueue.h"
+#import "MPVector2D.h"
+#import "MPInteger.h"
 
 @implementation PolygonSkeletizer
 {
@@ -41,14 +29,15 @@ static NSComparisonResult fcompare_descending(double a, double b)
 	NSMutableArray* traceCrashVertices;
 	NSMutableArray* mergeCrashVertices;
 	
-	NSArray* terminatedMotorcycles;
+	NSMutableArray* terminatedMotorcycles;
 	NSMutableSet* terminatedSpokes;
 	NSMutableArray* terminatedWaveFronts;
 	
 	NSMutableArray* outlineMeshes;
 	
-	NSMutableDictionary* motorcycleEdgeCrashes;
-	NSMutableDictionary* motorcycleMotorcycleCrashes;
+	PriorityQueue* motorcycleCrashes;
+	//PriorityQueue* motorcycleEdgeCrashes;
+	//NSMutableDictionary* motorcycleMotorcycleCrashes;
 	
 }
 
@@ -68,14 +57,20 @@ static NSComparisonResult fcompare_descending(double a, double b)
 	traceCrashVertices = [NSMutableArray array];
 	mergeCrashVertices = [NSMutableArray array];
 	edges = [NSArray array];
-	terminatedMotorcycles = [NSArray array];
+	terminatedMotorcycles = [NSMutableArray array];
 	terminatedSpokes = [NSMutableSet set];
 	terminatedWaveFronts = [NSMutableArray array];
 	
 	outlineMeshes = [NSMutableArray array];
 	
-	motorcycleEdgeCrashes = [NSMutableDictionary dictionary];
-	motorcycleMotorcycleCrashes = [NSMutableDictionary dictionary];
+	motorcycleCrashes = [[PriorityQueue alloc] initWithCompareBlock:^NSComparisonResult(PSMotorcycleCrash* obj0, PSMotorcycleCrash* obj1) {
+		vmlongerfix_t t0 = obj0.crashTimeSqr;
+		vmlongerfix_t t1 = obj1.crashTimeSqr;
+		assert(t0.shift == t1.shift);
+		
+		return i128compare(t0.x, t1.x);
+	}];
+	//motorcycleMotorcycleCrashes = [NSMutableDictionary dictionary];
 	
 	emissionTimes = @[@1.0, @2.0, @5.0, @10.0, @11.0, @12.0,@13.0,@14.0, @15.0, @16.0,@17.0,@18.0,@19.0, @20.0, @25.0, @30.0, @35.0, @40.0, @45.0, @50.0];
 
@@ -88,18 +83,19 @@ static NSComparisonResult fcompare_descending(double a, double b)
 
 
 
-static inline vector_t _edgeToNormal(vector_t e)
+static inline v3i_t _edgeToNormal(v3i_t e)
 {
-	return vSetLength(vCreate(-e.farr[1], e.farr[0], 0.0, 0.0), 1.0);
+	// does not set length to unity!!!
+	return v3iCreate(-e.y, e.x, 0, e.shift);
 }
 
-static inline vector_t _normalToEdge(vector_t n)
+static inline v3i_t _normalToEdge(v3i_t n)
 {
-	return vCreate(n.farr[1], -n.farr[0], 0.0, 0.0);
+	return v3iCreate(n.y, -n.x, 0, n.shift);
 }
 
 
-- (void) addClosedPolygonWithVertices: (vector_t*) vv count: (size_t) vcount
+- (void) addClosedPolygonWithVertices: (v3i_t*) vv count: (size_t) vcount
 {
 	NSMutableArray* newVertices = [NSMutableArray arrayWithCapacity: vcount];
 	NSMutableArray* newEdges = [NSMutableArray arrayWithCapacity: vcount];
@@ -119,15 +115,13 @@ static inline vector_t _normalToEdge(vector_t n)
 		edge.rightVertex = [newVertices objectAtIndex: (i+1) % vcount];
 		edge.leftVertex.rightEdge = edge;;
 		edge.rightVertex.leftEdge = edge;
-		vector_t a = edge.leftVertex.position;
-		vector_t b = edge.rightVertex.position;
-		vector_t e = v3Sub(b, a);
+		v3i_t a = edge.leftVertex.position;
+		v3i_t b = edge.rightVertex.position;
+		v3i_t e = v3iSub(b, a);
 		edge.normal = _edgeToNormal(e);
 		edge.edge = e;
 		
-		assert(e.farr[2] == 0.0);
-
-		assert(vLength(e) >= mergeThreshold);
+	//	assert(vLength(e) >= mergeThreshold);
 		
 		[newEdges addObject: edge];
 	}
@@ -137,7 +131,8 @@ static inline vector_t _normalToEdge(vector_t n)
 	originalVertices = [originalVertices arrayByAddingObjectsFromArray: newVertices];
 
 }
-static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, vector_t e1)
+
+vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, vector_t e1)
 {
 	assert(v0.farr[2] == 0.0);
 	assert(v1.farr[2] == 0.0);
@@ -172,10 +167,406 @@ static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, v
 	
 }
 
-- (void) crashMotorcycle: (PSMotorcycle*) cycle intoEdgesWithLimit: (double) motorLimit
+static v3l_t _scaleLong(v3i_t a, vmintfix_t b)
 {
-	vector_t motorv = cycle.velocity;
-	vector_t motorp = cycle.sourceVertex.position;
+	vmlong_t tmpx = (vmlong_t)a.x*b.x;
+	vmlong_t tmpy = (vmlong_t)a.y*b.x;
+	vmlong_t tmpz = (vmlong_t)a.z*b.x;
+	
+	return (v3l_t){tmpx, tmpy, tmpz, a.shift + b.shift};
+}
+
+static v3l_t _intToLongVector(v3i_t a, long shift)
+{
+	assert(shift > 0);
+	return (v3l_t){((vmlong_t)a.x) << shift, ((vmlong_t)a.y) << shift, ((vmlong_t)a.z) << shift, a.shift + shift};
+}
+
+static v3i_t _longToIntVector(v3l_t a, long rshift)
+{
+	vmlong_t x = a.x >> rshift;
+	vmlong_t y = a.y >> rshift;
+	vmlong_t z = a.z >> rshift;
+	
+	assert(x <= INT32_MAX);
+	assert(x >= INT32_MIN);
+	assert(y <= INT32_MAX);
+	assert(y >= INT32_MIN);
+	assert(z <= INT32_MAX);
+	assert(z >= INT32_MIN);
+
+	return (v3i_t){x, y, z, a.shift - rshift};
+}
+
+static vmlongfix_t _longerReduce(vmlongerfix_t a)
+{
+	long shift = a.shift/2;
+	vmlonger_t tmp = a.x >> (a.shift-shift);
+	assert(tmp <= INT64_MAX);
+	assert(tmp >= INT64_MIN);
+	return (vmlongfix_t){tmp, shift};
+}
+
+static inline vmlongfix_t lfixdiv(vmlongfix_t a, vmlongfix_t b)
+{
+	vmlonger_t x = (vmlonger_t)a.x/b.x;
+	return (vmlongfix_t){x, a.shift-b.shift};
+}
+
+static inline v3l_t v3lScaleFloor(v3l_t a, vmlongfix_t num, vmlongfix_t den)
+{
+	vmlonger_t xn = (vmlonger_t)a.x*num.x;
+	vmlonger_t yn = (vmlonger_t)a.y*num.x;
+	vmlonger_t zn = (vmlonger_t)a.z*num.x;
+	
+	vmlonger_t x = xn/den.x;
+	vmlonger_t y = yn/den.x;
+	vmlonger_t z = zn/den.x;
+	
+	assert(x <= INT64_MAX);
+	assert(x >= INT64_MIN);
+	assert(y <= INT64_MAX);
+	assert(y >= INT64_MIN);
+	assert(z <= INT64_MAX);
+	assert(z >= INT64_MIN);
+	
+	return (v3l_t){x, y, z, a.shift + num.shift - den.shift};
+}
+
+static vmlongfix_t _lmulReduce(vmlongfix_t a, vmlongfix_t b)
+{
+	long shift = a.shift;
+	long mulShift = a.shift+b.shift;
+	assert(shift < mulShift);
+	vmlonger_t y = (vmlonger_t)a.x*b.x;
+	
+	return (vmlongfix_t){y >> mulShift - shift, shift};
+}
+
+static long _locationOnEdge_boxTest(v3i_t A, v3i_t B, v3i_t x)
+{
+	r3i_t r = riCreateFromVectors(A,B);
+	
+	return riContainsVector2D(r, x);
+}
+
+static long _locationOnRayHalfPlaneTest(v3i_t R, v3i_t X)
+{
+	return v3iDot(R, X).x > 0;
+}
+
+
+
+//static v3i_t _crashLocationME(PSMotorcycle* ma, PSEdge* eb, long* isValid)
+static v3i_t _crashLocationME2(v3i_t B, v3i_t E_AB, v3i_t E_BC, v3i_t U, v3i_t V, long* isValid)
+{
+	v3i_t D = v3iSub(U, B);
+	v3l_t DU = _intToLongVector(D, D.shift);
+	v3l_t DV = _intToLongVector(v3iNegate(D), D.shift);
+	
+	v3i_t S = v3iSub(V, U);
+	v3l_t Sl = _intToLongVector(S, S.shift);
+
+	vmlongfix_t E_ABxBC = v3iCross2D(E_AB, E_BC);
+
+	vmintfix_t l_E_AB = v3iLength2D(E_AB);
+	vmintfix_t l_E_BC = v3iLength2D(E_BC);
+
+	v3l_t E_ABC = v3lSub(_scaleLong(E_BC, l_E_AB), _scaleLong(E_AB, l_E_BC));
+
+	vmlongfix_t denum = _longerReduce(v3lCross2D(E_ABC, Sl));
+	
+	if (denum.x == 0)
+	{
+		*isValid = NO;
+		return v3iCreate(0, 0, 0, 0);
+	}
+	
+	vmlongfix_t numU = _longerReduce(v3lCross2D(DU, E_ABC));
+	vmlongfix_t numV = _lmulReduce(_longerReduce(v3lCross2D(DV, Sl)), E_ABxBC);
+	vmlongfix_t denumU = _lmulReduce(denum, E_ABxBC);
+	vmlongfix_t denumV = denum;
+
+	v3l_t uRl = v3lScaleFloor(E_ABC, numU, denumU);
+	v3l_t vSl = v3lScaleFloor(Sl, numV, denumV);
+	
+	v3i_t uR = _longToIntVector(uRl, uRl.shift/2);
+	v3i_t vS = _longToIntVector(vSl, vSl.shift/2);
+	
+	v3i_t XR = v3iAdd(B, uR);
+	v3i_t XS = v3iAdd(U, vS);
+	
+	// FIXME: dummy call
+	v3lToFloat(E_ABC);
+	
+	assert(v3iEqual(XR, XS));
+	
+	
+	
+	// is valid crash if it it's on the edge, and after t=0
+	*isValid = _locationOnEdge_boxTest(U,V, XR) && ((vmlonger_t)numU.x*denumU.x >= 0);
+	return XR;
+	
+}
+
+static v3i_t _crashLocationME3(v3i_t _B, v3i_t _E_AB, v3i_t _E_BC, v3i_t _U, v3i_t _V, long* isValid)
+{
+	MPVector2D* B = [MPVector2D vectorWith3i: _B];
+	MPVector2D* E_AB = [MPVector2D vectorWith3i: _E_AB];
+	MPVector2D* E_BC = [MPVector2D vectorWith3i: _E_BC];
+	MPVector2D* U = [MPVector2D vectorWith3i: _U];
+	MPVector2D* V = [MPVector2D vectorWith3i: _V];
+	
+	MPVector2D* D = [U sub: B];
+	
+	MPVector2D* S = [V sub: U];
+	
+	MPDecimal* E_ABxBC = [E_AB cross: E_BC];
+	
+	MPDecimal* l_E_AB = E_AB.length;
+	MPDecimal* l_E_BC = E_BC.length;
+	
+	MPVector2D* E_ABC = [[E_BC scale: l_E_AB] sub: [E_AB scale: l_E_BC]];
+	
+	MPDecimal* denum = [E_ABC cross: S];
+	
+	
+	if (denum.isZero)
+	{
+		*isValid = NO;
+		return v3iCreate(0, 0, 0, 0);
+	}
+	
+	MPDecimal* numU = [D cross: E_ABC];
+	MPDecimal* numV = [[D cross: S] mul: E_ABxBC];
+	
+	MPDecimal* denumU = [denum mul: E_ABxBC];
+	MPDecimal* denumV = denum;
+	
+	MPVector2D* uRl = [E_ABC scaleNum: numU den: denumU];
+	MPVector2D* vSl = [S scaleNum: numV den: denumV];
+	
+	BOOL ROK = uRl.minIntegerBits < 16;
+	BOOL SOK = vSl.minIntegerBits < 16;
+	
+	if (!ROK || !SOK)
+	{
+		*isValid = NO;
+		return v3iCreate(0, 0, 0, 0);
+	}
+	
+	//	NSLog(@"%@", uRl.x.stringValue);
+	
+	v3i_t uR = [uRl toVectorWithShift: 16];
+	v3i_t vS = [vSl toVectorWithShift: 16];
+	
+	v3i_t XR = v3iAdd(_B, uR);
+	v3i_t XS = v3iAdd(_U, vS);
+	
+	
+	// FIXME: dummy call
+	//v3lToFloat(_E_ABC);
+	
+	
+	
+	
+	// is valid crash if it it's on the edge, and after t=0
+	*isValid = _locationOnEdge_boxTest(_U,_V, XR) && (numU.sign*denumU.sign >= 0);
+	
+	if (*isValid)
+		assert(v3iEqual(XR, XS));
+	
+	
+	return XR;
+	
+}
+
+static v3i_t _crashLocationME(v3i_t _B, v3i_t _E_AB, v3i_t _E_BC, v3i_t _U, v3i_t _V, long* isValid)
+{
+	MPVector2D* B = [MPVector2D vectorWith3i: _B];
+	MPVector2D* E_AB = [MPVector2D vectorWith3i: _E_AB];
+	MPVector2D* E_BC = [MPVector2D vectorWith3i: _E_BC];
+	MPVector2D* U = [MPVector2D vectorWith3i: _U];
+	MPVector2D* V = [MPVector2D vectorWith3i: _V];
+	
+	
+	MPVector2D* S = [V sub: U];
+	
+	MPDecimal* E_ABxBC = [E_AB cross: E_BC];
+	
+	MPDecimal* l_E_AB = E_AB.length;
+	MPDecimal* l_E_BC = E_BC.length;
+	
+	MPVector2D* E_ABC = [[E_BC scale: l_E_AB] sub: [E_AB scale: l_E_BC]];
+	
+	MPDecimal* denum = [E_ABC cross: S];
+			
+	
+	if (denum.isZero)
+	{
+		*isValid = NO;
+		return v3iCreate(0, 0, 0, 0);
+	}
+	
+	MPVector2D* RQS = [E_ABC scale: [V cross: S]];
+	MPVector2D* SPR = [S scale: [B cross: E_ABC]];
+	
+	MPVector2D* X = [[RQS sub: SPR] scaleNum: [[MPDecimal alloc] initWithInt64: 1 shift: 0] den: denum];
+	
+
+	
+	if (X.minIntegerBits > 16)
+	{
+		*isValid = NO;
+		return v3iCreate(0, 0, 0, 0);
+	}
+	v3i_t Xi = [X toVectorWithShift: 16];
+		
+	
+	
+	v3i_t R = [[E_ABC scaleNum: [[MPDecimal alloc] initWithInt64: 1 shift: 0] den: E_ABxBC] toVectorWithShift: 16];
+	// is valid crash if it it's on the edge, and after t=0
+	*isValid = _locationOnEdge_boxTest(_U,_V, Xi) && _locationOnRayHalfPlaneTest(R, v3iSub(Xi, _B));
+	
+	
+	return Xi;
+	
+}
+
+static v3i_t _crashLocationMM(PSMotorcycle* ma, PSMotorcycle* mb, long* isValid)
+{
+	*isValid = NO;
+	MPVector2D* B = [MPVector2D vectorWith3i: ma.sourceVertex.position];
+	MPVector2D* V = [MPVector2D vectorWith3i: mb.sourceVertex.position];
+	
+	MPVector2D* E_AB = [MPVector2D vectorWith3i: ma.leftEdge.edge];
+	MPVector2D* E_BC = [MPVector2D vectorWith3i: ma.rightEdge.edge];
+	MPVector2D* E_UV = [MPVector2D vectorWith3i: mb.leftEdge.edge];
+	MPVector2D* E_VW = [MPVector2D vectorWith3i: mb.rightEdge.edge];
+	
+	MPDecimal* E_ABxBC = [E_AB cross: E_BC];
+	MPDecimal* E_UVxVW = [E_UV cross: E_VW];
+	
+	MPDecimal* l_E_AB = [E_AB length];
+	MPDecimal* l_E_BC = [E_BC length];
+	MPDecimal* l_E_UV = [E_UV length];
+	MPDecimal* l_E_VW = [E_VW length];
+
+	MPVector2D* E_ABC = [[E_BC scale: l_E_AB] sub: [E_AB scale: l_E_BC]];
+	MPVector2D* E_UVW = [[E_VW scale: l_E_UV] sub: [E_UV scale: l_E_VW]];
+		
+	MPVector2D* R = ma.mpVelocity;
+	MPVector2D* S = mb.mpVelocity;
+	
+	if ((!E_ABxBC.isZero) && ((!E_UVxVW.isZero)))
+	{
+		MPDecimal* denum = [E_ABC cross: E_UVW];
+
+		
+		if (!denum.isZero)
+		{
+			MPVector2D* RQS = [E_ABC scale: [V cross: E_UVW]];
+			MPVector2D* SPR = [E_UVW scale: [B cross: E_ABC]];
+			MPVector2D* XD = [RQS sub: SPR];
+			
+			MPVector2D* X = [XD scaleNum: [[MPDecimal alloc] initWithInt64: 1 shift: 0] den: denum];
+						
+			if (X.minIntegerBits < 16)
+			{
+
+				
+				v3i_t Xi = [X toVectorWithShift: 16];
+				*isValid = YES;
+				return Xi;
+				
+			}
+		}
+		else
+		{
+			*isValid = NO;
+		}
+	}
+	else
+	{
+		[NSException raise: @"PolgyonSkeletizer.crashException" format: @"A motorcycle is invalid"];
+	}
+	return v3iCreate(0, 0, 0, 0);
+}
+
+static v3i_t _crashLocationMM2(PSMotorcycle* ma, PSMotorcycle* mb, long* isValid)
+{
+	*isValid = NO;
+	MPVector2D* B = [MPVector2D vectorWith3i: ma.sourceVertex.position];
+	MPVector2D* V = [MPVector2D vectorWith3i: mb.sourceVertex.position];
+	MPVector2D* D = [V sub: B];
+	
+	MPVector2D* E_AB = [MPVector2D vectorWith3i: ma.leftEdge.edge];
+	MPVector2D* E_BC = [MPVector2D vectorWith3i: ma.rightEdge.edge];
+	MPVector2D* E_UV = [MPVector2D vectorWith3i: mb.leftEdge.edge];
+	MPVector2D* E_VW = [MPVector2D vectorWith3i: mb.rightEdge.edge];
+	
+	MPDecimal* E_ABxBC = [E_AB cross: E_BC];
+	MPDecimal* E_UVxVW = [E_UV cross: E_VW];
+	
+	MPDecimal* l_E_AB = [E_AB length];
+	MPDecimal* l_E_BC = [E_BC length];
+	MPDecimal* l_E_UV = [E_UV length];
+	MPDecimal* l_E_VW = [E_VW length];
+	
+	MPVector2D* E_ABC = [[E_BC scale: l_E_AB] sub: [E_AB scale: l_E_BC]];
+	MPVector2D* E_UVW = [[E_VW scale: l_E_UV] sub: [E_UV scale: l_E_VW]];
+	
+	MPVector2D* R = ma.mpVelocity;
+	MPVector2D* S = mb.mpVelocity;
+	
+	if ((!E_ABxBC.isZero) && ((!E_UVxVW.isZero)))
+	{
+		MPDecimal* denum = [E_ABC cross: E_UVW];
+		
+		MPDecimal* numU = [[D cross: E_ABC] mul: E_UVxVW];
+		MPDecimal* numV = [[D cross: E_UVW] mul: E_ABxBC];
+		
+		MPDecimal* denumU = [denum mul: E_ABxBC];
+		MPDecimal* denumV = [denum mul: E_UVxVW];
+		
+		
+		if ((!denumU.isZero) && (!denumV.isZero))
+		{
+			MPVector2D* uRl = [E_ABC scaleNum: numU den: denumU];
+			MPVector2D* vSl = [E_UVW scaleNum: numV den: denumV];
+			
+			if ((uRl.minIntegerBits < 32) && (vSl.minIntegerBits < 32))
+			{
+				
+				MPVector2D* XRl = [B add: uRl];
+				MPVector2D* XSl = [V add: vSl];
+				
+				v3i_t XR = [XRl toVectorWithShift: 16];
+				v3i_t XS = [XSl toVectorWithShift: 16];
+				
+				
+				assert(v3iEqual(XR, XS));
+				
+				*isValid = YES;
+				return XR;
+				
+			}
+		}
+		else
+		{
+			*isValid = NO;
+		}
+	}
+	else
+	{
+		[NSException raise: @"PolgyonSkeletizer.crashException" format: @"A motorcycle is invalid"];
+	}
+	return v3iCreate(0, 0, 0, 0);
+}
+
+
+- (void) crashMotorcycle: (PSMotorcycle*) cycle intoEdgesWithLimit: (vmint_t) motorLimit
+{
 	// crash against edges
 	for (PSEdge* edge in edges)
 	{
@@ -184,44 +575,73 @@ static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, v
 			if ((edge.leftVertex == cycle.sourceVertex) || (edge.rightVertex == cycle.sourceVertex))
 				continue;
 			
+			long isValidCrash = NO;
 			
-			//vector_t delta = v3Sub(motorp, edge.startVertex.position);
-			vector_t tx = xRays2D(motorp, motorv, edge.leftVertex.position, v3Sub(edge.rightVertex.position, edge.leftVertex.position));
-			double t = tx.farr[0];
-			
-			//assert(vCross(edge.edge, delta).farr[2] >= 0.0);
-			
-			if ((t > 0.0) && (t < motorLimit))
+			v3i_t xloc = _crashLocationME(cycle.sourceVertex.position, cycle.leftEdge.edge, cycle.rightEdge.edge, edge.leftVertex.position, edge.rightVertex.position, &isValidCrash);
+						
+						
+			if (isValidCrash)
 			{
-				vector_t x = v3Add(motorp, v3MulScalar(motorv, t));
+				v3i_t x = xloc;
 				
-				vector_t ax = v3Sub(x, edge.leftVertex.position);
-				vector_t bx = v3Sub(x, edge.rightVertex.position);
+				// match test, intersection points must equal for reversed edge
+				{
+					long isValidCrashRev = NO;
+					
+					v3i_t xlocrev = _crashLocationME(cycle.sourceVertex.position, cycle.leftEdge.edge, cycle.rightEdge.edge, edge.rightVertex.position, edge.leftVertex.position, &isValidCrashRev);
+					assert(isValidCrashRev && v3iEqual(xlocrev, x));
+				}
 				
-				BOOL hitStart = (vDot(ax, ax) < mergeThreshold*mergeThreshold);
-				BOOL hitEnd = (vDot(bx, bx) < mergeThreshold*mergeThreshold);
+				
+				vmlongerfix_t ta0 = _linePointDistanceSqr(cycle.leftEdge.leftVertex.position, cycle.leftEdge.rightVertex.position, xloc);
+				vmlongerfix_t ta1 = _linePointDistanceSqr(cycle.rightEdge.leftVertex.position, cycle.rightEdge.rightVertex.position, xloc);
+
+				
+				vmlongerfix_t ta = llfixmax(ta0, ta1);
+				
+				v3i_t ax = v3iSub(x, edge.leftVertex.position);
+				v3i_t bx = v3iSub(x, edge.rightVertex.position);
+				
+				BOOL hitStart = !ax.x && !ax.y;
+				BOOL hitEnd = !bx.x && !bx.y;
 				
 				id crash = nil;
 				
 				if (hitStart)
 				{
-					crash = @[[NSNumber numberWithDouble: t], cycle, edge.leftVertex];
+					PSMotorcycleVertexCrash* vc = [[PSMotorcycleVertexCrash alloc] init];
+					vc.location = x;
+					vc.cycle0 = cycle;
+					vc.vertex = edge.leftVertex;
+					vc.time0Sqr = ta;
+					vc.crashTimeSqr = ta;
+					crash = vc;
 				}
 				else if (hitEnd)
 				{
-					crash = @[[NSNumber numberWithDouble: t], cycle, edge.rightVertex];
+					PSMotorcycleVertexCrash* vc = [[PSMotorcycleVertexCrash alloc] init];
+					vc.location = x;
+					vc.cycle0 = cycle;
+					vc.vertex = edge.rightVertex;
+					vc.time0Sqr = ta;
+					vc.crashTimeSqr = ta;
+					crash = vc;
 				}
-				else if ((tx.farr[1] > 0.0) && (tx.farr[1] < 1.0))
+				else
 				{
-					crash = @[[NSNumber numberWithDouble: t], cycle, edge, [NSNumber numberWithDouble: tx.farr[0]], [NSNumber numberWithDouble: tx.farr[1]]];
+					PSMotorcycleEdgeCrash* ec = [[PSMotorcycleEdgeCrash alloc] init];
+					ec.location = x;
+					ec.cycle0 = cycle;
+					ec.edge1 = edge;
+					ec.time0Sqr = ta;
+					ec.crashTimeSqr = ta;
+					crash = ec;
 				}
 				
 				if (crash)
 				{
-					id key = [NSValue valueWithPointer: (__bridge void*)cycle];
-					id oldCrash = [motorcycleEdgeCrashes objectForKey: key];
-					if (!oldCrash || ([[oldCrash objectAtIndex: 0] doubleValue] > t))
-						[motorcycleEdgeCrashes setObject: crash forKey: key];
+					[motorcycleCrashes addObject: crash];
+					[cycle.crashQueue addObject: crash];
 				}
 			}
 		}
@@ -229,205 +649,120 @@ static inline vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, v
 
 }
 
+static vmlongerfix_t _linePointDistanceSqr(v3i_t A, v3i_t B, v3i_t P)
+{
+	v3i_t AP = v3iSub(P, A);
+	v3i_t AB = v3iSub(B, A);
+	
+	vmlongfix_t num = v3iDot(AP, AB);
+	vmlongfix_t den = v3iDot(AB, AB);
+	
+	v3l_t PAB = v3lScaleFloor(_intToLongVector(AB, AB.shift), num, den);
+	
+	v3l_t APl = _intToLongVector(AP, AP.shift);
+	
+	v3l_t D = v3lSub(APl, PAB);
+	
+	return v3lDot2D(D,D);
+}
+
 - (void) crashMotorcycle: (PSMotorcycle*) cycle0 intoMotorcycles: (NSArray*) motorcycles withLimit: (double) motorLimit
 {
-	vector_t motorv = cycle0.velocity;
-	vector_t motorp = cycle0.sourceVertex.position;
 	
 	NSUInteger k = [motorcycles indexOfObject: cycle0];
 	for (PSMotorcycle* cycle1 in [motorcycles subarrayWithRange: NSMakeRange(k+1, [motorcycles count] - k - 1)])
 	{
-		vector_t tx = xRays2D(motorp, motorv, cycle1.sourceVertex.position, cycle1.velocity);
 		
-		double ta = tx.farr[0];
-		double tb = tx.farr[1];
+		long isValidCrash = NO;
+		v3i_t xloc = _crashLocationMM(cycle0, cycle1, &isValidCrash);
+		
+		//xiLineSegments2DFrac(motorp, v3iAdd(motorp, motorv), cycle1.sourceVertex.position, v3iAdd(cycle1.sourceVertex.position, cycle1.velocity), &t0, &t1, &den);
 
-		if ((ta > 0.0) && (ta <= motorLimit) && (tb > 0.0) && (tb <= motorLimit))
+				
+		//vmlong_t ta = t0;
+		//vmlong_t tb = t1;
+
+		if (isValidCrash)
 		{
-			double hitTime = fmax(ta, tb);
+			vmlongerfix_t ta0 = _linePointDistanceSqr(cycle0.leftEdge.leftVertex.position, cycle0.leftEdge.rightVertex.position, xloc);
+			vmlongerfix_t ta1 = _linePointDistanceSqr(cycle0.rightEdge.leftVertex.position, cycle0.rightEdge.rightVertex.position, xloc);
+			vmlongerfix_t tb0 = _linePointDistanceSqr(cycle1.leftEdge.leftVertex.position, cycle1.leftEdge.rightVertex.position, xloc);
+			vmlongerfix_t tb1 = _linePointDistanceSqr(cycle1.rightEdge.leftVertex.position, cycle1.rightEdge.rightVertex.position, xloc);
+			vmlongerfix_t ta = llfixmax(ta0, ta1);
+			vmlongerfix_t tb = llfixmax(tb0, tb1);
+			vmlongerfix_t hitTime = llfixmax(ta, tb);
 			id survivor = nil;
 			id crasher = nil;
-			double ts = INFINITY, tc = INFINITY;
-			
-			vector_t ax = v3Add(cycle0.sourceVertex.position, v3MulScalar(cycle0.velocity, hitTime));
-			vector_t bx = v3Add(cycle1.sourceVertex.position, v3MulScalar(cycle1.velocity, hitTime));
-			vector_t dx = v3Sub(ax, bx);
-			
-			if (ta <= tb)
+			vmlongerfix_t ts = {0,0}, tc = {0,0};
+						
+			if (ta.x <= tb.x)
 			{
-				dx = ax;
 				ts = ta;
 				tc = tb;
 				survivor = cycle0;
 				crasher = cycle1;
 			}
-			else if (ta > tb)
+			else if (ta.x > tb.x)
 			{
-				dx = bx;
 				ts = tb;
 				tc = ta;
 				survivor = cycle1;
 				crasher = cycle0;
 			}
 			
-			id crash = @[[NSNumber numberWithDouble: hitTime], crasher, survivor, [NSNumber numberWithDouble: tc], [NSNumber numberWithDouble: ts]];
-
-			id key = [NSValue valueWithPointer: (__bridge void*)crasher];
+			PSMotorcycleMotorcycleCrash* crash = [[PSMotorcycleMotorcycleCrash alloc] init];
+			
+			crash.cycle0 = crasher;
+			crash.cycle1 = survivor;
+			crash.crashTimeSqr = hitTime;
+			crash.time0Sqr = tc;
+			crash.time1Sqr = ts;
+			crash.location = xloc;
+			
+			//id key = [NSValue valueWithPointer: (__bridge void*)crasher];
+			
+			[motorcycleCrashes addObject: crash];
+			[crash.cycle0.crashQueue addObject: crash];
+			//[crash.cycle1.crashQueue addObject: crash]; // survivor doesn't care, isn't affected by crash
 					  
-			NSMutableArray* crashes = [motorcycleMotorcycleCrashes objectForKey: key];
-			if (!crashes)
-			{
-				crashes = [NSMutableArray arrayWithObject: crash];
-				[motorcycleMotorcycleCrashes setObject: crashes forKey: key];
-			}
-			else
-				[crashes addObject: crash];
 
 		}
 
 	}
 
+}
+
+static double _lltodouble(vmlongerfix_t a)
+{
+	double x = a.x;
+	x *= ((vmlonger_t)1 << a.shift);
+	return x;
 }
 
 - (NSArray*) crashMotorcycles: (NSArray*) motorcycles atTime: (double) time withLimit: (double) motorLimit executedCrashes: (NSSet*) executedCrashes
 {
 	// prune expired events
-	for (id key in [motorcycleMotorcycleCrashes copy])
+	
+	while (motorcycleCrashes.count)
 	{
-		NSMutableArray* crashList = [motorcycleMotorcycleCrashes objectForKey: key];
-		for (NSArray* crashInfo in [crashList copy])
+		PSMotorcycleCrash* crash = motorcycleCrashes.firstObject;
+		
+		// purge events at beginning if they refer to terminated cycles
+		if (crash.cycle0.terminationTime.x != INT128_MAX)
 		{
-			///PSMotorcycle* crasher0 = [crashInfo objectAtIndex: 1];
-			PSMotorcycle* survivor1 = [crashInfo objectAtIndex: 2];
-			
-			//double t0 = [[crashInfo objectAtIndex: 3] doubleValue];
-			double t1 = [[crashInfo objectAtIndex: 4] doubleValue];
-			
-			
-			/*
-			 FIXME: when is it time to remove the bloody crash?
-			 
-			 */
-
-			if (survivor1.terminalVertex && (survivor1.terminationTime < t1))
-				[crashList removeObject: crashInfo];
+			[motorcycleCrashes popFirstObject];
 		}
-		if (!crashList.count)
-			[motorcycleMotorcycleCrashes removeObjectForKey: key];
+		else
+			break;
 		
-	}
-
-	NSMutableArray* crashes = [NSMutableArray array];
+	}	
 	
-	//size_t k = 0;
-	for (PSMotorcycle* cycle in motorcycles)
-	{
-		
-		
-		
-		@autoreleasepool {
-			//vector_t motorv = cycle.velocity;
-			//vector_t motorp = cycle.sourceVertex.position;
-			
-			// crash against edges (use cached result)
-			id edgeCrash = [motorcycleEdgeCrashes objectForKey: [NSValue valueWithPointer: (__bridge void*)cycle]];
-			
-			if (edgeCrash)
-			{
-				[crashes addObject: edgeCrash];
-			}
-			
-			
-/*
-			for (PSMotorcycle* cycle1 in [motorcycles subarrayWithRange: NSMakeRange(k+1, [motorcycles count] - k - 1)])
-			{
-				vector_t tx = xRays2D(motorp, motorv, cycle1.sourceVertex.position, cycle1.velocity);
-				
-				double ta = tx.farr[0] + cycle.start;
-				double tb = tx.farr[1] + cycle1.start;
-				
-				if ((ta > cycle.start) && (ta <= motorLimit) && (tb > cycle1.start) && (tb <= motorLimit))
-				{				
-					double hitTime = fmax(ta, tb);
-					
-					vector_t ax = v3Add(cycle.sourceVertex.position, v3MulScalar(cycle.velocity, hitTime - cycle.start));
-					vector_t bx = v3Add(cycle1.sourceVertex.position, v3MulScalar(cycle1.velocity, hitTime - cycle1.start));
-					vector_t dx = v3Sub(ax, bx);
-					BOOL merge = (vDot(dx, dx) < mergeThreshold*mergeThreshold);
-					
-					if (merge )
-						merge = merge; // debug catch
-					merge = NO; // screw it, no merges allowed! TWO SPOKES ENTER, ONE SPOKE EXITS!
-					
-					id crash = @[[NSNumber numberWithDouble: hitTime], cycle, cycle1, [NSNumber numberWithDouble: tx.farr[0]], [NSNumber numberWithDouble: tx.farr[1]], [NSNumber numberWithBool: merge]];
-					
-					[crashes addObject: crash];
-				}
-				
-				
-			}
-			for (PSMotorcycle* cycle1 in terminatedMotorcycles)
-			{
-				vector_t tx = xRays2D(motorp, motorv, cycle1.sourceVertex.position, v3Sub(cycle1.terminalVertex.position, cycle1.sourceVertex.position));
-				
-				double ta = tx.farr[0] + cycle.start;
-				double tb = tx.farr[1];
-				
-				if ((ta > cycle.start) && (ta <= motorLimit) && (tb > 0.0) && (tb < 1.0) && (ta > tb + cycle1.start) && (cycle1.terminator != cycle))
-				{
-					vector_t x = v3Add(cycle.sourceVertex.position, v3MulScalar(cycle.velocity,  tx.farr[0]));
-					double t1 = vLength(v3Sub(x, cycle1.sourceVertex.position))/vLength(cycle1.velocity);
-				
-					id crash = @[[NSNumber numberWithDouble: ta], cycle, cycle1, [NSNumber numberWithDouble: tx.farr[0]], [NSNumber numberWithDouble: t1], [NSNumber numberWithBool: NO]];
-					[crashes addObject: crash];
-				}
-				
-				
-			}
-			
-			++k;
-*/
-		}
-	}
-	
-	NSArray* keys = [motorcycles map: ^id(id obj) {
-		return [NSValue valueWithPointer: (__bridge void*)obj];
-	}];
-	
-	NSArray* mmCrashes = [motorcycleMotorcycleCrashes objectsForKeys: keys notFoundMarker: [NSArray array]];
-	
-	mmCrashes = [mmCrashes select:^BOOL(id obj) {
-		return !![obj count];
-	}];
-	
-	mmCrashes = [mmCrashes map:^id(NSArray* obj) {
-		if (obj.count)
-			return [obj lastObject];
-		return nil;
-	}];
-	
-	[crashes addObjectsFromArray: mmCrashes];
-	
-	
-	return crashes;
+	return motorcycleCrashes.count ? @[[motorcycleCrashes popFirstObject]] : @[];
 }
 
 static id _crashObject(NSArray* crashInfo)
 {
 	return [crashInfo objectAtIndex: 2];
-}
-static vector_t _crashLocation(NSArray* crashInfo)
-{
-	if ([[crashInfo objectAtIndex: 2] isKindOfClass: [PSVertex class]])
-	{
-		return [(PSVertex*)[crashInfo objectAtIndex: 2] position];
-	}
-	else
-	{
-		PSMotorcycle* cycle = [crashInfo objectAtIndex: 1];
-		double tx = [[crashInfo objectAtIndex: 3] doubleValue];
-		return v3Add(cycle.sourceVertex.position, v3MulScalar(cycle.velocity, tx));
-	}
 }
 
 static BOOL _isTraceCrash(NSArray* crashInfo)
@@ -454,7 +789,7 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 	edge1.rightVertex.leftEdge = edge1;
 	
 	edge1.normal = edge0.normal;
-	edge1.edge = v3Sub(edge1.rightVertex.position, edge1.leftVertex.position);
+	edge1.edge = v3iSub(edge1.rightVertex.position, edge1.leftVertex.position);
 	
 	edge0.rightVertex = vertex;
 	vertex.leftEdge = edge0;
@@ -468,6 +803,7 @@ static BOOL _isWallCrash(NSArray* crashInfo)
 	splitVertices = [splitVertices arrayByAddingObject: vertex];
 }
 
+#if 0
 static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* cycle1)
 {
 	vector_t p0 = cycle0.sourceVertex.position;
@@ -519,6 +855,7 @@ static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* c
 	
 	return NO;
 }
+#endif
 
 - (void) runMotorcycles
 {
@@ -526,14 +863,15 @@ static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* c
 	
 	NSMutableArray* eventLog = [NSMutableArray array];
 	
-	range3d_t mr = rInfRange();
+	r3i_t mr = riInfRange([(PSVertex*)[vertices lastObject] position].shift);
 	
 	for (PSVertex* vertex in vertices)
 	{
-		mr = rUnionRange(mr, rCreateFromVectors(vertex.position, vertex.position));
+		mr = riUnionRange(mr, riCreateFromVectors(vertex.position, vertex.position));
 	}
 	
-	double motorLimit = vLength(v3Sub(mr.maxv, mr.minv));
+	v3i_t rr = v3iSub(mr.max, mr.min);
+	double motorLimit = lmax(2*rr.x, 2*rr.y);
 	
 
 	
@@ -545,16 +883,19 @@ static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* c
 		PSSourceEdge* edge1 = edge0.rightVertex.rightEdge;
 		assert(edge0.rightVertex.rightEdge);
 		
-		vector_t v = bisectorVelocity(edge0.normal, edge1.normal, _normalToEdge(edge0.normal), _normalToEdge(edge1.normal));
-		double area = vCross(edge0.edge, edge1.edge).farr[2];
+		vmlongfix_t area = v3iCross2D(edge0.edge, edge1.edge);
 		
-		if (area < 0.0)
+		if (area.x < 0)
 		{
 			PSMotorcycle* cycle = [[PSMotorcycle alloc] init];
 			cycle.sourceVertex = edge0.rightVertex;
-			cycle.velocity = v;
 			cycle.leftEdge = edge0;
 			cycle.rightEdge = edge1;
+			
+			MPVector2D* mpv = cycle.mpVelocity;
+			
+			vector_t fv = cycle.floatVelocity;
+			assert(!vIsInf(fv));
 			
 			[motorcycles addObject: cycle];
 			[edge0.rightVertex addMotorcycle: cycle];
@@ -586,272 +927,129 @@ static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* c
 		[self crashMotorcycle: motorcycle intoMotorcycles: motorcycles withLimit: motorLimit];
 	}
 	
-	// sort cycle/cycle crash arrays
-	for (NSMutableArray* crashes in [motorcycleMotorcycleCrashes allValues])
-	{
-		[crashes sortWithOptions: NSSortStable usingComparator: ^NSComparisonResult(NSArray* e0, NSArray* e1) {
-			double t0 = [[e0 objectAtIndex: 0] doubleValue], t1 = [[e1 objectAtIndex: 0] doubleValue];
-			return fcompare_descending(t0, t1);
-		}];
-	}
-		
 	
 	// build event list
-	NSArray* crashes = [self crashMotorcycles: motorcycles atTime: 0.0 withLimit: motorLimit executedCrashes: nil];
-	
-	while ([crashes count])
-	{
-		@autoreleasepool {
-			crashes = [crashes sortedArrayWithOptions: NSSortStable usingComparator: ^NSComparisonResult(NSArray* e0, NSArray* e1) {
-				double t0 = [[e0 objectAtIndex: 0] doubleValue], t1 = [[e1 objectAtIndex: 0] doubleValue];
-				return fcompare_descending(t0, t1);
-			}];
 
+	NSMutableArray* splittingVertices = [NSMutableArray array];
+	
+	
+	while (motorcycleCrashes.count)
+	{
+		while (motorcycleCrashes.count)
+		{
+			PSMotorcycleCrash* crash = motorcycleCrashes.firstObject;
 			
-			double tmin = [[[crashes lastObject] objectAtIndex: 0] doubleValue];
-			crashes = [[crashes select:^BOOL(NSArray* obj) {
-				return [[obj objectAtIndex: 0] doubleValue] < tmin + mergeThreshold;
-			}] mutableCopy];
-			
-			if (!crashes.count)
+			// purge events at beginning if they refer to terminated cycles
+			if (crash.cycle0.terminationTime.x != INT128_MAX)
+			{
+				[motorcycleCrashes popFirstObject];
+			}
+			else if ([crash isKindOfClass: [PSMotorcycleMotorcycleCrash class]])
+			{
+				PSMotorcycleMotorcycleCrash* mcrash = (id) crash;
+				if (mcrash.cycle1.terminalVertex && !_locationOnEdge_boxTest(mcrash.cycle1.sourceVertex.position, mcrash.cycle1.terminalVertex.position, crash.location))
+				{
+					[motorcycleCrashes popFirstObject];
+
+				}
+				else
+					break;
+			}
+			else
 				break;
 			
-			NSArray* initialCrashInfo = [crashes lastObject];
-			id initialCrashObject = _crashObject(initialCrashInfo);
-			crashes = [crashes arrayByRemovingLastObject];
-			
-			NSMutableArray* simultaneousCrashes = [NSMutableArray arrayWithObject: initialCrashInfo];
-			NSMutableSet* crashedMotorcycles = [NSMutableSet set];
-			NSMutableSet* splitEdges = [NSMutableSet set];
-			
-			for (NSArray* crashInfo in [crashes reverseObjectEnumerator])
-			{
-				vector_t xa = _crashLocation(initialCrashInfo);
-				vector_t xb = _crashLocation(crashInfo);
-				id objB = _crashObject(crashInfo);
-				
-				if (objB != initialCrashObject)
-					break;
-				
-				vector_t dx = v3Sub(xb, xa);
-				if (vDot(dx, dx) < mergeThreshold*mergeThreshold)
-				{
-					[simultaneousCrashes addObject: crashInfo];
-				}
-			}
-			
-			[eventLog addObject: [NSString stringWithFormat: @"%f: processing %ld crashes", tmin, simultaneousCrashes.count]];
-			
-			assert(simultaneousCrashes.count);
-			
-			if ([simultaneousCrashes count])
-			{
-				BOOL wallCrash = NO;
-				BOOL traceCrash = NO;
-				
-				for (NSArray* crashInfo in simultaneousCrashes)
-				{
-					wallCrash = wallCrash || _isWallCrash(crashInfo);
-					traceCrash = traceCrash || _isTraceCrash(crashInfo);
-					
-					
-				}
-				
-				[eventLog addObject: [NSString stringWithFormat: @"  wall: %d, trace: %d", wallCrash, traceCrash]];
-
-				vector_t x = _crashLocation(initialCrashInfo);
-				[eventLog addObject: [NSString stringWithFormat: @"  location: %f, %f", x.farr[0], x.farr[1]]];
-
-				/*
-				 if we hit a wall, it's a wall crash, no worry about merging, similarly, if it's a trace crash
-				 however, if it's a merge crash only, we have to figure out which way to send the new motorcycle, when its multiple crashes
-				 */
-				
-				if (wallCrash)
-				{
-#pragma mark Wall Crash Handling
-					NSMutableSet* cycles = [NSMutableSet set];
-					NSMutableSet* crashWalls = [NSMutableSet set];
-					NSMutableSet* crashVertices = [NSMutableSet set];
-
-					for (NSArray* crashInfo in simultaneousCrashes)
-					{
-						id obj0 = [crashInfo objectAtIndex: 1];
-						id obj1 = [crashInfo objectAtIndex: 2];
-						[cycles addObject: obj0];
-						if ([obj1 isKindOfClass: [PSMotorcycle class]])
-							[cycles addObject: obj1];
-						else if ([obj1 isKindOfClass: [PSEdge class]])
-							[crashWalls addObject: obj1];
-						else if ([obj1 isKindOfClass: [PSVertex class]])
-							[crashVertices addObject: obj1];
-					}
-					
-					assert([crashWalls count] < 2);
-					assert([crashVertices count] < 2);
-					
-					PSVertex* vertex = nil;
-					
-					// if we hit a vertex, we take it
-					if (crashVertices.count)
-					{
-						vertex = [crashVertices anyObject];
-					}
-					else
-					{
-						PSSourceEdge* edge = [crashWalls anyObject];
-						vertex = [[PSSplitVertex alloc] init];
-						vertex.position = x;
-						vertices = [vertices arrayByInsertingObject: vertex atIndex: [vertices indexOfObject: edge.leftVertex]+1];
-						
-						
-						[self splitEdge: edge atVertex: (id)vertex];
-						[splitEdges addObject: edge];
-						
-					}
-					
-					// terminate each motorcycle
-					for (PSMotorcycle* cycle in cycles)
-					{
-						[eventLog addObject: [NSString stringWithFormat: @"  cycle: (%f, %f) from (%f, %f)", cycle.velocity.farr[0], cycle.velocity.farr[1], cycle.sourceVertex.position.farr[0], cycle.sourceVertex.position.farr[1]]];
-						assert(!cycle.terminalVertex);
-						cycle.terminalVertex = vertex;
-						cycle.terminationTime = tmin;
-						cycle.leftNeighbour.rightNeighbour = cycle.rightNeighbour;
-						cycle.rightNeighbour.leftNeighbour = cycle.leftNeighbour;
-						
-						[vertex addMotorcycle: cycle];
-						
-					}
-					
-					[crashedMotorcycles unionSet: cycles];
-					[motorcycles removeObjectsInArray: [cycles allObjects]];
-					for (id cycle in cycles)
-						assert(![terminatedMotorcycles containsObject: cycle]);
-					terminatedMotorcycles = [terminatedMotorcycles arrayByAddingObjectsFromArray:[cycles allObjects]];
-				}
-				else if (traceCrash)
-				{
-					NSMutableSet* crashedCycles = [NSMutableSet set];
-					double survivorTime = INFINITY;
-					PSMotorcycle* survivor = nil;
-					
-					for (NSArray* crashInfo in simultaneousCrashes)
-					{
-						PSMotorcycle* crasher0 = [crashInfo objectAtIndex: 1];
-						PSMotorcycle* survivor1 = [crashInfo objectAtIndex: 2];
-						
-						//double t0 = [[crashInfo objectAtIndex: 3] doubleValue];
-						double t1 = [[crashInfo objectAtIndex: 4] doubleValue];
-						
-						
-						[crashedCycles addObject: crasher0];
-						[crashedCycles addObject: survivor1];
-						if (t1 < survivorTime)
-						{
-							survivor = survivor1;
-							survivorTime = t1;
-						}
-
-						assert(survivorTime >= 0.0);
-					}
-					
-					
-					[crashedCycles enumerateObjectsUsingBlock:^(PSMotorcycle* cycle, BOOL *stop) {
-						[eventLog addObject: [NSString stringWithFormat: @"  cycle: (%f, %f) from (%f, %f)", cycle.velocity.farr[0], cycle.velocity.farr[1], cycle.sourceVertex.position.farr[0], cycle.sourceVertex.position.farr[1]]];
-
-					}];
-					
-					PSCrashVertex* vertex = [[PSCrashVertex alloc] init];
-					vertex.position = x;
-					vertex.time = survivorTime;
-					vertices = [vertices arrayByAddingObject: vertex];
-					[traceCrashVertices addObject: vertex];
-					
-
-					assert(survivor);
-					[crashedCycles removeObject: survivor];
-										
-					[eventLog addObject: [NSString stringWithFormat: @"  survivor towards: %f, %f @%f", survivor.velocity.farr[0], survivor.velocity.farr[1], survivorTime]];
-					
-					// terminate each motorcycle and insert an edge
-					for (PSMotorcycle* cycle in crashedCycles)
-					{
-						assert(!cycle.terminalVertex);
-						cycle.terminalVertex = vertex;
-						cycle.terminator = survivor;
-						cycle.terminationTime = tmin;
-						cycle.leftNeighbour.rightNeighbour = cycle.rightNeighbour;
-						cycle.rightNeighbour.leftNeighbour = cycle.leftNeighbour;
-						[vertex addMotorcycle: cycle];
-						
-					}
-					[vertex addMotorcycle: survivor];
-					survivor.crashVertices = [survivor.crashVertices arrayByAddingObject: vertex];
-
-					[crashedMotorcycles unionSet: crashedCycles];
-					[motorcycles removeObjectsInArray: [crashedCycles allObjects]];
-					for (id cycle in crashedCycles)
-						assert(![terminatedMotorcycles containsObject: cycle]);
-					terminatedMotorcycles = [terminatedMotorcycles arrayByAddingObjectsFromArray: [crashedCycles allObjects]];
-					
-				}
-				
-			}
-			
-			NSMutableSet* executedCrashes = [NSMutableSet set];
-			[executedCrashes addObjectsFromArray: simultaneousCrashes];
-			
-#pragma mark Clean out crashed Motorcycles
-			
-			// clean out caches for terminated motorcycles
-			for (PSMotorcycle* motorcycle in crashedMotorcycles)
-			{
-				id key = [NSValue valueWithPointer:(__bridge void*)motorcycle];
-				[motorcycleEdgeCrashes removeObjectForKey: key];
-				[motorcycleMotorcycleCrashes removeObjectForKey: key];
-			}
-			
-			// re-do split edge collisions
-			for (id key in [motorcycleEdgeCrashes copy])
-			{
-				NSArray* crashInfo = [motorcycleEdgeCrashes objectForKey: key];
-				id motorcycle = [crashInfo objectAtIndex: 1];
-				id edge = [crashInfo objectAtIndex: 2];
-				if ([splitEdges containsObject: edge])
-				{
-					[motorcycleEdgeCrashes removeObjectForKey: key];
-					[self crashMotorcycle: motorcycle intoEdgesWithLimit: motorLimit];
-				}
-			
-			}
-			
-			
-			
-			crashes = [self crashMotorcycles: motorcycles atTime: tmin withLimit: motorLimit executedCrashes: executedCrashes];
 		}
+		
+		if (!motorcycleCrashes.count)
+			break;
+
+		PSMotorcycleCrash* crash = [motorcycleCrashes popFirstObject];
+			
+		[eventLog addObject: [NSString stringWithFormat: @"%f: processing crash", _lltodouble(crash.crashTimeSqr)]];
+			
+			
+		if ([crash isKindOfClass: [PSMotorcycleVertexCrash class]])
+		{
+			PSMotorcycleVertexCrash* vcrash = (id) crash;
+			PSMotorcycle* cycle = vcrash.cycle0;
+			PSVertex* vertex = vcrash.vertex;
+			cycle.terminalVertex = vertex;
+			cycle.terminationTime = vcrash.time0Sqr;
+			cycle.leftNeighbour.rightNeighbour = cycle.rightNeighbour;
+			cycle.rightNeighbour.leftNeighbour = cycle.leftNeighbour;
+			
+			[vertex addMotorcycle: cycle];
+
+		}
+		else if ([crash isKindOfClass: [PSMotorcycleEdgeCrash class]])
+		{
+			PSMotorcycleEdgeCrash* ecrash = (id) crash;
+			PSMotorcycle* cycle = ecrash.cycle0;
+			PSVertex* vertex = [cycle getVertexOnMotorcycleAtLocation: crash.location];
+			
+			if (!vertex)
+			{
+				vertex = [[PSVertex alloc] init];
+				vertex.position = crash.location;
+			}
+			cycle.terminationTime = ecrash.time0Sqr;
+			cycle.terminalVertex = vertex;
+			cycle.leftNeighbour.rightNeighbour = cycle.rightNeighbour;
+			cycle.rightNeighbour.leftNeighbour = cycle.leftNeighbour;
+			
+			[vertex addMotorcycle: cycle];
+			
+			[splittingVertices addObject: @[ecrash, vertex]];
+			
+			
+		}
+		else if ([crash isKindOfClass: [PSMotorcycleMotorcycleCrash class]])
+		{
+			PSMotorcycleMotorcycleCrash* mcrash = (id) crash;
+			
+			PSMotorcycle* crasher = mcrash.cycle0;
+			PSMotorcycle* survivor = mcrash.cycle1;
+			crasher.terminationTime = mcrash.time0Sqr;
+			
+			PSVertex* vertex = [survivor getVertexOnMotorcycleAtLocation: crash.location];
+			if (!vertex)
+			{
+				vertex = [crasher getVertexOnMotorcycleAtLocation: crash.location];
+			}
+			if (!vertex)
+			{
+				vertex = [[PSVertex alloc] init];
+				vertex.position = crash.location;
+			}
+			
+			
+			crasher.terminalVertex = vertex;
+
+			[vertex addMotorcycle: crasher];
+			[vertex addMotorcycle: survivor];
+			
+			// FIXME: add vertex to some set for later stages?
+			
+		}
+		else
+			assert(0); // unknown crash type
+		
+		[motorcycles removeObject: crash.cycle0];
+		[terminatedMotorcycles addObject: crash.cycle0];
+		
+		
+			
 	}
 	
 
-#pragma mark Post-Process Motorcycles
-
-	// adjust motorcycles that were nudged to terminate in a vertex
-	for (PSMotorcycle* motorcycle in terminatedMotorcycles)
+#pragma mark Post-Process Edge Splits
+	
+	for (NSArray* info in splittingVertices)
 	{
-		vector_t r0 = v3Sub(motorcycle.terminalVertex.position, motorcycle.sourceVertex.position);
-		for (PSCrashVertex* crashVertex in motorcycle.crashVertices)
-		{
-			vector_t x0 = v3Sub(crashVertex.position, motorcycle.sourceVertex.position);
-			
-			double angle = vAngleBetweenVectors2D(r0, x0);
-			
-			if (fabs(angle) > FLT_EPSILON)
-			{
-				vector_t px = v3Add(motorcycle.sourceVertex.position, vProjectAOnB(x0, r0));
-				crashVertex.position = px;
-			}
-		}
+		
 	}
+	
+#pragma mark Post-Process Motorcycles
 	
 	
 	// check for opposing motorcycles ending on same vertices, and replace with a single motorcycle
@@ -869,6 +1067,8 @@ static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* c
 		no shared vertices
 		both ends crash sites
 	 */
+	
+#if 0
 	BOOL opposingMotorcyclesFound = YES;
 	while (opposingMotorcyclesFound)
 	{
@@ -884,7 +1084,7 @@ static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* c
 				
 				if ((cycle0.sourceVertex == cycle1.terminalVertex) && (cycle0.terminalVertex == cycle1.sourceVertex))
 				{
-					terminatedMotorcycles = [terminatedMotorcycles arrayByRemovingObject: cycle1];
+					[terminatedMotorcycles removeObject: cycle1];
 					
 					[cycle1.sourceVertex removeMotorcycle: cycle1];
 					[cycle1.terminalVertex removeMotorcycle: cycle1];
@@ -1001,12 +1201,14 @@ static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* c
 				break;
 		}
 	}
-	
+#endif
 	
 	// we shouldn't have any motorcycles left at this point. But if we do, we want to see them
 	
 	for (PSMotorcycle* cycle in motorcycles)
 	{
+		assert(0);
+		/*
 		PSVertex* vertex = [[PSVertex alloc] init];
 		vertex.position = v3Add(cycle.sourceVertex.position, v3MulScalar(cycle.velocity, motorLimit*2.0));
 		vertices = [vertices arrayByAddingObject: vertex];
@@ -1017,7 +1219,7 @@ static BOOL _terminatedMotorcyclesOpposing(PSMotorcycle* cycle0, PSMotorcycle* c
 		
 		assert(![terminatedMotorcycles containsObject: cycle]);
 		terminatedMotorcycles = [terminatedMotorcycles arrayByAddingObject: cycle];
-
+		 */
 	}
 	
 	//assert(motorcycles.count == 0);
@@ -1072,6 +1274,7 @@ static size_t _findBigger(ps_event_t* events, size_t start, size_t end, double r
 	
 }
 
+#if 0
 static BOOL _spokesSameDir(PSSimpleSpoke* spoke0, PSSimpleSpoke* spoke1)
 {
 	vector_t v0 = spoke0.velocity;
@@ -1099,7 +1302,6 @@ static BOOL _isSpokeUnique(PSSimpleSpoke* uspoke, NSArray* spokes)
 	}
 	return YES;
 }
-
 
 static void _assertSpokeUnique(PSSimpleSpoke* uspoke, NSArray* spokes)
 {
@@ -1169,8 +1371,9 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes, NSM
 	[antiVertex addSpoke: antiSpoke];
 	
 }
+#endif
 
-
+#if 0
 - (PSSplitEvent*) computeSimpleSplitEvent: (PSMotorcycleSpoke*) cycleSpoke atTime: (double) creationTime
 {
 	PSAntiSpoke* antiSpoke = cycleSpoke.antiSpoke;
@@ -3272,11 +3475,11 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 		return nil;
 }
 
-
+#endif
 - (void) generateSkeleton
 {
 	[self runMotorcycles];
-	[self runSpokes];
+	//[self runSpokes];
 }
 
 
@@ -3292,8 +3495,8 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 	
 	for (PSMotorcycle* motorcycle in terminatedMotorcycles)
 	{
-		vector_t a = motorcycle.sourceVertex.position;
-		vector_t b = motorcycle.terminalVertex.position;
+		vector_t a = v3iToFloat(motorcycle.sourceVertex.position);
+		vector_t b = v3iToFloat(motorcycle.terminalVertex.position);
 		[bpath moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
 		[bpath lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
 	}
@@ -3308,8 +3511,8 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 	
 	for (PSSpoke* spoke in terminatedSpokes)
 	{
-		vector_t a = spoke.sourceVertex.position;
-		vector_t b = spoke.terminalVertex.position;
+		vector_t a = v3iToFloat(spoke.sourceVertex.position);
+		vector_t b = v3iToFloat(spoke.terminalVertex.position);
 		[bpath moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
 		[bpath lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
 	}
@@ -3324,8 +3527,8 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 	
 	for (PSEdge* edge in edges)
 	{
-		vector_t a = edge.leftVertex.position;
-		vector_t b = edge.rightVertex.position;
+		vector_t a = v3iToFloat(edge.leftVertex.position);
+		vector_t b = v3iToFloat(edge.rightVertex.position);
 		[bpath moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
 		[bpath lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
 	}
@@ -3346,7 +3549,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 	size_t vi = 0;
 	for (PSVertex* vertex in vertices)
 	{
-		positions[vi] = vertex.position;
+		positions[vi] = v3iToFloat(vertex.position);
 		colors[vi] = vCreate(0.0, 0.5, 1.0, 1.0);
 		++vi;
 	}
@@ -3420,7 +3623,7 @@ static double _angleBetweenSpokes(id leftSpoke, id rightSpoke)
 		
 		for (size_t i = 0; i < verts.count; ++i)
 		{
-			vector_t pos = [(PSVertex*)[verts objectAtIndex: i] position];
+			vector_t pos = v3iToFloat([(PSVertex*)[verts objectAtIndex: i] position]);
 			if (i == 0)
 				[bpath moveToPoint: CGPointMake(pos.farr[0], pos.farr[1])];
 			else

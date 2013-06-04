@@ -25,3 +25,5 @@ Create custom firmware for Arduino Due or other 32bit ARM platform, bypassing G-
 # Dependencies
 
 Requires stuff from http://github.com/dognotdog/mac-common/
+
+Requires libtommath: https://github.com/libtom/libtommath/

@@ -8,15 +8,15 @@
 
 #import <Foundation/Foundation.h>
 
-#import "VectorMath.h"
+#import "VectorMath_fixp.h"
 
 // FIXME: for debugging purposes, remove all weak references and put strong ones in place
 //#define weak strong
 
-@class PSEdge, PSSourceEdge, PSSpoke, PSAntiSpoke, PSMotorcycle, PSWaveFront, PSCollapseEvent, PSSplitEvent, PSMergeEvent, PSReverseMergeEvent, PSReverseBranchEvent, PSEvent, PSBranchEvent;
+@class PSEdge, PSSourceEdge, PSSpoke, PSAntiSpoke, PSMotorcycle, PSWaveFront, PSCollapseEvent, PSSplitEvent, PSMergeEvent, PSReverseMergeEvent, PSReverseBranchEvent, PSEvent, PSBranchEvent, PriorityQueue, MPVector2D;
 
 @interface PSVertex : NSObject
-@property(nonatomic) vector_t position;
+@property(nonatomic) v3i_t position;
 @property(nonatomic) double time;
 @property(nonatomic) PSSourceEdge* leftEdge;
 @property(nonatomic) PSSourceEdge* rightEdge;
@@ -24,7 +24,7 @@
 @property(nonatomic, readonly) NSArray* outgoingMotorcycles;
 @property(nonatomic, readonly) NSArray* outgoingSpokes;
 
-- (PSSpoke*) nextSpokeClockwiseFrom: (vector_t) startDir to: (vector_t) endDir;
+- (PSSpoke*) nextSpokeClockwiseFrom: (v3i_t) startDir to: (v3i_t) endDir;
 
 - (void) addMotorcycle: (PSMotorcycle*) cycle;
 - (void) removeMotorcycle: (PSMotorcycle*) cycle;
@@ -55,7 +55,7 @@
 
 @interface PSEdge : NSObject
 @property(nonatomic, weak) PSVertex* leftVertex, *rightVertex;
-@property(nonatomic) vector_t normal, edge;
+@property(nonatomic) v3i_t normal, edge;
 @end
 
 @interface PSSourceEdge : PSEdge
@@ -70,17 +70,20 @@
 @property(nonatomic, strong, readonly) NSMutableArray* retiredWaveFronts;
 
 
-- (vector_t) positionAtTime: (double) t;
+@property(nonatomic, readonly) vector_t floatVelocity;
+
+
+- (v3i_t) positionAtTime: (double) t;
 
 @end
 
 @interface PSSimpleSpoke : PSSpoke
-@property(nonatomic) vector_t velocity;
+//@property(nonatomic) v3i_t velocity;
 
 @end
 
 @interface PSFastSpoke : PSSpoke
-@property(nonatomic) vector_t direction;
+@property(nonatomic) v3i_t direction;
 
 @end
 
@@ -100,21 +103,60 @@
 
 
 @interface PSMotorcycle : NSObject
-@property(nonatomic, strong) NSArray* crashVertices; // FIXME: results in cyclic references (weak NSPointerArray under ARC not available pre-10.8
+
 @property(nonatomic, weak) PSVertex* sourceVertex;
 @property(nonatomic, weak) PSVertex* terminalVertex;
 @property(nonatomic, weak) id terminator;
-@property(nonatomic) double terminationTime;
-@property(nonatomic) vector_t velocity;
+@property(nonatomic) vmlongerfix_t terminationTime;
+
+@property(nonatomic, strong) PriorityQueue* crashQueue;
+
+@property(nonatomic) vector_t floatVelocity;
+@property(nonatomic, readonly) MPVector2D* mpVelocity;
 @property(nonatomic, weak) PSSourceEdge *leftEdge, *rightEdge;
 @property(nonatomic, weak) PSMotorcycle *leftNeighbour, *rightNeighbour;
 @property(nonatomic, weak) PSMotorcycle *leftParent, *rightParent;
 
+@property(nonatomic, strong) NSArray* crashVertices; // FIXME: results in cyclic references (weak NSPointerArray under ARC not available pre-10.8
 @property(nonatomic) PSAntiSpoke* antiSpoke;
 @property(nonatomic) PSMotorcycleSpoke* spoke;
 @property(nonatomic) BOOL terminatedWithoutSplit;
 @property(nonatomic) BOOL terminatedWithSplit;
 
+- (PSVertex*) getVertexOnMotorcycleAtLocation: (v3i_t) x;
+
+@end
+
+
+
+@interface PSMotorcycleCrash : NSObject
+
+@property(nonatomic) vmlongerfix_t	crashTimeSqr;
+@property(nonatomic) vmlongerfix_t	time0Sqr;
+@property(nonatomic) v3i_t			location;
+@property(nonatomic, strong) PSMotorcycle* cycle0;
+
+@end
+
+
+@interface PSMotorcycleEdgeCrash : PSMotorcycleCrash
+
+@property(nonatomic, strong) PSEdge* edge1;
+
+@end
+
+
+@interface PSMotorcycleVertexCrash : PSMotorcycleCrash
+
+@property(nonatomic, strong) PSVertex* vertex;
+
+@end
+
+
+@interface PSMotorcycleMotorcycleCrash : PSMotorcycleCrash
+
+@property(nonatomic) vmlongerfix_t	time1Sqr;
+@property(nonatomic, strong) PSMotorcycle* cycle1;
 
 @end
 
@@ -125,7 +167,7 @@
 @property(nonatomic, strong) PSSpoke* leftSpoke;
 @property(nonatomic, strong) PSSpoke* rightSpoke;
 @property(nonatomic, weak) PSCollapseEvent* collapseEvent;
-@property(nonatomic) vector_t direction;
+@property(nonatomic) v3i_t direction;
 
 @property(nonatomic) double startTime, terminationTime;
 @property(nonatomic, weak) PSWaveFront* successor;
@@ -142,7 +184,7 @@
 
 @property(nonatomic) double creationTime;
 @property(nonatomic) double time;
-@property(nonatomic) vector_t location;
+@property(nonatomic) v3i_t location;
 
 @end
 

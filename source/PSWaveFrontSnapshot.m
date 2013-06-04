@@ -104,9 +104,9 @@
 		for (PSWaveFrontSegment* segment in loop)
 		{
 			if (firstSegment)
-				[bpath moveToPoint: CGPointMake(segment.leftVertex.position.farr[0], segment.leftVertex.position.farr[1])];
+				[bpath moveToPoint: v3iToCGPoint(segment.leftVertex.position)];
 			else
-				[bpath lineToPoint: CGPointMake(segment.leftVertex.position.farr[0], segment.leftVertex.position.farr[1])];
+				[bpath lineToPoint: v3iToCGPoint(segment.leftVertex.position)];
 			firstSegment = NO;
 		}
 		[bpath closePath];
@@ -173,11 +173,11 @@
 			
 			for (size_t i = 0; i < vertices.count; ++i)
 			{
-				vector_t pos = [(PSVertex*)[vertices objectAtIndex: i] position];
+				v3i_t pos = [(PSVertex*)[vertices objectAtIndex: i] position];
 				if (i == 0)
-					[bpath moveToPoint: CGPointMake(pos.farr[0], pos.farr[1])];
+					[bpath moveToPoint: v3iToCGPoint(pos)];
 				else
-					[bpath lineToPoint: CGPointMake(pos.farr[0], pos.farr[1])];
+					[bpath lineToPoint: v3iToCGPoint(pos)];
 
 			}
 			
