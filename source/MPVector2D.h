@@ -12,7 +12,7 @@
 
 @class MPDecimal;
 
-@interface MPVector2D : NSObject
+@interface MPVector2D : NSObject <NSCopying>
 
 @property(nonatomic,strong) MPDecimal* x;
 @property(nonatomic,strong) MPDecimal* y;
@@ -24,9 +24,16 @@
 - (MPVector2D*) sub: (MPVector2D*) b;
 - (MPVector2D*) add: (MPVector2D*) b;
 - (MPVector2D*) scale: (MPDecimal*) b;
+- (MPVector2D*) div: (MPDecimal*) b;
 - (MPVector2D*) scaleNum: (MPDecimal*) num den: (MPDecimal*) den;
 - (MPDecimal*) length;
 - (MPVector2D*) negate;
+
+//- (MPVector2D*) rotateCCW;
+
+//- (MPVector2D*) projectOn: (MPVector2D*) b;
+
+- (double) floatAngle;
 
 - (long) minIntegerBits;
 

@@ -24,6 +24,14 @@
 	return r;
 }
 
+- (id)copyWithZone:(NSZone *)zone;
+{
+	MPVector2D* r = [[MPVector2D allocWithZone: zone] init];
+	r.x = self.x.copy;
+	r.y = self.y.copy;
+	return r;
+}
+
 - (MPDecimal*) dot: (MPVector2D*) b
 {
 	return [[self.x mul: b.x] add: [self.y mul: b.y]];
@@ -57,6 +65,15 @@
 	v.y = [self.y mul: b];
 	return v;
 }
+
+- (MPVector2D*) div: (MPDecimal*) b
+{
+	MPVector2D* v = [[MPVector2D alloc] init];
+	v.x = [self.x div: b];
+	v.y = [self.y div: b];
+	return v;
+}
+
 
 - (MPVector2D*) scaleNum:(MPDecimal *)num den:(MPDecimal *)den
 {
@@ -96,6 +113,11 @@
 - (long) minIntegerBits
 {
 	return MAX(self.x.integerBits, self.y.integerBits);
+}
+
+- (double) floatAngle
+{
+	return atan2(self.y.toDouble, self.x.toDouble);
 }
 
 @end

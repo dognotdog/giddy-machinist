@@ -10,6 +10,7 @@
 
 #import "tommath.h"
 
+
 @implementation MPInteger
 {
 @public
@@ -79,6 +80,10 @@
 	mp_clear(&mpint);
 }
 
+- (size_t) numBits
+{
+	return mp_count_bits(&mpint);
+}
 - (NSString*) stringValue
 {
 	
@@ -135,6 +140,40 @@
 	return [[MPInteger alloc] initWithMPInt: r];
 }
 
+- (MPInteger*) max: (MPInteger *)mpi
+{
+	assert(mpi);
+	
+	MPInteger* diff = [self sub: mpi];
+	
+	return diff.isPositive ? self : mpi;
+}
+
+- (MPInteger*) min: (MPInteger *)mpi
+{
+	assert(mpi);
+	
+	MPInteger* diff = [self sub: mpi];
+	
+	return diff.isPositive ? mpi : self;
+}
+
+- (NSComparisonResult) compare: (MPInteger *)mpi
+{
+	assert(mpi);
+	
+	MPInteger* diff = [self sub: mpi];
+	
+	return diff.isPositive ? NSOrderedDescending : (diff.isZero ? NSOrderedSame : NSOrderedAscending);
+}
+
+- (NSComparisonResult) compareToZero
+{
+	
+	return self.isPositive ? NSOrderedDescending : (self.isZero ? NSOrderedSame : NSOrderedAscending);
+}
+
+
 - (MPInteger*) sqrt
 {
 	mp_int r;
@@ -157,10 +196,49 @@
 	
 }
 
+- (MPInteger*) abs
+{
+	if (self.isNegative)
+		return self.negate;
+	else
+		return self;
+}
+
+- (long) isZero
+{
+	return mp_iszero(&mpint);
+}
+
+- (long) isPositive
+{
+	return SIGN(&mpint) == MP_ZPOS;
+}
+
+- (long) isNegative
+{
+	return !self.isZero && !self.isPositive;
+}
+
+- (id)copyWithZone:(NSZone *)zone;
+{
+	mp_int ri;
+	mp_init_copy(&ri, &mpint);
+	MPInteger* r = [[[self class] allocWithZone: zone] initWithMPInt: ri];
+	
+	return r;
+}
+
 
 @end
 
 @implementation MPDecimal
+
+- (id)copyWithZone:(NSZone *)zone;
+{
+	MPDecimal* r = [super copyWithZone: zone];
+	r.decimalShift = self.decimalShift;
+	return r;
+}
 
 @synthesize decimalShift;
 
@@ -176,6 +254,29 @@
 }
 
 
+#if	FLT_RADIX != 2
+#error FLT_RADIX must be 2 for float/mp conversion
+#endif
+
+- (id) initWithDouble: (double) f;
+{
+	int exp = 0;
+	double mantissa = frexp(f, &exp);
+	double m = ldexp(mantissa, DBL_MANT_DIG);
+	int64_t i = trunc(m);
+	
+	
+	
+
+	if (!(self = [self initWithInt64: i shift: DBL_MANT_DIG - exp]))
+		return nil;
+	
+	assert(self.toDouble == f);
+	
+	
+	return self;
+
+}
 - (id) initWithMPInt: (mp_int) mpi shift: (long) shift;
 {
 	if (!(self = [super initWithMPInt: mpi]))
@@ -186,6 +287,35 @@
 	return self;
 	
 }
+
++ (id) decimalWithDouble:(double)f
+{
+	return [[MPDecimal alloc] initWithDouble: f];
+}
+
++ (id) decimalWithInt64:(int64_t)i shift:(long)shift
+{
+	return [[MPDecimal alloc] initWithInt64: i shift: shift];
+}
+
++ (id) one
+{
+	static MPDecimal* one = nil;
+	if (!one)
+		one = [[MPDecimal alloc] initWithInt64: 1 shift: 0];
+	return one;
+}
+
++ (id) oneHalf
+{
+	return [[MPDecimal alloc] initWithInt64: 1 shift: 1];
+}
+
++ (id) zero
+{
+	return [[MPDecimal alloc] initWithInt64: 0 shift: 0];
+}
+
 
 - (void) increasePrecisionByBits:(size_t)shift
 {
@@ -320,7 +450,7 @@ double mp_get_double2(mp_int *a) {
     return d;
 }
 
-#define PRECISION 53
+#define PRECISION DBL_MANT_DIG
 
 double mp_get_double(mp_int *a)
 {
@@ -348,9 +478,29 @@ double mp_get_double(mp_int *a)
 
 - (double) toDouble
 {
-	double x = mp_get_double(&mpint);
 	
-	x = x*pow(2.0, -decimalShift);
+	mp_int r;
+	mp_init_copy(&r, &mpint);
+	
+	long finalShift = decimalShift;
+	
+	long bitCount = mp_count_bits(&r);
+	
+	if (bitCount > DBL_MANT_DIG)
+	{
+		long reducingShift = bitCount - DBL_DIG;
+		mp_div_2d(&r, reducingShift, &r, NULL);
+		
+		finalShift = decimalShift - reducingShift;
+	}
+	
+	
+	
+	double x = mp_get_double(&r);
+	
+	x = x*pow(2.0, -finalShift);
+	
+	mp_clear(&r);
 
 	return x;
 }
@@ -377,6 +527,7 @@ double mp_get_double(mp_int *a)
 
 - (MPDecimal*) sub: (MPDecimal *)mpi
 {
+	assert(mpi);
 	mp_int a,b,r;
 	mp_init(&r);
 	mp_init_copy(&a, &mpint);
@@ -410,7 +561,7 @@ double mp_get_double(mp_int *a)
 	return [[MPDecimal alloc] initWithMPInt: r shift: decimalShift + mpi->decimalShift];
 }
 
-- (MPDecimal*) div: (MPDecimal *)mpi
+- (MPDecimal*) div2: (MPDecimal *)mpi
 {
 	// following algorithm preserves number of decimal digits in result
 	mp_int a,b,r;
@@ -428,6 +579,18 @@ double mp_get_double(mp_int *a)
 	mp_clear(&b);
 
 	return [[MPDecimal alloc] initWithMPInt: r shift: decimalShift];
+}
+
+- (MPDecimal*) div: (MPDecimal *)mpi
+{
+	mp_int r;
+	mp_init(&r);
+	
+	long shift = mpi->decimalShift;
+		
+	mp_div(&mpint, &mpi->mpint, &r, NULL);
+		
+	return [[MPDecimal alloc] initWithMPInt: r shift: decimalShift-shift];
 }
 
 - (MPInteger*) sqrt
@@ -451,11 +614,6 @@ double mp_get_double(mp_int *a)
 	
 	return [[MPDecimal alloc] initWithMPInt: r shift: decimalShift];
 	
-}
-
-- (long) isZero
-{
-	return mp_iszero(&mpint);
 }
 
 @end

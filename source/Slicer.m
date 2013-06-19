@@ -335,7 +335,9 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 	layer.outlinePaths = [closedPaths map:^id(SlicedLineSegment* segment) {
 		assert(segment.vertexCount);
 
-		[segment optimizeColinears: mergeThreshold];
+		long mt = mergeThreshold*(1L << 16);
+		vmlongfix_t optArea = { mt*mt, 32};
+		[segment optimizeColinears: optArea];
 		//[segment optimizeToThreshold: mergeThreshold];
 
 		[segment analyzeSegment];
@@ -422,7 +424,7 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 		NSArray* segments = [outline allNestedPaths];
 		for (SlicedLineSegment* segment in segments)
 		{
-			vector_t color = vCreate(0.0, 0.5+0.5*(segment.isCCW), segment.isSelfIntersecting, 1.0);
+			//vector_t color = vCreate(0.0, 0.5+0.5*(segment.isCCW), segment.isSelfIntersecting, 1.0);
 			for (size_t i = 0; i < segment.vertexCount; ++i)
 			{
 				double fa = (double)i/segment.vertexCount;

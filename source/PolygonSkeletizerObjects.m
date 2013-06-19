@@ -12,32 +12,55 @@
 #import "MPVector2D.h"
 #import "MPInteger.h"
 
+#import "VectorMath_fixp.h"
+
 @implementation PSEvent
 {
 	NSUInteger hashCache;
 }
 
-@synthesize time, creationTime, location;
+@synthesize timeSqr, creationTimeSqr, location;
 
 - (id) init
 {
 	if (!(self = [super init]))
 		return nil;
 	
-	creationTime = NAN;
-	time = NAN;
-	location = v3iCreate(0,0,0,-1);
+	[self doesNotRecognizeSelector: _cmd];
 	
 	return self;
 }
+
+- (id) initWithLocation:(v3i_t)loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct
+{
+	if (!(self = [super init]))
+		return nil;
+	
+	
+	
+	assert(!t || ([t compare: [[MPDecimal alloc] initWithInt64: INT32_MAX shift:  0]] < 0));
+
+	location = loc;
+	timeSqr = t;
+	creationTimeSqr = ct;
+	
+	return self;
+}
+
+- (void) setTimeSqr:(MPDecimal *)t
+{
+	assert([t compare: [[MPDecimal alloc] initWithInt64: INT32_MAX shift:  0]] < 0);
+	timeSqr = t;
+}
+
 
 - (BOOL) isEqual: (PSEvent*) object
 {
 	if ([self class] != [object class])
 		return NO;
-	if (self.creationTime != object.creationTime)
+	if (self.creationTimeSqr != object.creationTimeSqr)
 		return NO;
-	if (self.time != object.time)
+	if (self.timeSqr != object.timeSqr)
 		return NO;
 	if (!v3iEqual(self.location, object.location))
 		return NO;
@@ -46,9 +69,14 @@
 	return YES;
 }
 
+- (vector_t) floatLocation
+{
+	return v3iToFloat(self.location);
+}
+
 - (NSString*) hashString
 {
-	NSString* str = [NSString stringWithFormat: @"%f %f %@ %d %d", self.creationTime, time, [self class], location.x, location.y];
+	NSString* str = [NSString stringWithFormat: @"%f %f %@ %d %d", self.creationTimeSqr.sqrt.toDouble, timeSqr.sqrt.toDouble, [self class], location.x, location.y];
 	return str;
 }
 
@@ -64,13 +92,32 @@
 
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p @%f (%@)", self, time, [self class]];
+	return [NSString stringWithFormat: @"%p @%f (%@)", self, timeSqr.sqrt.toDouble, [self class]];
+}
+
+- (NSArray*) spokes
+{
+	[self doesNotRecognizeSelector: _cmd];
+	return nil;
 }
 
 @end
 
 
 @implementation PSBranchEvent
+
+@synthesize rootSpoke, branchVertex;
+
+- (id) initWithLocation:(v3i_t)loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct rootSpoke:(PSMotorcycleSpoke *)spoke branchVertex:(PSCrashVertex *)vertex
+{
+	if (!(self = [super initWithLocation: loc time: t creationTime: ct]))
+		return nil;
+	
+	rootSpoke = spoke;
+	branchVertex = vertex;
+	
+	return self;
+}
 
 - (BOOL) isEqual: (PSBranchEvent*) object
 {
@@ -91,9 +138,35 @@
 	return str;
 }
 
+- (NSArray*) spokes
+{
+	return @[rootSpoke];
+}
+
+@end
+
+@implementation PSBranchCollapseEvent
+
 @end
 
 @implementation PSCollapseEvent
+{
+	NSArray* spokes;
+}
+
+@synthesize  spokes, collapsingWaveFront;
+
+- (id) initWithLocation:(v3i_t)loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct waveFront:(PSWaveFront *)waveFront
+{
+	if (!(self = [super initWithLocation: loc time: t creationTime: ct]))
+		return nil;
+	
+	collapsingWaveFront = waveFront;
+	
+	spokes = @[waveFront.leftSpoke, waveFront.rightSpoke];
+	
+	return self;
+}
 
 - (BOOL) isEqual: (PSCollapseEvent*) object
 {
@@ -108,35 +181,79 @@
 
 - (NSString*) hashString
 {
-	NSString* str = [NSString stringWithFormat: @"%@ %d %d", [super hashString], self.collapsingWaveFront.direction.x, self.collapsingWaveFront.direction.y];
+	NSString* str = [NSString stringWithFormat: @"%@ %d %d", [super hashString], self.collapsingWaveFront.edge.edge.x, self.collapsingWaveFront.edge.edge.y];
 	return str;
 }
+
+
 @end
 
 @implementation PSSplitEvent
 
-- (BOOL) isEqual: (PSSplitEvent*) object
+@synthesize motorcycleSpoke;
+
+- (id) initWithLocation: (v3i_t) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct motorcycleSpoke: (PSMotorcycleSpoke*) spoke;
 {
-	if (![super isEqual: object])
-		return NO;
-	if (self.antiSpoke != object.antiSpoke)
-		return NO;
+	if (!(self = [super initWithLocation: loc time: t creationTime: ct]))
+		return nil;
 	
+	motorcycleSpoke = spoke;
 	
-	return YES;
+	return self;
+
 }
 
-- (NSString*) hashString
+- (NSArray*) spokes
 {
-	NSString* str = [NSString stringWithFormat: @"%@ %f %f", [super hashString], self.antiSpoke.floatVelocity.farr[0], self.antiSpoke.floatVelocity.farr[1]];
-	return str;
+	return @[motorcycleSpoke];
 }
+
+
 @end
+
+
+@implementation PSSwapEvent
+
+@synthesize motorcycleSpoke, pivotSpoke;
+
+- (id) initWithLocation:(v3i_t)loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct motorcycleSpoke:(PSMotorcycleSpoke *)spoke pivotSpoke:(PSSpoke *)pivot
+{
+	if (!(self = [super initWithLocation: loc time: t creationTime: ct]))
+		return nil;
+	
+	motorcycleSpoke = spoke;
+	pivotSpoke = pivot;
+	
+	return self;
+}
+
+- (NSArray*) spokes
+{
+	return @[motorcycleSpoke, pivotSpoke];
+}
+
+
+
+@end
+
 
 @implementation PSEmitEvent
 @end
 
 @implementation PSReverseBranchEvent
+
+@synthesize rootSpoke, branchVertex;
+
+- (id) initWithLocation:(v3i_t)loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct rootSpoke:(PSMotorcycleSpoke *)spoke branchVertex:(PSCrashVertex *)vertex
+{
+	if (!(self = [super initWithLocation: loc time: t creationTime: ct]))
+		return nil;
+	
+	rootSpoke = spoke;
+	branchVertex = vertex;
+	
+	return self;
+}
 
 - (BOOL) isEqual: (PSReverseBranchEvent*) object
 {
@@ -157,6 +274,13 @@
 	NSString* str = [NSString stringWithFormat: @"%@ %d %d %d", [super hashString], self.branchVertex.position.x, self.branchVertex.position.y, self.branchVertex.position.shift];
 	return str;
 }
+
+- (NSArray*) spokes
+{
+	return @[rootSpoke];
+}
+
+
 @end
 
 static double _maxBoundsDimension(NSArray* vertices)
@@ -164,7 +288,7 @@ static double _maxBoundsDimension(NSArray* vertices)
 	v3i_t minv = v3iCreate(INT32_MAX, INT32_MAX, INT32_MAX, 0);
 	v3i_t maxv = v3iCreate(INT32_MIN, INT32_MIN, INT32_MIN, 0);
 	
-	for (PSVertex* vertex in vertices)
+	for (PSRealVertex* vertex in vertices)
 	{
 		minv.shift = vertex.position.shift;
 		maxv.shift = vertex.position.shift;
@@ -178,13 +302,79 @@ static double _maxBoundsDimension(NSArray* vertices)
 
 @implementation PSEdge
 
+@synthesize splittingMotorcycles;
 
+- (void) addSplittingMotorcycle:(PSMotorcycle *)object
+{
+	if (!splittingMotorcycles)
+		splittingMotorcycles = @[object];
+	else
+		splittingMotorcycles = [splittingMotorcycles arrayByAddingObject: object];
+}
+
+- (BOOL) mpVertexInPositiveHalfPlane: (MPVector2D*) mpv;
+{
+	MPVector2D* E = [MPVector2D vectorWith3i: self.edge];
+	MPVector2D* A = [MPVector2D vectorWith3i: self.leftVertex.position];
+	
+	MPDecimal* cross = [E cross: [mpv sub: A]];
+	
+	return cross.isPositive;
+}
+
+static MPVector2D* _mpLinePointDistanceNum(MPVector2D* A, MPVector2D* B, MPVector2D* P)
+{
+	MPVector2D* AP = [P sub: A];
+	MPVector2D* AB = [B sub: A];
+	
+	MPDecimal* ABAB = [AB dot: AB];
+	MPDecimal* ABAP = [AB dot: AP];
+	
+	MPVector2D* DN = [[AP scale: ABAB] sub: [AB scale: ABAP]];
+	
+	return DN;
+}
+
+
+- (MPDecimal*) timeSqrToLocation: (MPVector2D*) X;
+{
+	MPVector2D* A = [MPVector2D vectorWith3i: self.leftVertex.position];
+	MPVector2D* B = [MPVector2D vectorWith3i: self.rightVertex.position];
+	MPVector2D* AB = [B sub: A];
+	
+	{
+		MPVector2D* AX = [X sub: A];
+	
+		MPDecimal* cross = [AB cross: AX];
+	
+		assert(cross.isPositive || cross.isZero); // assert that X is in the right half plane
+	}
+	
+	MPDecimal* ABAB = [AB dot: AB];
+	
+	MPVector2D* DAB = _mpLinePointDistanceNum(A, B, X);
+	
+	
+	MPDecimal* tSqr = [[DAB dot: DAB] div: [ABAB mul: ABAB]];
+	
+	assert([tSqr compare: [[MPDecimal alloc] initWithInt64: INT32_MAX shift: 0]] < 0);
+
+	return tSqr;
+}
+
+- (MPVector2D*) mpEdge
+{
+	return [MPVector2D vectorWith3i: self.edge];
+}
 
 @end
 
 @implementation PSMotorcycle
+{
+	MPVector2D* cachedNumerator;
+}
 
-@synthesize crashVertices, terminationTime, crashQueue;
+@synthesize crashVertices, terminationTime, crashQueue, terminalVertex;
 
 - (id) init
 {
@@ -192,33 +382,90 @@ static double _maxBoundsDimension(NSArray* vertices)
 		return nil;
 	
 	crashVertices = @[];
-	terminationTime = (vmlongerfix_t){INT128_MAX,0};
+	terminationTime = nil;
 	
 	crashQueue = [[PriorityQueue alloc] initWithCompareBlock: ^NSComparisonResult(PSMotorcycleCrash* obj0, PSMotorcycleCrash* obj1) {
-		vmlongerfix_t t0 = obj0.crashTimeSqr;
-		vmlongerfix_t t1 = obj1.crashTimeSqr;
-		assert(t0.shift == t1.shift);
+		MPDecimal* t0 = obj0.crashTimeSqr;
+		MPDecimal* t1 = obj1.crashTimeSqr;
 		
-		return i128compare(t0.x, t1.x);
+		return [t0 compare: t1];
 	}];
 
 	return self;
 }
 
-- (MPVector2D*) mpVelocity
+- (double) angleToLocation: (MPVector2D *) loc
+{
+	MPVector2D* vel = self.mpVelocity;
+	MPVector2D* delta = [loc sub: self.sourceVertex.mpPosition];
+	
+	MPDecimal* cross = [[vel cross: delta] div: [vel.length mul: delta.length]];
+	
+	double da = cross.toDouble;
+
+	return da;
+}
+- (void) setTerminalVertex:(PSRealVertex *)vertex
+{	
+	double da = [self angleToLocation: vertex.mpPosition];
+	
+	assert(fabs(da) < 100.0*FLT_EPSILON);
+	
+	
+	terminalVertex = vertex;
+}
+
+- (MPVector2D*) mpNumerator
+{
+	
+	if (cachedNumerator)
+		return cachedNumerator;
+	
+	MPVector2D* E_AB = [MPVector2D vectorWith3i: self.leftEdge.edge];
+	MPVector2D* E_BC = [MPVector2D vectorWith3i: self.rightEdge.edge];
+		
+	MPDecimal* l_E_AB = [E_AB length];
+	MPDecimal* l_E_BC = [E_BC length];
+	
+	MPVector2D* RU = [[E_BC scale: l_E_AB] sub: [E_AB scale: l_E_BC]];
+		
+	cachedNumerator = RU;
+	
+	return RU;
+}
+
+- (MPVector2D*) mpDirection
 {
 	MPVector2D* E_AB = [MPVector2D vectorWith3i: self.leftEdge.edge];
 	MPVector2D* E_BC = [MPVector2D vectorWith3i: self.rightEdge.edge];
 	
 	MPDecimal* E_ABxBC = [E_AB cross: E_BC];
 	
-	MPDecimal* l_E_AB = [E_AB length];
-	MPDecimal* l_E_BC = [E_BC length];
 	
-	MPVector2D* RU = [[E_BC scale: l_E_AB] sub: [E_AB scale: l_E_BC]];
+	MPVector2D* RU = self.mpNumerator;
 	
-	MPVector2D* R = [RU scaleNum: [[MPDecimal alloc] initWithInt64: 1 shift: 0] den: E_ABxBC];
+	if (E_ABxBC.isNegative)
+		RU = RU.negate;
+	
 
+	assert(!isinf(RU.x.toDouble));
+	assert(!isinf(RU.y.toDouble));
+	
+	
+	
+	return RU;
+}
+- (MPVector2D*) mpVelocity
+{
+	MPVector2D* E_AB = [MPVector2D vectorWith3i: self.leftEdge.edge];
+	MPVector2D* E_BC = [MPVector2D vectorWith3i: self.rightEdge.edge];
+	
+	MPDecimal* E_ABxBC = [E_AB cross: E_BC];
+		
+	MPVector2D* RU = self.mpNumerator;
+	
+	MPVector2D* R = [RU scaleNum: [MPDecimal one] den: E_ABxBC];
+	
 	assert(!isinf(R.x.toDouble));
 	assert(!isinf(R.y.toDouble));
 	
@@ -241,17 +488,97 @@ static double _maxBoundsDimension(NSArray* vertices)
 	return [NSString stringWithFormat: @"%p (%.3f, %.3f)", self, v.farr[0], v.farr[1]];
 }
 
-- (PSVertex*) getVertexOnMotorcycleAtLocation: (v3i_t) x
+- (PSRealVertex*) getVertexOnMotorcycleAtLocation: (v3i_t) x
 {
 	if (self.sourceVertex && v3iEqual(self.sourceVertex.position, x))
 		return self.sourceVertex;
 	if (self.terminalVertex && v3iEqual(self.terminalVertex.position, x))
 		return self.terminalVertex;
-	for (PSVertex* vertex in self.crashVertices)
+	for (PSRealVertex* vertex in self.crashVertices)
 		if (v3iEqual(vertex.position, x))
 			return vertex;
 	
 	return nil;
+}
+
+static MPVector2D* _crashLocationME(v3i_t _B, v3i_t _E_AB, v3i_t _E_BC, v3i_t _U, v3i_t _V, MPVector2D* E_ABC)
+{
+	MPVector2D* B = [MPVector2D vectorWith3i: _B];
+	MPVector2D* U = [MPVector2D vectorWith3i: _U];
+	MPVector2D* V = [MPVector2D vectorWith3i: _V];
+	
+	
+	MPVector2D* S = [V sub: U];
+	
+	/*
+	MPVector2D* E_AB = [MPVector2D vectorWith3i: _E_AB];
+	MPVector2D* E_BC = [MPVector2D vectorWith3i: _E_BC];
+	MPDecimal* E_ABxBC = [E_AB cross: E_BC];
+	 MPDecimal* l_E_AB = E_AB.length;
+	 MPDecimal* l_E_BC = E_BC.length;
+	 
+	 MPVector2D* E_ABC = [[E_BC scale: l_E_AB] sub: [E_AB scale: l_E_BC]];
+	 */
+	MPDecimal* denum = [E_ABC cross: S];
+	
+	
+	if (denum.isZero)
+	{
+		return nil;
+	}
+	
+	MPVector2D* RQS = [E_ABC scale: [V cross: S]];
+	MPVector2D* SPR = [S scale: [B cross: E_ABC]];
+	
+	MPVector2D* X = [[RQS sub: SPR] scaleNum: [MPDecimal one] den: denum];
+	
+	
+	
+	if (X.minIntegerBits < 16)
+	{
+		return X;
+	}
+	
+	return nil;
+	
+}
+
+static long _locationOnEdge_boxTest(v3i_t A, v3i_t B, v3i_t x)
+{
+	r3i_t r = riCreateFromVectors(A,B);
+	
+	return riContainsVector2D(r, x);
+}
+
+
+- (MPVector2D*) crashIntoEdge: (PSEdge*) edge
+{
+	if ((edge.leftVertex == self.sourceVertex) || (edge.rightVertex == self.sourceVertex))
+		return nil;
+	
+	
+	MPVector2D* X = _crashLocationME(self.sourceVertex.position, self.leftEdge.edge, self.rightEdge.edge, edge.leftVertex.position, edge.rightVertex.position, self.mpNumerator);
+
+	if (!X)
+		return nil;
+	
+	if (!_locationOnEdge_boxTest(edge.leftVertex.position, edge.rightVertex.position, [X toVectorWithShift: 16]))
+		return nil;
+	
+	if (!([self.leftEdge mpVertexInPositiveHalfPlane: X] && [self.rightEdge mpVertexInPositiveHalfPlane: X]))
+		return nil;
+
+	{
+		// match test, intersection points must equal for reversed edge
+		MPVector2D* XR = _crashLocationME(self.sourceVertex.position, self.leftEdge.edge, self.rightEdge.edge, edge.rightVertex.position, edge.leftVertex.position, self.mpNumerator);
+		
+		v3i_t xi = [X toVectorWithShift: 16];
+		v3i_t xr = [XR toVectorWithShift: 16];
+		assert(v3iEqual(xi, xr));
+	}
+
+	
+	return X;
 }
 
 @end
@@ -280,7 +607,30 @@ static double _maxBoundsDimension(NSArray* vertices)
 	return self;
 }
 
+- (MPVector2D*) mpPosition
+{
+	[self doesNotRecognizeSelector: _cmd];
+	return nil;
+}
 
+
+- (MPVector2D*) intersectEdges
+{
+	MPVector2D* P = leftEdge.leftVertex.mpPosition;
+	MPVector2D* Q = rightEdge.leftVertex.mpPosition;
+	MPVector2D* R = [leftEdge.rightVertex.mpPosition sub: P];
+	MPVector2D* S = [rightEdge.rightVertex.mpPosition sub: Q];
+	
+	MPVector2D* num = [[R scale: [Q cross: S]] sub: [S scale: [P cross: R]]];
+	MPDecimal*	den = [R cross: S];
+	
+	if (den.isZero)
+		return nil;
+	
+	
+	return [num scaleNum: [[MPDecimal alloc] initWithInt64: 1 shift: 0] den: den];
+	
+}
 
 - (void) addMotorcycle:(PSMotorcycle *)cycle
 {
@@ -316,7 +666,7 @@ static double _maxBoundsDimension(NSArray* vertices)
 	incomingMotorcycles = [incomingMotorcycles arrayByRemovingObject: cycle];
 }
 
-
+#if 0
 static double _angle2d(v3i_t from, v3i_t to)
 {
 	vmlongfix_t x = v3iDot(from, to);
@@ -372,14 +722,48 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	
 	return outSpoke;
 }
+#endif
+
 
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p (%@) @%f (%d, %d)", self, [self class], self.time, self.position.x, self.position.y];
+	return [NSString stringWithFormat: @"%p (%@) @%f (%f, %f)", self, [self class], self.time.toDouble, self.mpPosition.x.toDouble, self.mpPosition.y.toDouble];
 }
 
 
 @end
+
+@implementation  PSRealVertex
+
+@synthesize position;
+
+- (MPVector2D*) mpPosition
+{
+	return [MPVector2D vectorWith3i: position];
+}
+
+
+@end
+
+
+@implementation PSVirtualVertex
+
+- (void) setMpPosition:(MPVector2D *)mpPosition
+{
+	[self doesNotRecognizeSelector: _cmd];
+}
+
+- (MPVector2D*) mpPosition
+{
+	MPVector2D* X = [self intersectEdges];
+	if (!X)
+		X = [[self.leftEdge.rightVertex.mpPosition add: self.rightEdge.leftVertex.mpPosition] scale: [[MPDecimal alloc] initWithInt64: 1 shift: 1]];
+	assert(X);
+	return X;
+}
+
+@end
+
 
 @implementation PSSourceVertex
 
@@ -435,67 +819,190 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 
 @end
 
-@implementation PSMergeVertex
 
-- (NSArray*) mergedMotorcyclesCCW
-{
-	PSMotorcycle* outCycle = [self.outgoingMotorcycles objectAtIndex: 0];
-	NSArray* angles = [self.incomingMotorcycles map: ^id (PSMotorcycle* obj) {
-		
-		vector_t a = outCycle.floatVelocity;
-		vector_t b = vNegate(obj.floatVelocity);
-		double angle = vAngleBetweenVectors2D(a, b);
-		if (angle < 0.0)
-			angle += 2.0*M_PI;
-		return [NSNumber numberWithDouble: angle];
-	}];
-	
-	NSDictionary* dict = [NSDictionary dictionaryWithObjects: self.incomingMotorcycles forKeys: angles];
-	
-	angles = [angles sortedArrayUsingSelector: @selector(compare:)];
-	
-	
-	return [dict objectsForKeys: angles notFoundMarker: [NSNull null]];
-}
-
-@end
-
-@implementation PSSplitVertex
-
-@end
 
 @implementation	PSSpoke
 
-@synthesize retiredWaveFronts, terminationTime, start;
+@synthesize retiredWaveFronts, terminationTime, startTime, endLocation;
 
 - (id) init
 {
 	if (!(self = [super init]))
 		return nil;
 	
-	terminationTime = INFINITY;
-	start = INFINITY;
-	
+	//endLocation = v3iCreate(INT32_MAX, INT32_MAX, INT32_MAX, 16);
 	retiredWaveFronts = [[NSMutableArray alloc] init];
 	
 	return self;
 }
 
-- (v3i_t) positionAtTime: (double) t
+- (v3i_t) positionAtTime: (MPDecimal*) t
 {
 	[self doesNotRecognizeSelector: _cmd];
 	return v3iCreate(0, 0, 0, 0);
 }
 
+- (MPDecimal*) timeSqrToLocation: (MPVector2D*) X;
+{
+	assert(self.leftEdge && self.rightEdge);
+	
+	return [[self.leftEdge timeSqrToLocation: X] max: [self.rightEdge timeSqrToLocation: X]];
+}
+
+/*!
+ @return returns spoke velocity, if possible
+ */
+- (MPVector2D*) mpVelocity
+{
+	MPDecimal* den = self.mpDenominator;
+	if (den.isZero)
+		return self.mpDirection;
+	MPVector2D* R = [self.mpNumerator scaleNum: [MPDecimal one] den: den];
+	
+	
+	assert(!isinf(R.x.toDouble));
+	assert(!isinf(R.y.toDouble));
+	
+	
+	
+	return R;
+}
+
+- (MPDecimal*) mpDenominator
+{
+	assert(self.leftEdge);
+	assert(self.rightEdge);
+	MPVector2D* E_AB = [MPVector2D vectorWith3i: self.leftEdge.edge];
+	MPVector2D* E_BC = [MPVector2D vectorWith3i: self.rightEdge.edge];
+	
+	MPDecimal* d = [E_AB cross: E_BC];
+	MPDecimal* dot = [E_AB dot: E_BC];
+	
+	if (d.isZero && dot.isPositive) // the velocity is 1 when the two edges are parallel
+	{
+		MPVector2D* R = [E_AB add: E_BC];
+				
+		R = [R scale: [MPDecimal decimalWithInt64: 1 shift: 1]]; // divide by 2
+		return R.length;
+	}
+	return d;
+}
+
+- (MPVector2D*) mpNumerator
+{
+	assert(self.leftEdge);
+	assert(self.rightEdge);
+	assert(v3iLength2D(self.leftEdge.edge).x > 0);
+	assert(v3iLength2D(self.rightEdge.edge).x > 0);
+	MPVector2D* E_AB = [MPVector2D vectorWith3i: self.leftEdge.edge];
+	MPVector2D* E_BC = [MPVector2D vectorWith3i: self.rightEdge.edge];
+		
+	MPDecimal* l_E_AB = [E_AB length];
+	MPDecimal* l_E_BC = [E_BC length];
+	
+	MPVector2D* R = [[E_BC scale: l_E_AB] sub: [E_AB scale: l_E_BC]];
+	
+	MPDecimal* ABxBC = [E_AB cross: E_BC];
+	MPDecimal* ABdBC = [E_AB dot: E_BC];
+	
+	// if the R is zero, segments are parallel and colinear
+	if (ABxBC.isZero)
+	{
+		if (ABdBC.isPositive)
+		{
+			MPVector2D* RE = [E_AB add: E_BC];
+		
+			R.x = RE.y.negate;
+			R.y = RE.x;
+		
+			R = [R scale: [MPDecimal oneHalf]]; // divide by 2
+		}
+		else // no denumerator for the anti-parallel case, but we still need a direction
+		{
+			R = [E_BC sub: E_AB]; // negate because we need to do AB-BC
+			
+			R = [R scale: [MPDecimal oneHalf]]; // divide by 2
+		}
+	}
+	
+	
+	assert(!isinf(R.x.toDouble));
+	assert(!isinf(R.y.toDouble));
+	return R;
+}
+
+- (MPVector2D*) mpDirection
+{
+	MPVector2D* num = self.mpNumerator;
+	MPDecimal* den = self.mpDenominator;
+	
+	if (den && den.isNegative)
+		num = num.negate;
+	
+	return num;
+}
+
+- (MPVector2D*) mpSourcePosition
+{
+	assert(self.leftEdge);
+	assert(self.rightEdge);
+
+	if (self.leftEdge.rightVertex == self.rightEdge.leftVertex)
+		return [MPVector2D vectorWith3i: self.leftEdge.rightVertex.position];
+	
+	return self.sourceVertex.mpPosition;
+	
+}
+
+
+- (BOOL) isVertexCCWFromSpoke: (MPVector2D *)mpx
+{
+	MPVector2D* dir = self.mpDirection;
+	
+	MPVector2D* xdir = [mpx sub: self.mpSourcePosition];
+	
+	MPDecimal* cross = [dir cross: xdir];
+	
+	return cross.isPositive;
+}
+
+- (BOOL) isSpokeCCW: (PSSpoke *) spoke
+{
+	MPVector2D* dir = self.mpDirection;
+	
+	MPVector2D* xdir = spoke.mpDirection;
+	
+	MPDecimal* cross = [dir cross: xdir];
+	
+	return cross.isPositive;
+}
+
+
 @end
 
 @implementation PSSimpleSpoke
 
-- (v3i_t) positionAtTime: (double) t
+- (v3i_t) positionAtTime: (MPDecimal*) t
 {
-	assert(0);
-	return v3iCreate(0, 0, 0, 0);
-//	return v3Add(self.sourceVertex.position, v3MulScalar(self.velocity, t - self.start));
+	MPVector2D* num = self.mpNumerator;
+	
+	MPDecimal* den = self.mpDenominator;
+	
+	if (den.isZero)
+		return self.startLocation;
+	
+	assert(den);
+	assert(!den.isZero);
+	assert(self.sourceVertex.mpPosition);
+	
+	MPVector2D* v = [self.sourceVertex.mpPosition add: [num scaleNum: t den: den]];
+	
+	v3i_t x = [v toVectorWithShift: 16];
+	
+	return x;
+	
+	
+	
 }
 
 /*
@@ -506,9 +1013,17 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 }
 */
 
+- (vector_t) floatVelocity
+{
+	return self.mpVelocity.toFloatVector;
+}
+
+
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p (%@) @%f: (%f, %f)", self, [self class], self.start, self.floatVelocity.farr[0], self.floatVelocity.farr[1]];
+	vector_t sl = v3iToFloat(self.startLocation);
+	
+	return [NSString stringWithFormat: @"%p (%@) @(%f, %f) : (%f, %f)", self, [self class], sl.farr[0], sl.farr[1], self.floatVelocity.farr[0], self.floatVelocity.farr[1]];
 }
 
 - (BOOL) convex
@@ -518,37 +1033,6 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 
 @end
 
-
-@implementation PSFastSpoke
-
-/*
-- (vector_t) positionAtTime: (double) t
-{
-	return (self.sourceVertex.position);
-}
-*/
-- (NSString *)description
-{
-	return [NSString stringWithFormat: @"%p (%@) @%f: (%d, %d)", self, [self class], self.start, self.direction.x, self.direction.y];
-}
-
-- (BOOL) convex
-{
-	return YES;
-}
-
-
-@end
-
-@implementation PSAntiSpoke
-
-- (BOOL) convex
-{
-	return NO;
-}
-
-
-@end
 
 @implementation PSMotorcycleSpoke
 
@@ -566,14 +1050,14 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	NSUInteger hashCache;
 }
 
-@synthesize retiredLeftSpokes, retiredRightSpokes, leftSpoke, rightSpoke, terminationTime;
+@synthesize retiredLeftSpokes, retiredRightSpokes, leftSpoke, rightSpoke, terminationTimeSqr, opposingSpokes;
 
 - (id) init
 {
 	if (!(self = [super init]))
 		return nil;
 	
-	terminationTime = INFINITY;
+	opposingSpokes = @[];
 	
 	return self;
 }
@@ -589,7 +1073,7 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 
 	assert(oldSpoke.sourceVertex == newSpoke.sourceVertex);
 	assert(oldSpoke.terminalVertex == newSpoke.terminalVertex);
-	assert(oldSpoke.start == newSpoke.start);
+	assert(v3iEqual(oldSpoke.startLocation, newSpoke.startLocation));
 	assert(oldSpoke.terminationTime == newSpoke.terminationTime);
 	
 	if (leftSpoke == oldSpoke)
@@ -625,35 +1109,41 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	if (spoke)
 	{
 		assert(![retiredLeftSpokes containsObject: spoke]);
-		assert(spoke.terminationTime >= spoke.start);
+		//assert(spoke.terminationTime >= spoke.start);
 	}
 	
 	if (leftSpoke && spoke)
 	{
-		assert(leftSpoke.terminalVertex == spoke.sourceVertex);
-		assert(leftSpoke.terminationTime <= spoke.start);
-		assert(leftSpoke.terminationTime != INFINITY);
-		assert(spoke.start != INFINITY);
+		assert(v3iEqual(leftSpoke.endLocation, spoke.startLocation));
+		assert([leftSpoke.terminationTime compare: spoke.startTime] <= 0);
+		//assert(leftSpoke.terminationTime);
+		//assert(spoke.startTime);
+
 	}
 	
 	if (leftSpoke)
 	{
-
+		
 		if (retiredLeftSpokes.count && leftSpoke)
 		{
-			if ([retiredLeftSpokes lastObject] != leftSpoke)
-				assert([[retiredLeftSpokes lastObject] terminalVertex] == leftSpoke.sourceVertex);
+			PSSimpleSpoke* lastSpoke = [retiredLeftSpokes lastObject];
+			if (lastSpoke != leftSpoke)
+				assert(v3iEqual(lastSpoke.endLocation, leftSpoke.startLocation));
 		}
 	
 	}
 	
 	// hack against other error: ![retiredLeftSpokes containsObject: leftSpoke]
 	//if (leftSpoke && ![retiredLeftSpokes containsObject: leftSpoke])
-	if (leftSpoke)
+	if (leftSpoke && !v3iEqual(leftSpoke.endLocation, leftSpoke.startLocation))
 	{
-		assert(![retiredLeftSpokes containsObject: leftSpoke]);
-		retiredLeftSpokes = [retiredLeftSpokes arrayByAddingObject: leftSpoke];
-		[leftSpoke.retiredWaveFronts addObject: self];
+		// if it's a zero length spoke, ignore it
+		{
+
+			assert(![retiredLeftSpokes containsObject: leftSpoke]);
+			retiredLeftSpokes = [retiredLeftSpokes arrayByAddingObject: leftSpoke];
+			[leftSpoke.retiredWaveFronts addObject: self];
+		}
 	}
 	leftSpoke = spoke;
 }
@@ -666,7 +1156,7 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	if (!retiredRightSpokes)
 		retiredRightSpokes = @[];
 	
-	if (rightSpoke)
+	if (rightSpoke && !v3iEqual(rightSpoke.endLocation, rightSpoke.startLocation))
 	{
 		assert(![retiredRightSpokes containsObject: rightSpoke]);
 		retiredRightSpokes = [retiredRightSpokes arrayByAddingObject: rightSpoke];
@@ -676,25 +1166,13 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	rightSpoke = spoke;
 }
 
+/*
 - (BOOL) isEqual: (PSWaveFront*) object
 {
-	if ([self class] != [object class])
-		return NO;
-	if (self.startTime != object.startTime)
-		return NO;
-	if (self.terminationTime != object.terminationTime)
-		return NO;
-	if (self.leftSpoke != object.leftSpoke)
-		return NO;
-	if (self.rightSpoke != object.rightSpoke)
-		return NO;
-	if (!v3iEqual(self.direction, object.direction))
-		return NO;
-	
-	
-	return YES;
+	[self doesNotRecognizeSelector: _cmd];
+	return NO;
 }
-
+*/
 /*
 - (NSString*) hashString
 {
@@ -715,7 +1193,8 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 */
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p (%@): (%d, %d)", self, [self class], self.direction.x, self.direction.y];
+	vector_t e = v3iToFloat(self.edge.edge);
+	return [NSString stringWithFormat: @"%p (%@): (%f, %f)", self, [self class], -e.farr[1], e.farr[0]];
 }
 
 @end

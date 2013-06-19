@@ -12,6 +12,7 @@
 
 #import "VectorMath_fixp.h"
 #import "PriorityQueue.h"
+#import "FoundationExtensions.h"
 
 
 void LoadSTLFileFromDataRaw(NSData* data, size_t* outNumVertices, vector_t** outVertices, vector_t** outNormals, vector_t** outColors, size_t* outNumIndices, uint32_t** outIndices);

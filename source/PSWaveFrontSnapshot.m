@@ -8,6 +8,9 @@
 
 #import "PSWaveFrontSnapshot.h"
 #import "PolygonSkeletizerObjects.h"
+#import "MPInteger.h"
+
+#import "FoundationExtensions.h"
 
 @implementation PSWaveFrontSnapshot
 
@@ -27,20 +30,18 @@
 			PSSpoke* leftSpoke = waveFront.leftSpoke;
 			PSSpoke* rightSpoke = waveFront.rightSpoke;
 			
-			PSVertex* leftVertex = [vertexDict objectForKey: [NSValue valueWithPointer: (__bridge void*)leftSpoke]];
-			PSVertex* rightVertex = [vertexDict objectForKey: [NSValue valueWithPointer: (__bridge void*)rightSpoke]];
+			PSRealVertex* leftVertex = [vertexDict objectForKey: [NSValue valueWithPointer: (__bridge void*)leftSpoke]];
+			PSRealVertex* rightVertex = [vertexDict objectForKey: [NSValue valueWithPointer: (__bridge void*)rightSpoke]];
 			
 			if (!leftVertex)
 			{
-				leftVertex = [[PSVertex alloc] init];
-				leftVertex.time = self.time;
+				leftVertex = [[PSRealVertex alloc] init];
 				leftVertex.position = [leftSpoke positionAtTime: self.time];
 				[vertexDict setObject: leftVertex forKey: [NSValue valueWithPointer: (__bridge void*)leftSpoke]];
 			}
 			if (!rightVertex)
 			{
-				rightVertex = [[PSVertex alloc] init];
-				rightVertex.time = self.time;
+				rightVertex = [[PSRealVertex alloc] init];
 				rightVertex.position = [rightSpoke positionAtTime: self.time];
 				[vertexDict setObject: rightVertex forKey: [NSValue valueWithPointer: (__bridge void*)rightSpoke]];
 			}
@@ -115,8 +116,9 @@
 	return bpath;
 }
 
-- (NSBezierPath*) thinWallAreaLessThanWidth: (double) width
+- (NSBezierPath*) thinWallAreaLessThanWidth: (double) _width
 {
+	MPDecimal* width = [[MPDecimal alloc] initWithDouble: _width];
 	NSBezierPath* bpath = [NSBezierPath bezierPath];
 	
 	for (NSArray* loop in loops)
@@ -125,7 +127,7 @@
 		
 		for (PSWaveFrontSegment* segment in loop)
 		{
-			if (segment.finalTerminationTime < self.time+width)
+			if ([segment.finalTerminationTime compare: [self.time add: width]] < 0)
 			{
 				[thinWaveFronts addObject: segment];
 			}
@@ -142,7 +144,7 @@
 				{
 					PSSpoke* spoke0 = [spokes objectAtIndex: i];
 					PSSpoke* spoke1 = [spokes objectAtIndex: i+1];
-					assert(spoke0.terminalVertex == spoke1.sourceVertex);
+					assert(v3iEqual(spoke0.endLocation, spoke1.startLocation));
 				}
 			}
 			{
@@ -151,7 +153,7 @@
 				{
 					PSSpoke* spoke0 = [spokes objectAtIndex: i];
 					PSSpoke* spoke1 = [spokes objectAtIndex: i+1];
-					assert(spoke0.terminalVertex == spoke1.sourceVertex);
+					assert(v3iEqual(spoke0.endLocation, spoke1.startLocation));
 				}
 			}
 			
@@ -159,21 +161,20 @@
 			
 			for (PSSpoke* spoke in [[segment.waveFronts lastObject] retiredRightSpokes])
 			{
-				assert(spoke.terminationTime < INFINITY);
 				if (spoke.terminationTime > self.time)
 					[vertices addObject: spoke.terminalVertex];
 			}
 			for (PSSpoke* spoke in [[[segment.waveFronts objectAtIndex: 0] retiredLeftSpokes] reverseObjectEnumerator])
 			{
 				
-				if (spoke.start > self.time)
+				if ([spoke.startTime compare: self.time] > 0)
 					[vertices addObject: spoke.sourceVertex];
 			}
 			[vertices addObject: segment.leftVertex];
 			
 			for (size_t i = 0; i < vertices.count; ++i)
 			{
-				v3i_t pos = [(PSVertex*)[vertices objectAtIndex: i] position];
+				v3i_t pos = [(PSRealVertex*)[vertices objectAtIndex: i] position];
 				if (i == 0)
 					[bpath moveToPoint: v3iToCGPoint(pos)];
 				else
@@ -196,13 +197,14 @@
 
 @synthesize waveFronts;
 
-- (double) finalTerminationTime
+- (MPDecimal*) finalTerminationTime
 {
-	double t = 0.0;
+	MPDecimal* t = [[MPDecimal alloc] initWithInt64: 0 shift: 0];
 	
 	for (PSWaveFront* waveFront in waveFronts)
 	{
-		t = fmax(t, waveFront.terminationTime);
+		assert(waveFront.terminationTimeSqr);
+		t = [t max: waveFront.terminationTimeSqr.sqrt];
 	}
 	return t;
 }

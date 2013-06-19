@@ -8,9 +8,9 @@
 
 #import <Foundation/Foundation.h>
 
-@interface MPInteger : NSObject
+@interface MPInteger : NSObject <NSCopying>
 
-- (id) initWithInt64: (int64_t) i;
+- (instancetype) initWithInt64: (int64_t) i;
 
 @property(nonatomic,readonly) size_t numBits;
 
@@ -19,20 +19,38 @@
 - (instancetype) mul: (MPInteger*) mpi;
 - (instancetype) div: (MPInteger*) mpi;
 
+- (instancetype) min: (MPInteger*) mpi;
+- (instancetype) max: (MPInteger*) mpi;
+
+- (NSComparisonResult) compare: (MPInteger *)mpi;
+- (NSComparisonResult) compareToZero;
+
 - (instancetype) sqrt;
 - (instancetype) negate;
-@property(nonatomic, readonly) NSString* stringValue;;
-@property(nonatomic, readonly) long sign;
+- (instancetype) abs;
+- (NSString*) stringValue;;
+- (long) sign;
+
+- (long) isZero;
+- (long) isPositive;
+- (long) isNegative;
 
 @end
 
 
 @interface MPDecimal : MPInteger
 
-- (id) initWithInt64: (int64_t) i shift: (long) shift;
++ (instancetype) decimalWithDouble: (double) f;
++ (instancetype) decimalWithInt64: (int64_t) i shift: (long) shift;
+
++ (instancetype) zero;
++ (instancetype) one;
++ (instancetype) oneHalf;
+
+- (instancetype) initWithInt64: (int64_t) i shift: (long) shift;
+- (instancetype) initWithDouble: (double) f;
 
 @property(nonatomic) long decimalShift;
-@property(nonatomic) long isZero;
 
 - (void) increasePrecisionByBits: (size_t) shift;
 - (void) decreasePrecisionByBits: (size_t) shift;

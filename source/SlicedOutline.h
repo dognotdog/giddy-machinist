@@ -37,7 +37,7 @@
 - (void) analyzeSegment;
 - (void) reverse;
 //- (void) optimizeToThreshold: (double) threshold;
-- (void) optimizeColinears: (long) threshold;
+- (void) optimizeColinears: (vmlongfix_t) threshold;
 
 
 - (BOOL) intersectsPath: (SlicedLineSegment*) segment;

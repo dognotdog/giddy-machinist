@@ -452,7 +452,7 @@ u &=& \frac{(Q-P) \times R}{d} \\
 v &=& \frac{(P-Q) \times S}{d}
 \end{eqnarray*}
 
-Alternatively, as per \cite{mw:lli}, going by the determinant:
+Alternatively, as described \cite{mw:lli}, via the equation system's determinant:
 \begin{eqnarray*}
 X &=& \frac{R (Q \times S )  - S (P \times R )}{R \times S}
 \end{eqnarray*}
@@ -464,10 +464,26 @@ X &=& \frac{R (Q \times S )  - S (P \times R )}{R \times S}
 %	vmfloat_t factor = aDotB/vDot(b,b);
 %	return v3MulScalar(b, factor);
 
-The distance of a point $P$ to line segment $AB$:
+The perpendicular distance vector $D$ of line segment $AB$ to a point $P$:
 \begin{eqnarray*}
-d &=& \left| (P-A) - AB\frac{(P-A) \cdot (AB)}{(AB) \cdot (AB)} \right|
+D &=& (P-A) - AB\frac{(P-A) \cdot (AB)}{AB \cdot AB}  \\
+D &=& \frac{AP (AB \cdot AB) - AB (AP \cdot AB)}{AB \cdot AB} \\
+x_D &=& \frac{x_{AP}y^2_{AB} - y_{AP}x_{AB}y_{AB}}{x_{AB}^2+y_{AB}^2} \\
+y_D &=& \frac{y_{AP}x^2_{AB} - x_{AP}x_{AB}y_{AB}}{x_{AB}^2+y_{AB}^2} .
 \end{eqnarray*}
+\begin{eqnarray*}
+D &=& (P-A) - AB\frac{(P-A) \cdot (AB)}{AB \cdot AB}  \\
+D &=& \frac{AP (AB \cdot AB) - AB (AP \cdot AB)}{AB \cdot AB} \\
+x_D &=& \frac{x_{AP}y^2_{AB} - y_{AP}x_{AB}y_{AB}}{x_{AB}^2+y_{AB}^2} \\
+y_D &=& \frac{y_{AP}x^2_{AB} - x_{AP}x_{AB}y_{AB}}{x_{AB}^2+y_{AB}^2} .
+\end{eqnarray*}
+
+If the order of multiple points by distance has to be determined, this can be done exactly with the numerator of the above fraction. For different edges $AB$ and $UV$, where $D'$ is the distance fraction's numerator, the distance comparison becomes
+\begin{eqnarray*}
+D'_{AB} (UV \cdot UV) &<=>& D'_{UV} (AB \cdot AB) .
+\end{eqnarray*}
+The same rearrangement also works for different points, thus, order can  be determined exactly in a fixed point context with multi-precision integers, even for multiple lines and multiple points.
+
 
 \subsubsection{Vector Scaling}
 
@@ -544,7 +560,14 @@ v &=& \frac{\left((U-B) \times E_{UV}\right) \cdot (E_{AB} \times E_{BC})}{(E_{B
 X &=& \frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \cdot (V \times E_{UV}) - E_{UV} (B \times (E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||))}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times E_{UV}}
 \end{eqnarray*}
 
+\paragraph{Motorcycle-Wavefront Split}
 
+The split is different from the edge crash in the magnitude of the $R$ only. $R$'s magnitude is increased by the reverse projection of the wavefront normal to $R'$.
+\begin{eqnarray*}
+R' &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \times E_{BC}} \\
+R &=& R' - R' \frac{N_{UV} \cdot N_{UV}}{N_{UV} \cdot R'} \\
+R &=& R' \left( 1 - \frac{N_{UV} \cdot N_{UV}}{N_{UV} \cdot R'} \right)\\
+\end{eqnarray*}
 
 
 \subsubsection{Dealing with Rounding Errors}
@@ -570,6 +593,12 @@ The remaining caveat are spokes with infinite velocity. Practically, they pose n
 \paragraph{Event Time Definition}
 
 The time of an event is determined by when the last involved wavefront reaches the event location. The square of the time can be computed to high precision. This time will differ from the actual event time, but is a more reliable measure for event ordering\footnote{why? needs proof.}.
+
+\paragraph{Coalescing Events}
+
+An interesting degenerate case occurs when we have three potential events, $A,B,C$. $A,C$ have the same location, $B$ has a different location. The events $B,C$ involve the same spoke. The order of events is $A < B < C$. By the above definition, $A,C$ belong together, but in this situation, $A$ has a dependency on the later event $B$.
+
+The only sane way of dealing with such situations seems to be to keep track of events on each spoke, and only allow the first event into the event list.
 
 \subsection{Conclusion}
 

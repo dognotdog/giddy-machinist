@@ -404,7 +404,7 @@ static NSString* _removeComments(NSString* inText)
 	return 0;
 }
 
-
+/*
 static long _ignoreWhitespace(const char* txt, long length)
 {
 	for (long i = 0; i < length; ++i)
@@ -412,6 +412,7 @@ static long _ignoreWhitespace(const char* txt, long length)
 			return i;
 	return length;
 }
+ */
 - (long) parseParameterSetString: (const char*) inText length: (long) length
 {
 	if (!length)

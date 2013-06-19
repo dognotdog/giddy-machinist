@@ -12,7 +12,7 @@
 
 
 
-@class GfxMesh, PolygonSkeletizer, PSWaveFrontSnapshot, PSMotorcycle, PSEdge, PSVertex;
+@class GfxMesh, PolygonSkeletizer, PSWaveFrontSnapshot, PSMotorcycle, PSEdge, PSVertex, MPDecimal;
 
 
 typedef void (^SkeletizerEventCallback)(PolygonSkeletizer* skeletizer, id event);
@@ -37,7 +37,7 @@ typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, PSWaveFron
 - (NSArray*) spokeDisplayPaths;
 - (NSArray*) outlineDisplayPaths;
 
-- (NSArray*) waveFrontOutlinesTerminatedAfter: (double) tBegin upTo: (double) tEnd;
+- (NSArray*) waveFrontOutlinesTerminatedAfter: (MPDecimal*) tBegin upTo: (MPDecimal*) tEnd;
 
 
 @end

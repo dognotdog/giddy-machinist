@@ -10,6 +10,8 @@
 #import "Slicer.h"
 #import "PolygonSkeletizer.h"
 #import "gfx.h"
+#import "MPInteger.h"
+#import "MPVector2D.h"
 
 @implementation SlicedOutline
 
@@ -104,7 +106,6 @@
 	
 	[skeleton generateSkeleton];
 }
-
 
 - (id) description
 {
@@ -258,6 +259,43 @@
 		return NO;
 }
 
+static long _locationOnEdge_boxTest(v3i_t A, v3i_t B, v3i_t x)
+{
+	r3i_t r = riCreateFromVectors(A,B);
+	
+	return riContainsVector2D(r, x);
+}
+
+
+
+static long _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1, v3i_t* xptr)
+{
+	v3i_t r = v3iSub(p1, p0);
+	v3i_t s = v3iSub(q1, q0);
+	
+	vmlongfix_t rxs = v3iCross2D(r, s);
+	
+	if (!rxs.x)
+		return 0;
+	
+	MPVector2D* rqs = [[MPVector2D vectorWith3i: r] scale: [[MPVector2D vectorWith3i: q0] cross: [MPVector2D vectorWith3i: s]]];
+	MPVector2D* spr = [[MPVector2D vectorWith3i: s] scale: [[MPVector2D vectorWith3i: p0] cross: [MPVector2D vectorWith3i: r]]];
+	
+	MPVector2D* num = [rqs sub: spr];
+	MPDecimal* den = [MPDecimal decimalWithInt64: rxs.x shift: rxs.shift];
+	
+	MPVector2D* X = [num scaleNum: [MPDecimal one] den: den];
+	
+	if ((X.x.integerBits > 15) || (X.y.integerBits > 15))
+		return 0;
+	
+	v3i_t x = [X toVectorWithShift: p0.shift];
+	
+	if (xptr)
+		*xptr = x;
+	
+	return _locationOnEdge_boxTest(p0, p1, x) && _locationOnEdge_boxTest(q0, q1, x);
+}
 
 - (BOOL) checkSelfIntersection
 {
@@ -266,12 +304,19 @@
 	{
 		v3i_t a0 = vertices[i];
 		v3i_t b0 = vertices[(i+1)%vertexCount];
+		
+		r3i_t r0 = riCreateFromVectors(a0, b0);
+		
 		for (long j = i+2; j < count; ++j)
 		{
 			v3i_t a1 = vertices[j];
 			v3i_t b1 = vertices[(j+1)%vertexCount];
-			if (xiLineSegments2D(a0, b0, a1, b1))
-				return YES;
+
+			r3i_t r1 = riCreateFromVectors(a1, b1);
+			
+			if (riCheckIntersection2D(r0, r1))
+				if (_checkIntersection(a0, b0, a1, b1, NULL) && !v3iEqual(a0, b1) && !v3iEqual(a1, b0))
+					return YES;
 			
 			
 		}
@@ -282,27 +327,26 @@
 - (void) analyzeSegment
 {
 	long signCounter = 0;
-	vmlong_t crossSum = 0L;
 	
 	isSelfIntersecting = [self checkSelfIntersection];
 	
 	if (isSelfIntersecting || !isClosed)
 		return;
 	
+	MPDecimal* area = [MPDecimal decimalWithInt64: 0 shift: 0];
+
 	for (long i = 0; i < vertexCount; ++i)
 	{
 		v3i_t a = vertices[i];
 		v3i_t b = vertices[(i+1)%vertexCount];
-		vmlong_t cross = v3iCross2D(a, b).x;
+		vmlongfix_t cross = v3iCross2D(a, b);
+		area = [area add: [MPDecimal decimalWithInt64: cross.x shift: cross.shift]];
 		
-		crossSum += cross;
-		signCounter += (cross > 0 ? 1 : (cross < 0 ? -1 : 0));
+		signCounter += (cross.x > 0 ? 1 : (cross.x < 0 ? -1 : 0));
 	}
 	
-	if (crossSum > 0)
-		isCCW = YES;
-	else
-		isCCW = NO;
+	isCCW = area.isPositive && !area.isZero;
+
 	
 	if (ABS(signCounter) == vertexCount)
 		isConvex = YES;
@@ -331,37 +375,37 @@
 	return r;
 }
 
-- (double) area2
+- (double) area
 {
 	assert(isClosed);
 	
-	long crossSum = 0;
+	MPDecimal* crossSum = [MPDecimal decimalWithInt64: 0 shift: 0];
 		
 	for (long i = 0; i < vertexCount; ++i)
 	{
 		v3i_t a = vertices[i];
 		v3i_t b = vertices[(i+1)%vertexCount];
-		long cross = v3iCross2D(a, b).x;
+		vmlongfix_t cross = v3iCross2D(a, b);
 		
-		crossSum += cross;
+		crossSum = [crossSum add: [MPDecimal decimalWithInt64: cross.x shift: cross.shift]];
 	}
-	return crossSum/2;
+	return [crossSum mul: [MPDecimal decimalWithInt64: 1 shift: 1]].toDouble;
 }
 
-- (double) area
+- (double) area2
 {
 	assert(isClosed);
 	
 //	vector_t crossSum = vZero();
 	
-	long area = 0.0;
+	int64_t area = 0.0;
 	
 	for (long i = 0; i < vertexCount; ++i)
 	{
 		v3i_t a = vertices[i];
 		v3i_t b = vertices[(i+1)%vertexCount];
 		
-		area += (b.x + a.x)*(b.y - a.y);
+		area += (b.x + a.x)*(b.y - a.y); // b.x*b.y + a.x*a.y - a.x*b.y - a.y*b.x
 		
 	}
 	return area/2;
@@ -384,30 +428,45 @@
 	v3i_t ray = v3iCreate(bounds.max.x+1, 0, 0, bounds.max.shift);
 	v3i_t se = v3iAdd(sc, ray);
 	
+	r3i_t rr = riCreateFromVectors(sc, se);
+
 	long windingCounter = 0;
 	
 	for (long i = 0; i < vertexCount; ++i)
 	{
 		v3i_t p0 = vertices[i];
 		v3i_t p1 = vertices[(i+1) % vertexCount];
-		v3i_t e = v3iSub(p1, p0);
-		vmlong_t numa = -1, numb = -1, den = 0;
-		xiLineSegments2DFrac(p0, p1, sc, se, &numa, &numb, &den);
 		
+		r3i_t rp = riCreateFromVectors(p0, p1);
+		
+		if (!riCheckIntersection2D(rr, rp))
+			continue;
+		
+		v3i_t x = v3iCreate(0, 0, 0, 0);
+		
+		if (!_checkIntersection(p0, p1, sc, se, &x))
+			continue;
+
+
+		v3i_t e = v3iSub(p1, p0);
+
 		// as the test ray propagates in +X
 		// for edges going +Y, [0,den) is valid
 		// for edges going -Y, (0, den] is valid
+		
+		BOOL goingY = e.y > 0;
+		
+		if (goingY && v3iEqual(p0, x))
+			continue;
+		else if (!goingY && v3iEqual(p1, x))
+			continue;
 
-		if (((e.y > 0) && (numa >= 0) && (numb >= 0) && (numa < den) && (numb < den))
-			|| ((e.y < 0) && (numa > 0) && (numb > 0) && (numa <= den) && (numb <= den)))
-		{
-			v3i_t d = v3iSub(sc, p0);
-			assert(e.z == 0);
-			v3i_t n = {-e.y, e.x, e.z, e.shift};
-			vmlong_t f = v3iDot(n, d).x;
-			assert(f != 0);
-			windingCounter += (f > 0 ? 1 : -1);
-		}
+		v3i_t d = v3iSub(sc, p0);
+		assert(e.z == 0);
+		v3i_t n = {-e.y, e.x, e.z, e.shift};
+		vmlong_t f = v3iDot(n, d).x;
+		assert(f != 0);
+		windingCounter += (f > 0 ? 1 : -1);
 	}
 	assert(ABS(windingCounter) < 2);
 	if (windingCounter > 0)
@@ -419,6 +478,7 @@
 
 - (void) reverse
 {
+	long areaPositive = self.area > 0;
 	for (long i = 0; i < vertexCount/2; ++i)
 	{
 		v3i_t a = vertices[i];
@@ -426,6 +486,9 @@
 		vertices[i] = b;
 		vertices[vertexCount-i-1] = a;
 	}
+	long areaRev = self.area >= 0;
+	
+	assert(areaPositive != areaRev);
 }
 
 /*
@@ -483,14 +546,14 @@
 	assert(wasCCW == isCCW);
 }
 */
-- (void) optimizeColinears: (long) threshold
+- (void) optimizeColinears: (vmlongfix_t) threshold
 {
 //	BOOL wasCCW = self.isCCW;
 	BOOL foundOne = YES;
 	while (foundOne)
 	{
 		size_t smallestIndex = NSNotFound;
-		long smallestArea = threshold;
+		vmlongfix_t smallestArea = threshold;
 		foundOne = NO;
 		for (size_t i = 0; i < vertexCount; ++i)
 		{
@@ -499,8 +562,10 @@
 			v3i_t n = vertices[(i+1) % vertexCount];
 			v3i_t e0 = v3iSub(c, p);
 			v3i_t e1 = v3iSub(n, c);
-			long a = labs(v3iCross2D(e0, e1).x);
-			if (a < smallestArea)
+			vmlongfix_t a = v3iCross2D(e0, e1);
+			a.x = labs(a.x);
+			assert(a.shift == smallestArea.shift);
+			if (a.x < smallestArea.x)
 			{
 				foundOne = YES;
 				smallestArea = a;
@@ -613,15 +678,66 @@ extern vector_t bisectorVelocity(vector_t v0, vector_t v1, vector_t e0, vector_t
 	return [offsetLine splitAtSelfIntersectionWithThreshold: mergeThreshold];
 }
 */
+
+static NSString* _verticesToSVGPolygon(v3i_t* vertices, size_t numVertices)
+{
+	
+	NSString* polygonHeader = @"<polygon stroke=\"red\" points=\"";
+	NSString* polygonFooter = @"\" />";
+	
+	NSMutableArray* strings = @[polygonHeader].mutableCopy;
+	
+	for (size_t i = 0; i < numVertices; ++i)
+	{
+		vector_t v = v3iToFloat(vertices[i]);
+		[strings addObject: [NSString stringWithFormat: @"%f, %f ", v.farr[0], v.farr[1]]];
+	}
+	
+	[strings addObjectsFromArray: @[polygonFooter]];
+	
+	return [strings componentsJoinedByString: @""];
+	
+}
+
+static NSString* _verticesToSVG(v3i_t* vertices, size_t numVertices)
+{
+	NSString* svgHeader = @"<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">";
+	
+	NSString* svgFooter = @"</svg>";
+	
+	NSMutableArray* strings = @[svgHeader].mutableCopy;
+	
+	[strings addObject: _verticesToSVGPolygon(vertices, numVertices)];
+	
+	
+	[strings addObjectsFromArray: @[svgFooter]];
+	
+	return [strings componentsJoinedByString: @""];
+	
+}
+
+- (NSString*) svgString
+{
+	return _verticesToSVG(vertices, vertexCount);
+}
+
+
+- (void) copySVG
+{
+	NSPasteboard* pb = [NSPasteboard generalPasteboard];
+	[pb declareTypes: @[@"public.svg-image"] owner: nil];
+	[pb setData: [_verticesToSVG(vertices, vertexCount) dataUsingEncoding: NSUTF8StringEncoding] forType: @"public.svg-image"];
+}
+
+
 - (id) description
 {
 	NSMutableArray* descs = [NSMutableArray array];
 	
 	for (size_t i = 0; i < vertexCount; ++i)
 	{
-		v3i_t v = vertices[i];
-		double s = 1.0/(1 << v.shift);
-		[descs addObject: [NSString stringWithFormat: @"%.4f %.4f %.4f", vertices[i].x*s,vertices[i].y*s,vertices[i].z*s]];
+		vector_t v = v3iToFloat(vertices[i]);
+		[descs addObject: [NSString stringWithFormat: @"%.4f %.4f %.4f", v.farr[0], v.farr[1], v.farr[2]]];
 	}
 	return [NSString stringWithFormat: @"Vertices: %@", descs];
 }

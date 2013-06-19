@@ -30,9 +30,9 @@
 
 @interface Slicer : NSObject
 
-- (NSArray*) sliceModel: (GfxMesh*) model intoLayers: (NSArray*) layers;
+//- (NSArray*) sliceModel: (GfxMesh*) model intoLayers: (NSArray*) layers;
 
-- (void) asyncSliceModel: (GfxMesh*) model intoLayers: (NSArray*) layers layersWithCallbackOnQueue: (dispatch_queue_t) queue block: (void (^)(id)) callback;
+//- (void) asyncSliceModel: (GfxMesh*) model intoLayers: (NSArray*) layers layersWithCallbackOnQueue: (dispatch_queue_t) queue block: (void (^)(id)) callback;
 - (void) asyncSliceSTL: (STLFile*) model intoLayers: (NSArray*) layers layersWithCallbackOnQueue: (dispatch_queue_t) queue block: (void (^)(id)) callback;
 
 @property(nonatomic) double mergeThreshold;

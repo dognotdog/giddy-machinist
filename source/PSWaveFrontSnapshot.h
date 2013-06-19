@@ -6,11 +6,13 @@
 //  Copyright (c) 2013 Dömötör Gulyás. All rights reserved.
 //
 
+@import AppKit;
+
 #import <Foundation/Foundation.h>
 
 #import "VectorMath.h"
 
-@class PSWaveFront, PSVertex;
+@class PSWaveFront, PSRealVertex, MPDecimal;
 
 
 /*!
@@ -18,8 +20,8 @@
  */
 @interface PSWaveFrontSnapshot : NSObject
 
-@property(nonatomic)			double		time;
-@property(nonatomic, strong)	NSArray*	loops;
+@property(nonatomic, strong) MPDecimal*		time;
+@property(nonatomic, strong) NSArray*		loops;
 
 @property(nonatomic, readonly) NSBezierPath* waveFrontPath;
 
@@ -29,14 +31,14 @@
 
 @interface PSWaveFrontSegment : NSObject
 
-@property(nonatomic) double time;
-@property(nonatomic, readonly) double finalTerminationTime;
+@property(nonatomic, strong) MPDecimal*		time;
+@property(nonatomic, readonly) MPDecimal*	finalTerminationTime;
 
 @property(nonatomic, strong) NSArray* waveFronts;
 @property(nonatomic, weak) PSWaveFrontSegment* leftSegment;
 @property(nonatomic, weak) PSWaveFrontSegment* rightSegment;
-@property(nonatomic, strong) PSVertex* leftVertex;
-@property(nonatomic, strong) PSVertex* rightVertex;
+@property(nonatomic, strong) PSRealVertex* leftVertex;
+@property(nonatomic, strong) PSRealVertex* rightVertex;
 
 
 @end
