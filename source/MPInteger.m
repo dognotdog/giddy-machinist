@@ -10,6 +10,32 @@
 
 #import "tommath.h"
 
+#define PRECISION DBL_MANT_DIG
+
+static double mp_get_double(mp_int *a)
+{
+    static const int NEED_DIGITS = (PRECISION + 2 * DIGIT_BIT - 2) / DIGIT_BIT;
+    static const double DIGIT_MULTI = (mp_digit)1 << DIGIT_BIT;
+	
+    int i, limit;
+    double d = 0.0;
+	
+    mp_clamp(a);
+    i = USED(a);
+    limit = i <= NEED_DIGITS ? 0 : i - NEED_DIGITS;
+	
+    while (i-- > limit) {
+        d += DIGIT(a, i);
+        d *= DIGIT_MULTI;
+    }
+	
+    if(SIGN(a) == MP_NEG)
+        d *= -1.0;
+	
+    d *= pow(2.0, i * DIGIT_BIT);
+    return d;
+}
+
 
 @implementation MPInteger
 {
@@ -164,13 +190,13 @@
 	
 	MPInteger* diff = [self sub: mpi];
 	
-	return diff.isPositive ? NSOrderedDescending : (diff.isZero ? NSOrderedSame : NSOrderedAscending);
+	return diff.isZero ? NSOrderedSame : (diff.isPositive ? NSOrderedDescending : NSOrderedAscending);
 }
 
 - (NSComparisonResult) compareToZero
 {
 	
-	return self.isPositive ? NSOrderedDescending : (self.isZero ? NSOrderedSame : NSOrderedAscending);
+	return self.isZero ? NSOrderedSame : (self.isPositive ? NSOrderedDescending : NSOrderedAscending);
 }
 
 
@@ -211,13 +237,43 @@
 
 - (long) isPositive
 {
-	return SIGN(&mpint) == MP_ZPOS;
+	return (SIGN(&mpint) == MP_ZPOS) && !mp_iszero(&mpint);
 }
 
 - (long) isNegative
 {
 	return !self.isZero && !self.isPositive;
 }
+
+- (double) toDouble
+{
+	
+	mp_int r;
+	mp_init_copy(&r, &mpint);
+	
+	long finalShift = 0;
+	
+	long bitCount = mp_count_bits(&r);
+	
+	if (bitCount > DBL_MANT_DIG)
+	{
+		long reducingShift = bitCount - DBL_DIG;
+		mp_div_2d(&r, reducingShift, &r, NULL);
+		
+		finalShift = - reducingShift;
+	}
+	
+	
+	
+	double x = mp_get_double(&r);
+	
+	x = x*pow(2.0, -finalShift);
+	
+	mp_clear(&r);
+	
+	return x;
+}
+
 
 - (id)copyWithZone:(NSZone *)zone;
 {
@@ -447,32 +503,6 @@ double mp_get_double2(mp_int *a) {
     d += (double) DIGIT(a, i);
 	
     d *= pow(2.0, DIGIT_BIT * i);
-    return d;
-}
-
-#define PRECISION DBL_MANT_DIG
-
-double mp_get_double(mp_int *a)
-{
-    static const int NEED_DIGITS = (PRECISION + 2 * DIGIT_BIT - 2) / DIGIT_BIT;
-    static const double DIGIT_MULTI = (mp_digit)1 << DIGIT_BIT;
-	
-    int i, limit;
-    double d = 0.0;
-	
-    mp_clamp(a);
-    i = USED(a);
-    limit = i <= NEED_DIGITS ? 0 : i - NEED_DIGITS;
-	
-    while (i-- > limit) {
-        d += DIGIT(a, i);
-        d *= DIGIT_MULTI;
-    }
-	
-    if(SIGN(a) == MP_NEG)
-        d *= -1.0;
-	
-    d *= pow(2.0, i * DIGIT_BIT);
     return d;
 }
 

@@ -115,6 +115,15 @@
 	return MAX(self.x.integerBits, self.y.integerBits);
 }
 
+- (double) angleTo: (MPVector2D*) b
+{
+	MPDecimal* abc = [self cross: b];
+	MPDecimal* abd = [self dot: b];
+	
+	double angle = atan2(abc.toDouble, abd.toDouble);
+	return angle;
+}
+
 - (double) floatAngle
 {
 	return atan2(self.y.toDouble, self.x.toDouble);

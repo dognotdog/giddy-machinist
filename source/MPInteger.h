@@ -35,6 +35,9 @@
 - (long) isPositive;
 - (long) isNegative;
 
+- (double) toDouble;
+
+
 @end
 
 

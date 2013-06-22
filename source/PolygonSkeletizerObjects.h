@@ -128,6 +128,8 @@
 
 - (MPVector2D*) crashIntoEdge: (PSEdge*) edge;
 
+@property(nonatomic, strong) MPVector2D* limitingEdgeCrashLocation;
+
 @property(nonatomic) vector_t floatVelocity;
 
 - (MPVector2D*) mpNumerator;
@@ -202,7 +204,7 @@
 @property(nonatomic, strong) MPDecimal* terminationTimeSqr;
 
 - (void) swapSpoke: (PSSpoke*) oldSpoke forSpoke: (PSSpoke*) newSpoke;
-
+- (BOOL) isConvexTo: (PSWaveFront*) wf;
 
 @end
 
@@ -217,6 +219,10 @@
 @property(nonatomic, readonly) vector_t floatLocation;
 
 @property(nonatomic, readonly) NSArray* spokes;
+
+- (NSComparisonResult) compare: (PSEvent*) event;
+
+- (MPVector2D*) mpLocation;
 
 @end
 

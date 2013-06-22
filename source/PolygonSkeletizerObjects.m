@@ -74,6 +74,11 @@
 	return v3iToFloat(self.location);
 }
 
+- (MPVector2D*) mpLocation
+{
+	return [MPVector2D vectorWith3i: self.location];
+}
+
 - (NSString*) hashString
 {
 	NSString* str = [NSString stringWithFormat: @"%f %f %@ %d %d", self.creationTimeSqr.sqrt.toDouble, timeSqr.sqrt.toDouble, [self class], location.x, location.y];
@@ -92,7 +97,8 @@
 
 - (NSString *)description
 {
-	return [NSString stringWithFormat: @"%p @%f (%@)", self, timeSqr.sqrt.toDouble, [self class]];
+	vector_t loc = v3iToFloat(self.location);
+	return [NSString stringWithFormat: @"%p @%f (%@) (%f, %f)", self, timeSqr.sqrt.toDouble, [self class], loc.farr[0], loc.farr[1]];
 }
 
 - (NSArray*) spokes
@@ -100,6 +106,18 @@
 	[self doesNotRecognizeSelector: _cmd];
 	return nil;
 }
+
+
+- (NSComparisonResult) compare:(PSEvent *)event
+{
+	MPDecimal* t0 = self.timeSqr;
+	MPDecimal* t1 = event.timeSqr;
+	assert(t0);
+	assert(t1);
+	NSComparisonResult cmp = [t0 compare: t1];
+	return cmp;
+}
+
 
 @end
 
@@ -185,6 +203,58 @@
 	return str;
 }
 
+- (NSComparisonResult) compareToSplit: (PSSplitEvent *)event
+{
+	NSComparisonResult cmp = [super compare: event];
+
+	if (cmp == 0)
+		return NSOrderedAscending; // split comes after collapse
+
+	return cmp;
+}
+
+- (NSComparisonResult) compare:(PSCollapseEvent *)event
+{
+	if ([event isKindOfClass: [PSSplitEvent class]])
+		return [self compareToSplit: (id)event];
+	
+	
+	NSComparisonResult cmp = [super compare: event];
+	if (![event isKindOfClass: [PSCollapseEvent class]] || (self.collapsingWaveFront == event.collapsingWaveFront))
+		return cmp;
+	
+	PSSpoke* spoke = nil;
+	if (self.collapsingWaveFront.leftSpoke == event.collapsingWaveFront.rightSpoke)
+		spoke = self.collapsingWaveFront.leftSpoke;
+	else if (self.collapsingWaveFront.rightSpoke == event.collapsingWaveFront.leftSpoke)
+		spoke = self.collapsingWaveFront.rightSpoke;
+
+	// FIXME: this case needs a better discriminating condition
+	// only if the spoke has a high velocity factor?
+	
+	MPVector2D* a = spoke.leftWaveFront.edge.mpEdge;
+	MPVector2D* b = spoke.rightWaveFront.edge.mpEdge.negate;
+	
+		
+	double angle = [a angleTo: b];
+	
+	if (spoke && !v3iEqual(self.location, event.location) && (fabs(angle) < 1e-3))
+	{
+		MPVector2D* rs = [self.mpLocation sub: spoke.sourceVertex.mpPosition];
+		MPVector2D* re = [event.mpLocation sub: spoke.sourceVertex.mpPosition];
+		
+		
+		
+		MPDecimal* dsSqr = [rs dot: rs];
+		MPDecimal* deSqr = [re dot: re];
+		
+		NSComparisonResult cmpd = [dsSqr compare: deSqr];
+		
+		return cmpd;
+	}
+	else
+		return cmp;
+}
 
 @end
 
@@ -208,6 +278,23 @@
 	return @[motorcycleSpoke];
 }
 
+- (NSComparisonResult) compareToCollapse:(PSCollapseEvent *)event
+{
+	NSComparisonResult cmp = [super compare: event];
+	if (cmp == 0)
+		return NSOrderedDescending; // split comes after collapse
+
+	return cmp;
+}
+- (NSComparisonResult) compare: (PSSplitEvent *)event
+{
+	if ([event isKindOfClass: [PSCollapseEvent class]])
+		return [self compareToCollapse: (id)event];
+	
+	
+	NSComparisonResult cmp = [super compare: event];
+	return cmp;
+}
 
 @end
 
@@ -338,6 +425,7 @@ static MPVector2D* _mpLinePointDistanceNum(MPVector2D* A, MPVector2D* B, MPVecto
 
 - (MPDecimal*) timeSqrToLocation: (MPVector2D*) X;
 {
+	assert(X);
 	MPVector2D* A = [MPVector2D vectorWith3i: self.leftVertex.position];
 	MPVector2D* B = [MPVector2D vectorWith3i: self.rightVertex.position];
 	MPVector2D* AB = [B sub: A];
@@ -1098,7 +1186,7 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	}
 }
 
-- (void) setLeftSpoke:(PSSpoke *)spoke
+- (void) setLeftSpoke: (PSSpoke *)spoke
 {
 	if (spoke == leftSpoke)
 		return;
@@ -1166,6 +1254,18 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	rightSpoke = spoke;
 }
 
+static long _waveFrontsConvex(PSWaveFront* leftFront, PSWaveFront* rightFront)
+{
+	MPDecimal* cross = [leftFront.edge.mpEdge cross: rightFront.edge.mpEdge];
+	
+	return (cross.isPositive || cross.isZero);
+}
+
+
+- (BOOL) isConvexTo:(PSWaveFront *)wf
+{
+	return _waveFrontsConvex(self, wf);
+}
 /*
 - (BOOL) isEqual: (PSWaveFront*) object
 {

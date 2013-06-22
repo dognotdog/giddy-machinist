@@ -17,7 +17,9 @@
 - (id) initWithGridSize: (vmintfix_t) size numCells: (size_t) ncells;
 
 - (void) addEdgeSegments: (NSArray*) segments;
+- (void) addMotorcycles: (NSArray*) motorcycles;
 
 - (id) crashMotorcycleIntoEdges: (PSMotorcycle*) cycle withLimit: (MPDecimal*) limit;
+- (id) crashMotorcycleIntoMotorcycles: (PSMotorcycle*) cycle;
 
 @end

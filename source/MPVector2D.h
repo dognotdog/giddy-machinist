@@ -34,6 +34,7 @@
 //- (MPVector2D*) projectOn: (MPVector2D*) b;
 
 - (double) floatAngle;
+- (double) angleTo: (MPVector2D*) v;
 
 - (long) minIntegerBits;
 

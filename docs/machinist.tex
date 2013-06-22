@@ -600,6 +600,14 @@ An interesting degenerate case occurs when we have three potential events, $A,B,
 
 The only sane way of dealing with such situations seems to be to keep track of events on each spoke, and only allow the first event into the event list.
 
+\paragraph{Collapse Order by Distance Along Spoke}
+
+For opposing wavefronts, situations might occur where the order of split and collapse events becomes ill-defined as a result of numerical precision and the space quantization.
+
+In the case with test object 3.2, a collapse on one side of the spoke is timed to be before the collapse on the other side, though the two collapses should occur at the exact same time. Without further ordering, the logically wrong collapse can be executed first, resulting in erroneous geometry.
+
+Thus, if two simultaneous collapse events should occur, with differing locations, and they share a common spoke, the one closer to the source vertex should be chosen.
+
 \subsection{Conclusion}
 
 In conclusion, the quantization of space results in a reliable method for event ordering and coalescing.
