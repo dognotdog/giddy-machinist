@@ -58,6 +58,23 @@
 	return v;
 }
 
+- (MPVector2D*) min: (MPVector2D*) b
+{
+	MPVector2D* v = [[MPVector2D alloc] init];
+	v.x = [self.x min: b.x];
+	v.y = [self.y min: b.y];
+	return v;
+}
+
+- (MPVector2D*) max: (MPVector2D*) b
+{
+	MPVector2D* v = [[MPVector2D alloc] init];
+	v.x = [self.x max: b.x];
+	v.y = [self.y max: b.y];
+	return v;
+}
+
+
 - (MPVector2D*) scale: (MPDecimal*) b
 {
 	MPVector2D* v = [[MPVector2D alloc] init];

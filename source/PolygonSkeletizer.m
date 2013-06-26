@@ -2394,6 +2394,139 @@ static void _splitWaveFront(PSWaveFront* waveFront, PSWaveFront* leftFront, PSWa
 	
 }
 
+- (NSArray*) resolveMotorcycleConnections: (NSArray*) motorcycleSpokes recursively: (BOOL) recursive
+{
+	NSMutableArray* motorcycleSpokesToResolve = motorcycleSpokes.mutableCopy;
+	while (motorcycleSpokesToResolve.count)
+	{
+		@autoreleasepool {
+			NSArray* aryCopy = motorcycleSpokesToResolve.copy;
+			for (PSMotorcycleSpoke* spoke in aryCopy)
+			{
+				PSMotorcycleCrash* crash = spoke.motorcycle.terminatingCrash;
+				
+				if ([crash isKindOfClass: [PSMotorcycleMotorcycleCrash class]])
+				{
+					// the opposing front is left or right front of terminating motorcycle
+					// we rely on crashing order of motorcycleSpokes to make sure the terminating cycle is already connected to its wavefronts
+					PSMotorcycleMotorcycleCrash* mcrash = (id) crash;
+					
+					PSMotorcycle* terminator = mcrash.cycle1;
+					PSMotorcycleSpoke* tspoke = terminator.spoke;
+					PSWaveFront* leftFront = tspoke.leftWaveFront;
+					PSWaveFront* rightFront = tspoke.rightWaveFront;
+					
+					assert(leftFront);
+					assert(rightFront);
+					
+					BOOL isLeft = [terminator.spoke isVertexCCWFromSpoke: spoke.sourceVertex.mpPosition];
+					
+					if (isLeft)
+					{
+						PSWaveFront* termOpponent = tspoke.opposingWaveFront;
+						if (!termOpponent && recursive)
+							continue;
+						//NSMutableArray* tmpVertices = [NSMutableArray array];
+						//PSSpoke* tmpSpoke = _newSpokeBetweenWavefrontsNoInsert(tspoke.leftWaveFront, termOpponent, crash.location, tmpVertices);
+						
+						MPVector2D* splitLoc = (termOpponent ? _splitLocation(tspoke) : nil);
+						
+						BOOL splitsBeforeTerm = splitLoc && [[termOpponent.edge timeSqrToLocation: splitLoc] compare: [termOpponent.edge timeSqrToLocation: spoke.motorcycle.terminalVertex.mpPosition]] < 0;
+						
+						BOOL isOpposite = !splitsBeforeTerm;
+						
+						if (isOpposite && termOpponent)
+						{
+							spoke.opposingWaveFront = termOpponent;
+							termOpponent.opposingSpokes = [termOpponent.opposingSpokes arrayByAddingObject: spoke];
+							
+						}
+						else
+						{
+							spoke.opposingWaveFront = leftFront;
+							leftFront.opposingSpokes = [leftFront.opposingSpokes arrayByAddingObject: spoke];
+						}
+						
+					}
+					else
+					{
+						PSWaveFront* termOpponent = tspoke.opposingWaveFront;
+						if (!termOpponent && recursive)
+							continue;
+						
+						MPVector2D* splitLoc = (termOpponent ? _splitLocation(tspoke) : nil);
+						
+						BOOL splitsBeforeTerm = splitLoc && [[termOpponent.edge timeSqrToLocation: splitLoc] compare: [termOpponent.edge timeSqrToLocation: spoke.motorcycle.terminalVertex.mpPosition]] < 0;
+						
+						BOOL isOpposite = !splitsBeforeTerm;
+						
+						if (isOpposite && termOpponent)
+						{
+							spoke.opposingWaveFront = termOpponent;
+							termOpponent.opposingSpokes = [termOpponent.opposingSpokes arrayByAddingObject: spoke];
+							
+						}
+						else
+						{
+							spoke.opposingWaveFront = rightFront;
+							rightFront.opposingSpokes = [rightFront.opposingSpokes arrayByAddingObject: spoke];
+						}
+					}
+					
+				}
+				else if ([crash isKindOfClass: [PSMotorcycleEdgeCrash class]])
+				{
+					PSMotorcycleEdgeCrash* ecrash = (id) crash;
+					PSEdge* edge = ecrash.edge1;
+					
+					assert(edge.waveFronts.count == 1);
+					
+					PSWaveFront* opposing = edge.waveFronts.lastObject;
+					
+					spoke.opposingWaveFront = opposing;
+					opposing.opposingSpokes = [opposing.opposingSpokes arrayByAddingObject: spoke];
+				}
+				else if ([crash isKindOfClass: [PSMotorcycleVertexCrash class]])
+				{
+					PSMotorcycleVertexCrash* vcrash = (id) crash;
+					PSSourceVertex* vertex = vcrash.vertex;
+					
+					assert(vertex.outgoingSpokes.count == 1);
+					PSSpoke* outSpoke = vertex.outgoingSpokes.lastObject;
+					
+					PSWaveFront* leftFront = outSpoke.leftWaveFront;
+					PSWaveFront* rightFront = outSpoke.rightWaveFront;
+					
+					
+					// we have the vertex, so now figure out which wavefront we belong to
+					if ([outSpoke isVertexCCWFromSpoke: spoke.motorcycle.sourceVertex.mpPosition])
+					{
+						spoke.opposingWaveFront = leftFront;
+						leftFront.opposingSpokes = [leftFront.opposingSpokes arrayByAddingObject: spoke];
+					}
+					else
+					{
+						spoke.opposingWaveFront = rightFront;
+						rightFront.opposingSpokes = [rightFront.opposingSpokes arrayByAddingObject: spoke];
+						
+					}
+					
+					assert(spoke.opposingWaveFront);
+				}
+				
+				[motorcycleSpokesToResolve removeObject: spoke];
+			}
+			if (aryCopy.count == motorcycleSpokesToResolve.count)
+			{
+				NSLog(@"unresolved motorcycles: %lu", (unsigned long)aryCopy.count);
+				
+				break;
+			}
+		}
+	}
+	return motorcycleSpokesToResolve;
+}
+
 - (void) runSpokes
 {
 	if (extensionLimit == 0.0)
@@ -2512,131 +2645,10 @@ static void _splitWaveFront(PSWaveFront* waveFront, PSWaveFront* leftFront, PSWa
 	
 	// now the wavefronts are setup, it's time to connect the motorcycle spokes to their opposing wavefronts
 	
-	NSMutableArray* motorcycleSpokesToResolve = motorcycleSpokes.mutableCopy;
-	
-	while (motorcycleSpokesToResolve.count)
-	{
-		@autoreleasepool {
-			NSArray* aryCopy = motorcycleSpokesToResolve.copy;
-			for (PSMotorcycleSpoke* spoke in aryCopy)
-			{
-				PSMotorcycleCrash* crash = spoke.motorcycle.terminatingCrash;
-				
-				if ([crash isKindOfClass: [PSMotorcycleMotorcycleCrash class]])
-				{
-					// the opposing front is left or right front of terminating motorcycle
-					// we rely on crashing order of motorcycleSpokes to make sure the terminating cycle is already connected to its wavefronts
-					PSMotorcycleMotorcycleCrash* mcrash = (id) crash;
-					
-					PSMotorcycle* terminator = mcrash.cycle1;
-					PSMotorcycleSpoke* tspoke = terminator.spoke;
-					PSWaveFront* leftFront = tspoke.leftWaveFront;
-					PSWaveFront* rightFront = tspoke.rightWaveFront;
-					
-					assert(leftFront);
-					assert(rightFront);
-					
-					BOOL isLeft = [terminator.spoke isVertexCCWFromSpoke: spoke.sourceVertex.mpPosition];
-					
-					if (isLeft)
-					{
-						PSWaveFront* termOpponent = tspoke.opposingWaveFront;
-						if (!termOpponent)
-							continue;
-						//NSMutableArray* tmpVertices = [NSMutableArray array];
-						//PSSpoke* tmpSpoke = _newSpokeBetweenWavefrontsNoInsert(tspoke.leftWaveFront, termOpponent, crash.location, tmpVertices);
-						
-						MPVector2D* splitLoc = _splitLocation(tspoke);
-						
-						BOOL splitsBeforeTerm = splitLoc && [[termOpponent.edge timeSqrToLocation: splitLoc] compare: [termOpponent.edge timeSqrToLocation: spoke.motorcycle.terminalVertex.mpPosition]] < 0;
-						
-						BOOL isOpposite = !splitsBeforeTerm;
-						
-						if (isOpposite)
-						{
-							spoke.opposingWaveFront = termOpponent;
-							termOpponent.opposingSpokes = [termOpponent.opposingSpokes arrayByAddingObject: spoke];
-							
-						}
-						else
-						{
-							spoke.opposingWaveFront = leftFront;
-							leftFront.opposingSpokes = [leftFront.opposingSpokes arrayByAddingObject: spoke];
-						}
-						
-					}
-					else
-					{
-						PSWaveFront* termOpponent = tspoke.opposingWaveFront;
-						if (!termOpponent)
-							continue;
+	NSArray* motorcycleSpokesToResolve = [self resolveMotorcycleConnections: motorcycleSpokes recursively: YES];
+	motorcycleSpokesToResolve = [self resolveMotorcycleConnections: motorcycleSpokesToResolve recursively: NO];
 
-						MPVector2D* splitLoc = _splitLocation(tspoke);
-						
-						BOOL splitsBeforeTerm = splitLoc && [[termOpponent.edge timeSqrToLocation: splitLoc] compare: [termOpponent.edge timeSqrToLocation: spoke.motorcycle.terminalVertex.mpPosition]] < 0;
-						
-						BOOL isOpposite = !splitsBeforeTerm;
-						
-						if (isOpposite)
-						{
-							spoke.opposingWaveFront = termOpponent;
-							termOpponent.opposingSpokes = [termOpponent.opposingSpokes arrayByAddingObject: spoke];
-							
-						}
-						else
-						{
-							spoke.opposingWaveFront = rightFront;
-							rightFront.opposingSpokes = [rightFront.opposingSpokes arrayByAddingObject: spoke];
-						}
-					}
-					
-				}
-				else if ([crash isKindOfClass: [PSMotorcycleEdgeCrash class]])
-				{
-					PSMotorcycleEdgeCrash* ecrash = (id) crash;
-					PSEdge* edge = ecrash.edge1;
-					
-					assert(edge.waveFronts.count == 1);
-					
-					PSWaveFront* opposing = edge.waveFronts.lastObject;
-					
-					spoke.opposingWaveFront = opposing;
-					opposing.opposingSpokes = [opposing.opposingSpokes arrayByAddingObject: spoke];
-				}
-				else if ([crash isKindOfClass: [PSMotorcycleVertexCrash class]])
-				{
-					PSMotorcycleVertexCrash* vcrash = (id) crash;
-					PSSourceVertex* vertex = vcrash.vertex;
-					
-					assert(vertex.outgoingSpokes.count == 1);
-					PSSpoke* outSpoke = vertex.outgoingSpokes.lastObject;
-					
-					PSWaveFront* leftFront = outSpoke.leftWaveFront;
-					PSWaveFront* rightFront = outSpoke.rightWaveFront;
-					
-					
-					// we have the vertex, so now figure out which wavefront we belong to
-					if ([outSpoke isVertexCCWFromSpoke: spoke.motorcycle.sourceVertex.mpPosition])
-					{
-						spoke.opposingWaveFront = leftFront;
-						leftFront.opposingSpokes = [leftFront.opposingSpokes arrayByAddingObject: spoke];
-					}
-					else
-					{
-						spoke.opposingWaveFront = rightFront;
-						rightFront.opposingSpokes = [rightFront.opposingSpokes arrayByAddingObject: spoke];
-						
-					}
-					
-					assert(spoke.opposingWaveFront);
-				}
-				
-				[motorcycleSpokesToResolve removeObject: spoke];
-			}
-			if (aryCopy.count == motorcycleSpokesToResolve.count)
-				break;
-		}
-	}
+	
 	
 	MPDecimal* t0 = [[MPDecimal alloc] initWithInt64: 0 shift: 16];
 	//MPDecimal* maxTimeSqr = [[MPDecimal alloc] initWithInt64: INT64_MAX shift: 32];

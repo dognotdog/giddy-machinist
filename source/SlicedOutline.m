@@ -12,6 +12,31 @@
 #import "gfx.h"
 #import "MPInteger.h"
 #import "MPVector2D.h"
+#import "FoundationExtensions.h"
+
+@interface SOIntersection : NSObject
+
+@property(nonatomic) MPVector2D* mpLocation;
+@property(nonatomic) v3i_t	location;
+@property(nonatomic) size_t	indexI, indexJ;
+@property(nonatomic) long	dirI, dirJ;
+
+@property(nonatomic, weak) SOIntersection* nextI;
+@property(nonatomic, weak) SOIntersection* nextJ;
+
+@end
+
+@implementation SOIntersection
+
+- (NSString *)description
+{
+	vector_t x = v3iToFloat(self.location);
+	return [NSString stringWithFormat: @"%p @ (%f, %f) diri: %ld dirj: %ld", self, x.farr[0], x.farr[1], self.dirI, self.dirJ];
+}
+
+@end
+
+
 
 @implementation SlicedOutline
 
@@ -107,6 +132,48 @@
 	[skeleton generateSkeleton];
 }
 
+/*
+ beginning this op, we assume that all holes are wholly contained in self, without intersections, and that the holes and their children are also non-intersecting respective to each other.
+ 
+ 
+ */
+- (NSArray*) booleanIntersectOutline: (SlicedOutline*) other
+{
+	NSArray* childResults = [holes map: ^id(SlicedOutline* obj) {
+		return [obj booleanIntersectOutline: other];
+	}];
+	
+	NSArray* ownSegments = [outline booleanIntersectSegment: other.outline];
+	
+	NSArray* ownResults = [ownSegments map: ^id(SlicedLineSegment* obj) {
+		SlicedOutline* resultOutline = [[SlicedOutline alloc] init];
+		resultOutline.outline = obj;
+		
+		return resultOutline;
+
+	}];
+	
+	for (SlicedOutline* resultOutline in ownResults)
+	{
+		SlicedLineSegment* outlineSegment = resultOutline.outline;
+		
+		for (NSArray* childOutlines in childResults)
+			for (SlicedOutline* childOutline in childOutlines)
+			{
+				if ([outlineSegment containsPath: childOutline.outline])
+				{
+					assert(outlineSegment.isCCW != childOutline.outline.isCCW);
+					resultOutline.holes = [resultOutline.holes arrayByAddingObject: childOutline];
+				}
+					
+			}
+	}
+	
+	
+	
+	return ownResults;
+}
+
 - (id) description
 {
 	NSMutableArray* descs = [NSMutableArray array];
@@ -153,7 +220,7 @@
 
 - (void) addVertices: (v3i_t*) v count: (size_t) count;
 {
-	[self expandVertexCount: vertexCount+2];
+	[self expandVertexCount: vertexCount+count];
 	for (size_t i = 0; i < count; ++i)
 		vertices[vertexCount-count+i] = v[i];
 }
@@ -259,6 +326,15 @@
 		return NO;
 }
 
+- (BOOL) closePolygonWithoutMergingEndpoints
+{
+	if (vertexCount < 3)
+		return NO;
+	isClosed = YES;
+	
+	return isClosed;
+}
+
 static long _locationOnEdge_boxTest(v3i_t A, v3i_t B, v3i_t x)
 {
 	r3i_t r = riCreateFromVectors(A,B);
@@ -267,8 +343,19 @@ static long _locationOnEdge_boxTest(v3i_t A, v3i_t B, v3i_t x)
 }
 
 
+static long _mpLocationOnEdge_boxTest(v3i_t a, v3i_t b, MPVector2D* X)
+{
+	MPVector2D* A = [MPVector2D vectorWith3i: a];
+	MPVector2D* B = [MPVector2D vectorWith3i: b];
+	MPVector2D* minv = [A min: B];
+	MPVector2D* maxv = [A max: B];
+	
+	
+	return ([minv.x compare: X.x] <= 0) && ([minv.y compare: X.y] <= 0) && ([maxv.x compare: X.x] >= 0) && ([maxv.y compare: X.y] >= 0);
+}
 
-static long _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1, v3i_t* xptr)
+
+static MPVector2D* _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
 {
 	v3i_t r = v3iSub(p1, p0);
 	v3i_t s = v3iSub(q1, q0);
@@ -276,7 +363,7 @@ static long _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1, v3i_t* xp
 	vmlongfix_t rxs = v3iCross2D(r, s);
 	
 	if (!rxs.x)
-		return 0;
+		return nil;
 	
 	MPVector2D* rqs = [[MPVector2D vectorWith3i: r] scale: [[MPVector2D vectorWith3i: q0] cross: [MPVector2D vectorWith3i: s]]];
 	MPVector2D* spr = [[MPVector2D vectorWith3i: s] scale: [[MPVector2D vectorWith3i: p0] cross: [MPVector2D vectorWith3i: r]]];
@@ -286,15 +373,16 @@ static long _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1, v3i_t* xp
 	
 	MPVector2D* X = [num scaleNum: [MPDecimal one] den: den];
 	
-	if ((X.x.integerBits > 15) || (X.y.integerBits > 15))
-		return 0;
+	if (X.minIntegerBits > 15)
+		return nil;
 	
-	v3i_t x = [X toVectorWithShift: p0.shift];
+	//v3i_t x = [X toVectorWithShift: p0.shift];
 	
-	if (xptr)
-		*xptr = x;
 	
-	return _locationOnEdge_boxTest(p0, p1, x) && _locationOnEdge_boxTest(q0, q1, x);
+	if (!_mpLocationOnEdge_boxTest(p0, p1, X) || !_mpLocationOnEdge_boxTest(q0, q1, X))
+		return nil;
+	
+	return X;
 }
 
 - (BOOL) checkSelfIntersection
@@ -315,7 +403,7 @@ static long _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1, v3i_t* xp
 			r3i_t r1 = riCreateFromVectors(a1, b1);
 			
 			if (riCheckIntersection2D(r0, r1))
-				if (_checkIntersection(a0, b0, a1, b1, NULL) && !v3iEqual(a0, b1) && !v3iEqual(a1, b0))
+				if (_checkIntersection(a0, b0, a1, b1) && !v3iEqual(a0, b1) && !v3iEqual(a1, b0))
 					return YES;
 			
 			
@@ -411,10 +499,12 @@ static long _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1, v3i_t* xp
 	return area/2;
 }
 
-
+/*! Checks via ray casting if a single vertex of self is contained in segment.
+ 
+ */
 - (BOOL) containsPath: (SlicedLineSegment*) segment
 {
-	assert(isCCW && segment.isCCW);
+	//assert(isCCW && segment.isCCW); // FIXME: assertion no longer necessary?
 	assert(isClosed);
 	
 	v3i_t sc = segment.begin;
@@ -442,10 +532,12 @@ static long _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1, v3i_t* xp
 		if (!riCheckIntersection2D(rr, rp))
 			continue;
 		
-		v3i_t x = v3iCreate(0, 0, 0, 0);
+		MPVector2D* X = _checkIntersection(p0, p1, sc, se);
 		
-		if (!_checkIntersection(p0, p1, sc, se, &x))
+		if (!X)
 			continue;
+		
+		v3i_t x = [X toVectorWithShift: 16];
 
 
 		v3i_t e = v3iSub(p1, p0);
@@ -469,8 +561,8 @@ static long _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1, v3i_t* xp
 		windingCounter += (f > 0 ? 1 : -1);
 	}
 	assert(ABS(windingCounter) < 2);
-	if (windingCounter > 0)
-		return YES;
+	if (windingCounter != 0)
+		return self.isCCW ? windingCounter > 0 : windingCounter < 0;
 	else
 		return NO;
 	
@@ -587,31 +679,279 @@ static long _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1, v3i_t* xp
 /*!
  Returns closed polygons outlining the areas common to both input polygons. Both polygons must be closed and non self-intersecting. CCW polygons represent filled outlines, CW polygons are holes.
  */
-- (NSArray*) booleanIntersectSegment: (SlicedLineSegment*) other
+
+static SOIntersection* _findNextIntersection(v3i_t* verticesi, size_t istart, size_t iend, size_t counti, v3i_t* verticesj, size_t jstart, size_t jend, size_t countj)
 {
-	assert(self.isClosed && other.isClosed);
-	assert(!self.isSelfIntersecting && !other.isSelfIntersecting);
-	
-	
-	// lets start by finding the intersecting primitive segments
-	v3i_t* vertices0 = self.vertices;
-	v3i_t* vertices1 = other.vertices;
-	size_t count0 = self.vertexCount;
-	size_t count1 = other.vertexCount;
-	for (size_t i = 0; i < count0; ++i)
+	for (size_t i = istart; i < iend; ++i)
 	{
-		v3i_t pi0 = vertices0[i];
-		v3i_t pi1 = vertices0[(i+1)%count0];
-		for (size_t j = 0; j < count1; ++j)
+		v3i_t pi0 = verticesi[i % counti];
+		v3i_t pi1 = verticesi[(i+1) % counti];
+		r3i_t ri = riCreateFromVectors(pi0, pi1);
+		for (size_t j = jstart; j < jend; ++j)
 		{
-			v3i_t pj0 = vertices1[j];
-			v3i_t pj1 = vertices1[(j+1)%count1];
+			v3i_t pj0 = verticesj[j % countj];
+			v3i_t pj1 = verticesj[(j+1) % countj];
+			r3i_t rj = riCreateFromVectors(pj0, pj1);
+			
+			if (!riCheckIntersection2D(ri, rj))
+				continue;
+			
+			MPVector2D* X = _checkIntersection(pi0, pi1, pj0, pj1);
+			if (X)
+			{
+				v3i_t x = [X toVectorWithShift: 16];
+				
+				if (v3iEqual(pi0, x) || v3iEqual(pj0, x)) // TODO: strategy for rejection correct?
+					continue;
+				
+				v3i_t ei = v3iSub(pi1, pi0);
+				v3i_t ej = v3iSub(pj1, pj0);
+				
+				vmlongfix_t crossi0 = v3iCross2D(ei, v3iSub(pj0, pi0));
+				vmlongfix_t crossj0 = v3iCross2D(ej, v3iSub(pi0, pj0));
+				vmlongfix_t crossi1 = v3iCross2D(ei, v3iSub(pj1, pi0));
+				vmlongfix_t crossj1 = v3iCross2D(ej, v3iSub(pi1, pj0));
+				
+				NSComparisonResult diri = lcompare(crossi1.x, crossi0.x);
+				NSComparisonResult dirj = lcompare(crossj1.x, crossj0.x);
+				
+				SOIntersection* intersection = [[SOIntersection alloc] init];
+				intersection.location = x;
+				intersection.mpLocation = X;
+				intersection.indexI = i % counti;
+				intersection.indexJ = j % countj;
+				intersection.dirI = diri;
+				intersection.dirJ = dirj;
+				
+				return intersection;
+				
+			}
 			
 		}
 		
 	}
+	return nil;
+
+}
+
+
+- (NSArray*) booleanIntersectSegment: (SlicedLineSegment*) other
+{
+	assert(self.isClosed && other.isClosed);
+	assert(!self.isSelfIntersecting && !other.isSelfIntersecting);
+//	assert(self.isCCW); // we make a few assumptions about self being ccw later on
+	
+	BOOL containsOther = [self containsPath: other];
+	BOOL containsSelf = [other containsPath: self];
+	
+	{
+		SOIntersection* firstIntersection = _findNextIntersection(self.vertices, 0, self.vertexCount, self.vertexCount, other.vertices, 0, other.vertexCount, other.vertexCount);
+		
+		if (containsOther && !firstIntersection) // this means self fully contains the other path
+		{
+			return @[ other ];
+		}
+		else if (containsSelf && !firstIntersection) // the other path fully contains self
+		{
+			return @[ self ];
+		}
+		else if (!firstIntersection)
+		{
+			// empty set
+			return @[];
+		}
+	}
+	
+	// we would a first intersection, now we have to traverse the paths to find the loops
+	// at an intersection, we decide as follows:
+	// - when both paths enter the other, the CW path is the outline (can only happen on CCW/CW intersect
+	// - when one enters the other, take the one entering
+	
+	NSMutableArray* intersections = [NSMutableArray array];
+	
+	for (size_t i = 0; i < self.vertexCount; ++i)
+	{
+		NSMutableArray* segmentIntersections = [NSMutableArray array];
+		
+		
+		SOIntersection* ix = nil;
+		size_t jstart = 0;
+		size_t jend = other.vertexCount;
+		
+		while ((ix = _findNextIntersection(self.vertices, i, i+1, self.vertexCount, other.vertices, jstart, jend, other.vertexCount)))
+		{
+			[segmentIntersections addObject: ix];
+			
+			jstart = ix.indexJ+1;
+		}
+		
+		[segmentIntersections sortWithOptions: NSSortStable usingComparator: ^NSComparisonResult(SOIntersection* X0, SOIntersection* X1) {
+			
+			v3i_t p0 = self.vertices[X0.indexI];
+			v3i_t p1 = self.vertices[X1.indexI];
+			
+			MPVector2D* P0 = [MPVector2D vectorWith3i: p0];
+			MPVector2D* P1 = [MPVector2D vectorWith3i: p1];
+			
+			MPVector2D* R0 = [X0.mpLocation sub: P0];
+			MPVector2D* R1 = [X0.mpLocation sub: P1];
+			
+			MPDecimal* dot0 = [R0 dot: R0];
+			MPDecimal* dot1 = [R1 dot: R1];
+			
+			return [dot0 compare: dot1];
+			
+		}];
+			
+		[intersections addObjectsFromArray: segmentIntersections];
+	}
+	
+	// at this point, we have all intersections of self, in sorted order as traversing self.
+	
+	// next up sort in order of J
+	NSArray* intersectionsOnJ = [intersections sortedArrayWithOptions: NSSortStable usingComparator: ^NSComparisonResult(SOIntersection* X0, SOIntersection* X1) {
+		
+		v3i_t p0 = other.vertices[X0.indexJ];
+		v3i_t p1 = other.vertices[X1.indexJ];
+		
+		MPVector2D* P0 = [MPVector2D vectorWith3i: p0];
+		MPVector2D* P1 = [MPVector2D vectorWith3i: p1];
+		
+		MPVector2D* R0 = [X0.mpLocation sub: P0];
+		MPVector2D* R1 = [X0.mpLocation sub: P1];
+		
+		MPDecimal* dot0 = [R0 dot: R0];
+		MPDecimal* dot1 = [R1 dot: R1];
+		
+		return [dot0 compare: dot1];
+		
+	}];
+	
+	// populate linked lists
+	[intersections enumerateObjectsUsingBlock:^(SOIntersection* obj, NSUInteger idx, BOOL *stop) {
+		obj.nextI = [intersections objectAtIndex: (idx+1) % intersections.count];
+	}];
+	[intersectionsOnJ enumerateObjectsUsingBlock:^(SOIntersection* obj, NSUInteger idx, BOOL *stop) {
+		obj.nextJ = [intersectionsOnJ objectAtIndex: (idx+1) % intersectionsOnJ.count];
+	}];
+
 	
 	
+	// now we have two lists of indices, for traversing self and other
+	
+	SOIntersection* loopStartIntersection = nil;
+	SOIntersection* currentIntersection = nil;
+
+	NSMutableArray* loops = [NSMutableArray array];
+	__block SlicedLineSegment* currentSegment = nil;
+
+	void (^emitBlock)(SOIntersection*, SOIntersection*, BOOL) = ^(SOIntersection* currentX, SOIntersection* nextX, BOOL followI){
+		if (!currentSegment)
+		{
+			currentSegment = [[SlicedLineSegment alloc] init];
+			[loops addObject: currentSegment];
+		}
+		
+		
+		[currentSegment insertVertexAtEnd: currentX.location];
+		
+		v3i_t* vs = followI ? self.vertices : other.vertices;
+		
+		size_t start = followI ? currentX.indexI+1 : currentX.indexJ+1;
+		size_t end = followI ? nextX.indexI : nextX.indexJ;
+		
+		if (end < start)
+			end += followI ? self.vertexCount : other.vertexCount;
+		
+		for (size_t i = start; i < end; ++i)
+		{
+			// add one by one because of "looping" overflow
+			[currentSegment insertVertexAtEnd: vs[i]];
+		}
+		
+		
+		
+		if (nextX == loopStartIntersection)
+			currentSegment = nil;
+	};
+	
+
+	
+	NSMutableSet* unconsumedIntersections = [NSMutableSet setWithArray: intersections];
+	
+	
+	
+	while (unconsumedIntersections.count)
+	{
+		BOOL emitPath = NO;
+		BOOL followI = NO;
+
+		if (!currentIntersection)
+		{
+			currentIntersection = [unconsumedIntersections anyObject];
+		}
+		
+		if ((currentIntersection.dirI > 0) && (currentIntersection.dirJ > 0))
+		{ // entering both, means we're going into a hole
+			//assert(!other.isCCW);
+			
+			followI = !self.isCCW;
+			emitPath = YES;
+		}
+		else if ((currentIntersection.dirI < 0) && (currentIntersection.dirJ < 0))
+		{ // exiting both, take the outline
+			//assert(!other.isCCW);
+			
+			followI = self.isCCW;
+			emitPath = YES;
+			
+		}
+		else if ((currentIntersection.dirI < 0) && (currentIntersection.dirJ > 0))
+		{ // entering other
+			//assert(other.isCCW);
+			
+			followI = NO;
+			emitPath = YES;
+		}
+		else if ((currentIntersection.dirI > 0) && (currentIntersection.dirJ < 0))
+		{ // entering self
+			//assert(other.isCCW);
+			
+			followI = YES;
+			emitPath = YES;
+		}
+		else
+			assert(0); // should never happen
+		
+		SOIntersection* nextIntersection = nil;
+		if (followI)
+			nextIntersection = currentIntersection.nextI;
+		else
+			nextIntersection = currentIntersection.nextJ;
+		
+		
+		if (emitPath && !loopStartIntersection)
+		{
+			loopStartIntersection = currentIntersection;
+		}
+		
+		if (emitPath)
+			emitBlock(currentIntersection, nextIntersection, followI);
+		
+
+		[unconsumedIntersections removeObject: currentIntersection];
+
+		if (emitPath && (loopStartIntersection != nextIntersection))
+			currentIntersection = nextIntersection;
+		else
+		{
+			currentIntersection = nil;
+			loopStartIntersection = nil;
+		}
+		
+	}
+	
+	return loops;
 }
 
 /*
@@ -729,6 +1069,22 @@ static NSString* _verticesToSVG(v3i_t* vertices, size_t numVertices)
 	[pb setData: [_verticesToSVG(vertices, vertexCount) dataUsingEncoding: NSUTF8StringEncoding] forType: @"public.svg-image"];
 }
 
+- (NSBezierPath*) bezierPath
+{
+	NSBezierPath* path = [NSBezierPath bezierPath];
+	for (size_t i = 0; i < vertexCount; ++i)
+	{
+		v3i_t vertex = vertices[i];
+		if (!i)
+			[path moveToPoint: v3iToCGPoint(vertex)];
+		else
+			[path lineToPoint: v3iToCGPoint(vertex)];
+	}
+	if (self.isClosed)
+		[path closePath];
+
+	return path;
+}
 
 - (id) description
 {

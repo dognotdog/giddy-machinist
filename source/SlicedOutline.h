@@ -10,7 +10,7 @@
 
 #import "VectorMath_fixp.h"
 
-@class PolygonSkeletizer, GfxMesh;
+@class PolygonSkeletizer, GfxMesh, NSBezierPath;
 
 @interface SlicedLineSegment : NSObject
 
@@ -34,14 +34,17 @@
 - (NSArray*) booleanIntersectSegment: (SlicedLineSegment*) other;
 
 - (BOOL) closePolygonByMergingEndpoints;
+- (BOOL) closePolygonWithoutMergingEndpoints;
 - (void) analyzeSegment;
 - (void) reverse;
 //- (void) optimizeToThreshold: (double) threshold;
 - (void) optimizeColinears: (vmlongfix_t) threshold;
 
 
-- (BOOL) intersectsPath: (SlicedLineSegment*) segment;
+//- (BOOL) intersectsPath: (SlicedLineSegment*) segment;
 - (BOOL) containsPath: (SlicedLineSegment*) segment;
+
+- (NSBezierPath*) bezierPath;
 
 @end
 
@@ -57,5 +60,6 @@
 - (void) generateSkeletonWithMergeThreshold: (double) mergeThreshold;
 - (void) addPathsToSkeletizer: (PolygonSkeletizer*) sk;
 
+- (NSArray*) booleanIntersectOutline: (SlicedOutline*) other;
 
 @end

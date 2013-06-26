@@ -169,6 +169,23 @@ static size_t _hashXY(unsigned long x, unsigned long y, size_t ncells)
 	}
 }
 
+static int _divToFloor(int a, int b)
+{
+	int d = abs(a)/abs(b);
+	
+	long ab = a*(long)b;
+	
+	if (ab < 0)
+	{
+		if (d*abs(b) != abs(a))
+			d = -d-1;
+		else
+			d = -d;
+	}
+		
+	return d;
+}
+
 
 - (void) addEdgeSegments: (NSArray*) segments
 {
@@ -181,10 +198,10 @@ static size_t _hashXY(unsigned long x, unsigned long y, size_t ncells)
 		int signx = i32compare(r.x, 0);
 		int signy = i32compare(r.y, 0);
 		
-		int posx = startLoc.x / gridSize.x;
-		int posy = startLoc.y / gridSize.x;
-		int endx = endLoc.x / gridSize.x;
-		int endy = endLoc.y / gridSize.x;
+		int posx = _divToFloor(startLoc.x, gridSize.x);
+		int posy = _divToFloor(startLoc.y, gridSize.x);
+		int endx = _divToFloor(endLoc.x, gridSize.x);
+		int endy = _divToFloor(endLoc.y, gridSize.x);
 		
 		int deltax = startLoc.x - posx*gridSize.x;
 		int deltay = startLoc.y - posy*gridSize.x;

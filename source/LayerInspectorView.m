@@ -21,9 +21,11 @@
 	NSMutableArray* offsetBoundaryPaths;
 	NSMutableArray* openPaths;
 	NSArray* motorcyclePaths;
+	
+//	CGPoint mouseDownLocationInLayer, mouseDragLocationInLayer, mouseUpLocationInSlice;
 }
 
-@synthesize slice, indexOfSelectedOutline, motorcyclePaths, spokePaths, outlinePaths, overfillPaths, underfillPaths;
+@synthesize slice, indexOfSelectedOutline, motorcyclePaths, spokePaths, outlinePaths, overfillPaths, underfillPaths, mouseDownLocationInSlice, mouseDragLocationInSlice, mouseUpLocationInSlice, clippingOutline;
 
 - (id)initWithFrame:(NSRect)frame
 {
@@ -277,6 +279,18 @@
 	[NSBezierPath strokeLineFromPoint: CGPointAdd(self.cursor, CGPointMake(-10.0,0.0)) toPoint: CGPointAdd(self.cursor,  CGPointMake(-1.0, 0.0))];
 	[NSBezierPath strokeLineFromPoint: CGPointAdd(self.cursor, CGPointMake( 10.0,0.0)) toPoint: CGPointAdd(self.cursor,  CGPointMake(1.0, 0.0))];
 
+	
+	if (clippingOutline)
+	{
+		NSBezierPath* path = [clippingOutline.outline bezierPath];
+		[[[NSColor whiteColor] colorWithAlphaComponent: 1.0] set];
+		
+		[path setLineWidth: 1.0/scale];
+		[path stroke];
+	}
+	
+	
+	
 	[transform invert];
 	[transform concat];
 	
@@ -284,17 +298,94 @@
 
 }
 
-- (void) mouseDown:(NSEvent *)theEvent
+- (CGPoint) convertPointToSlice: (CGPoint) aPoint
 {
-	CGPoint point = [self convertPoint: [theEvent locationInWindow] fromView: nil];
-	
+	CGPoint point = [self convertPoint: aPoint fromView: nil];
+
 	NSAffineTransform* contentTransform = [self contentTransform];
 	[contentTransform invert];
-	point = [contentTransform transformPoint: point];
-	
+	return [contentTransform transformPoint: point];
+
+}
+
+- (void) mouseDown: (NSEvent *)theEvent
+{
+	CGPoint point = [self convertPointToSlice: [theEvent locationInWindow]];
+		
 	self.cursor = point;
 	
+	mouseDownLocationInSlice = point;
+	mouseDragLocationInSlice = point;
+	mouseUpLocationInSlice = point;
+	
 	NSLog(@"cursor at %f,%f", point.x, point.y);
+	
+	[self setNeedsDisplay: YES];
+}
+
+- (SlicedOutline*) generateClippingOutline
+{
+	SlicedLineSegment* segment = [self clippingSegment];
+	if (!segment)
+		return nil;
+	SlicedOutline* outline = [[SlicedOutline alloc] init];
+	outline.outline = segment;
+	return outline;
+}
+
+- (SlicedLineSegment*) clippingSegment
+{
+	v3i_t a = v3iCreateFromFloat(mouseDownLocationInSlice.x, mouseDownLocationInSlice.y, 0.0, 16);
+	v3i_t b = v3iCreateFromFloat(mouseDragLocationInSlice.x, mouseDragLocationInSlice.y, 0.0, 16);
+	
+	if (v3iEqual(a, b))
+		return nil;
+	if ((a.x == b.x) || (a.y == b.y))
+		return nil;
+
+	v3i_t min = v3iMin(a, b);
+	v3i_t max = v3iMax(a, b);
+	
+	v3i_t delta = v3iSub(max, min);
+	v3i_t dx = delta;
+	v3i_t dy = delta;
+	dx.y = 0;
+	dy.x = 0;
+	
+	v3i_t p[4] = {min, v3iAdd(min, dx), max, v3iAdd(min, dy)};
+	
+	
+	SlicedLineSegment* segment = [[SlicedLineSegment alloc] init];
+	
+	[segment addVertices: p count: 4];
+	
+	[segment closePolygonWithoutMergingEndpoints];
+	
+	[segment analyzeSegment];
+	
+	
+	return segment;
+}
+
+- (void) mouseDragged: (NSEvent *)theEvent
+{
+	CGPoint point = [self convertPointToSlice: [theEvent locationInWindow]];
+	
+	mouseDragLocationInSlice = point;
+	
+	
+	clippingOutline = [self generateClippingOutline];
+	
+	[self setNeedsDisplay: YES];
+}
+
+- (void) mouseUp: (NSEvent *)theEvent
+{
+	CGPoint point = [self convertPointToSlice: [theEvent locationInWindow]];
+	
+	mouseUpLocationInSlice = point;
+	
+	clippingOutline = [self generateClippingOutline];
 	
 	[self setNeedsDisplay: YES];
 }

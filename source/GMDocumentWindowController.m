@@ -119,7 +119,19 @@
 	}
 	
 	//for (SlicedOutline* outline in slice.outlinePaths)
-	SlicedOutline* outline = [slice.outlinePaths objectAtIndex: [self.outlineSelector indexOfSelectedItem]];
+	SlicedOutline* srcOutline = [slice.outlinePaths objectAtIndex: [self.outlineSelector indexOfSelectedItem]];
+	
+	NSArray* outlines = @[ srcOutline ];
+	
+	if (layerView.clippingOutline)
+	{
+		outlines = [srcOutline booleanIntersectOutline: layerView.clippingOutline];
+	}
+	
+	
+	
+	
+	for (SlicedOutline* outline in outlines)
 	{
 		PolygonSkeletizer* skeletizer = [[PolygonSkeletizer alloc] init];
 		skeletizer.mergeThreshold = slice.mergeThreshold;
