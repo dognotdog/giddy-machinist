@@ -11,6 +11,7 @@
 #import "gfx.h"
 #import "FoundationExtensions.h"
 #import "SlicedOutline.h"
+#import "FixPolygon.h"
 #import "PolygonSkeletizer.h"
 #import "STLFile.h"
 
@@ -135,7 +136,7 @@ static void _sliceZLayer(OctreeNode* node, vector_t* vertices, double zh, NSMuta
 					STLVertex* v1 = [obj objectAtIndex: 1];
 					v3i_t v[2] = {v0.position, v1.position};
 					
-					SlicedLineSegment* segment = [[SlicedLineSegment alloc] init];
+					FixPolygonOpenSegment* segment = [[FixPolygonOpenSegment alloc] init];
 					[segment addVertices: v count: 2];
 					return segment;
 				}];
@@ -259,7 +260,7 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 	while ([unprocessedSegments count])
 	{
 		BOOL foundMerge = NO;
-		SlicedLineSegment* referenceSegment = [unprocessedSegments lastObject];
+		FixPolygonOpenSegment* referenceSegment = [unprocessedSegments lastObject];
 		[unprocessedSegments removeLastObject];
 		
 		
@@ -270,7 +271,7 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 		BOOL reverse[4] = {NO, YES, NO, YES};
 		
 		size_t si = 0;
-		for (SlicedLineSegment* segment in unprocessedSegments)
+		for (FixPolygonOpenSegment* segment in unprocessedSegments)
 		{
 			v3i_t delta[4] = {
 				v3iSub(referenceSegment.begin, segment.begin),
@@ -308,11 +309,12 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 		
 		if (foundMerge)
 		{
-			if ([referenceSegment closePolygonByMergingEndpoints])
+			FixPolygonClosedSegment* closedSegment = [referenceSegment closePolygonByMergingEndpoints];
+			if (closedSegment)
 			{
-				double area = [referenceSegment area];
+				double area = [closedSegment area];
 				if (fabs(area) > mergeThreshold*mergeThreshold) // discard triangle if its too bloody small
-					[closedPaths addObject: referenceSegment];
+					[closedPaths addObject: closedSegment];
 				//else
 				//	NSLog(@"discarding polygon %f: %@", area, referenceSegment);
 			}
@@ -332,7 +334,7 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 	
 	//		NSLog(@"Layer generated with %zd, %zd paths", [closedPaths count], [openPaths count]);
 	
-	layer.outlinePaths = [closedPaths map:^id(SlicedLineSegment* segment) {
+	layer.outlinePaths = [closedPaths map:^id(FixPolygonClosedSegment* segment) {
 		assert(segment.vertexCount);
 
 		long mt = mergeThreshold*(1L << 16);
@@ -359,7 +361,8 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 	}];
 	
 	layer.outlinePaths = [layer.outlinePaths select: ^BOOL(SlicedOutline* obj) {
-		return 0 != obj.outline.vertexCount;
+		size_t vc = obj.outline.vertexCount;
+		return vc;
 	}];
 	
 	layer.openPaths = openPaths;
@@ -399,11 +402,11 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 	for (SlicedOutline* path in outlinePaths)
 	{
 		NSArray* segments = [path allNestedPaths];
-		for (SlicedLineSegment* segment in segments)
-			vertexCount += ([segment vertexCount])*2;
+		for (FixPolygonClosedSegment* segment in segments)
+			vertexCount += (segment.vertexCount)*2;
 	}
-	for (SlicedLineSegment* line in openPaths)
-		vertexCount += ([line vertexCount]-1)*2;
+	for (FixPolygonOpenSegment* line in openPaths)
+		vertexCount += (line.vertexCount-1)*2;
 	
 	if (!vertexCount)
 		return layerMesh;
@@ -422,7 +425,7 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 	for (SlicedOutline* outline in outlinePaths)
 	{
 		NSArray* segments = [outline allNestedPaths];
-		for (SlicedLineSegment* segment in segments)
+		for (FixPolygonClosedSegment* segment in segments)
 		{
 			//vector_t color = vCreate(0.0, 0.5+0.5*(segment.isCCW), segment.isSelfIntersecting, 1.0);
 			for (size_t i = 0; i < segment.vertexCount; ++i)
@@ -437,7 +440,7 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 			}
 		}
 	}
-	for (SlicedLineSegment* segment in openPaths)
+	for (FixPolygonOpenSegment* segment in openPaths)
 	{
 		for (size_t i = 0; i+1 < segment.vertexCount; ++i)
 		{

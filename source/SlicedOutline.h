@@ -10,46 +10,10 @@
 
 #import "VectorMath_fixp.h"
 
-@class PolygonSkeletizer, GfxMesh, NSBezierPath;
-
-@interface SlicedLineSegment : NSObject
-
-@property(nonatomic) v3i_t begin, end;
-@property(nonatomic,readonly) v3i_t* vertices;
-@property(nonatomic,readonly) size_t vertexCount;
-@property(nonatomic,readonly) BOOL isClosed;
-@property(nonatomic,readonly) BOOL isConvex;
-@property(nonatomic,readonly) BOOL isCCW;
-@property(nonatomic,readonly) BOOL isSelfIntersecting;
-@property(nonatomic,readonly) v3i_t centroid;
-@property(nonatomic,readonly) r3i_t	bounds;
-@property(nonatomic,readonly) double	area;
-
-- (void) addVertices: (v3i_t*) v count: (size_t) count;
-- (void) insertVertexAtBeginning: (v3i_t) v;
-- (void) insertVertexAtEnd: (v3i_t) v;
-
-- (SlicedLineSegment*) joinSegment: (SlicedLineSegment*) seg atEnd: (BOOL) atEnd reverse: (BOOL) reverse;
-
-- (NSArray*) booleanIntersectSegment: (SlicedLineSegment*) other;
-
-- (BOOL) closePolygonByMergingEndpoints;
-- (BOOL) closePolygonWithoutMergingEndpoints;
-- (void) analyzeSegment;
-- (void) reverse;
-//- (void) optimizeToThreshold: (double) threshold;
-- (void) optimizeColinears: (vmlongfix_t) threshold;
-
-
-//- (BOOL) intersectsPath: (SlicedLineSegment*) segment;
-- (BOOL) containsPath: (SlicedLineSegment*) segment;
-
-- (NSBezierPath*) bezierPath;
-
-@end
+@class PolygonSkeletizer, GfxMesh, FixPolygonClosedSegment, NSBezierPath;
 
 @interface SlicedOutline : NSObject
-@property(nonatomic, strong) SlicedLineSegment* outline;
+@property(nonatomic, strong) FixPolygonClosedSegment* outline;
 @property(nonatomic, strong) NSArray* holes;
 @property(nonatomic, strong) PolygonSkeletizer* skeleton;
 

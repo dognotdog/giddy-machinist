@@ -13,6 +13,45 @@
 #import "MPInteger.h"
 #import "MPVector2D.h"
 #import "FoundationExtensions.h"
+#import "FixPolygon.h"
+
+
+@interface SlicedLineSegment : NSObject
+
+@property(nonatomic) v3i_t begin, end;
+@property(nonatomic,readonly) v3i_t* vertices;
+@property(nonatomic,readonly) size_t vertexCount;
+@property(nonatomic,readonly) BOOL isClosed;
+@property(nonatomic,readonly) BOOL isConvex;
+@property(nonatomic,readonly) BOOL isCCW;
+@property(nonatomic,readonly) BOOL isSelfIntersecting;
+@property(nonatomic,readonly) v3i_t centroid;
+@property(nonatomic,readonly) r3i_t	bounds;
+@property(nonatomic,readonly) double	area;
+
+- (void) addVertices: (v3i_t*) v count: (size_t) count;
+- (void) insertVertexAtBeginning: (v3i_t) v;
+- (void) insertVertexAtEnd: (v3i_t) v;
+
+- (SlicedLineSegment*) joinSegment: (SlicedLineSegment*) seg atEnd: (BOOL) atEnd reverse: (BOOL) reverse;
+
+- (NSArray*) booleanIntersectSegment: (SlicedLineSegment*) other;
+
+- (BOOL) closePolygonByMergingEndpoints;
+- (BOOL) closePolygonWithoutMergingEndpoints;
+- (void) analyzeSegment;
+- (void) reverse;
+//- (void) optimizeToThreshold: (double) threshold;
+- (void) optimizeColinears: (vmlongfix_t) threshold;
+
+
+//- (BOOL) intersectsPath: (SlicedLineSegment*) segment;
+- (BOOL) containsPath: (SlicedLineSegment*) segment;
+
+- (NSBezierPath*) bezierPath;
+
+@end
+
 
 @interface SOIntersection : NSObject
 
@@ -145,7 +184,7 @@
 	
 	NSArray* ownSegments = [outline booleanIntersectSegment: other.outline];
 	
-	NSArray* ownResults = [ownSegments map: ^id(SlicedLineSegment* obj) {
+	NSArray* ownResults = [ownSegments map: ^id(FixPolygonClosedSegment* obj) {
 		SlicedOutline* resultOutline = [[SlicedOutline alloc] init];
 		resultOutline.outline = obj;
 		
@@ -155,7 +194,7 @@
 	
 	for (SlicedOutline* resultOutline in ownResults)
 	{
-		SlicedLineSegment* outlineSegment = resultOutline.outline;
+		FixPolygonClosedSegment* outlineSegment = resultOutline.outline;
 		
 		for (NSArray* childOutlines in childResults)
 			for (SlicedOutline* childOutline in childOutlines)
@@ -333,13 +372,6 @@
 	isClosed = YES;
 	
 	return isClosed;
-}
-
-static long _locationOnEdge_boxTest(v3i_t A, v3i_t B, v3i_t x)
-{
-	r3i_t r = riCreateFromVectors(A,B);
-	
-	return riContainsVector2D(r, x);
 }
 
 

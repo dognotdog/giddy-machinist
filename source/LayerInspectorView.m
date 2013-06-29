@@ -11,6 +11,7 @@
 
 #import "Slicer.h"
 #import "SlicedOutline.h"
+#import "FixPolygon.h"
 
 #import "CGGeometryExtensions.h"
 
@@ -81,7 +82,7 @@
 	{
 		NSBezierPath* outline = [NSBezierPath bezierPath];
 		NSArray* segments = [path allNestedPaths];
-		for (SlicedLineSegment* segment in segments)
+		for (FixPolygonSegment* segment in segments)
 		{
 			v3i_t* vertices = segment.vertices;
 			for (size_t i = 0; i < segment.vertexCount; ++i)
@@ -100,7 +101,7 @@
 	}
 	outlinePaths = outlines;
 	
-	for (SlicedLineSegment* segment in slice.openPaths)
+	for (FixPolygonOpenSegment* segment in slice.openPaths)
 	{
 		NSBezierPath* outline = [NSBezierPath bezierPath];
 		{
@@ -325,7 +326,7 @@
 
 - (SlicedOutline*) generateClippingOutline
 {
-	SlicedLineSegment* segment = [self clippingSegment];
+	FixPolygonClosedSegment* segment = [self clippingSegment];
 	if (!segment)
 		return nil;
 	SlicedOutline* outline = [[SlicedOutline alloc] init];
@@ -333,7 +334,7 @@
 	return outline;
 }
 
-- (SlicedLineSegment*) clippingSegment
+- (FixPolygonClosedSegment*) clippingSegment
 {
 	v3i_t a = v3iCreateFromFloat(mouseDownLocationInSlice.x, mouseDownLocationInSlice.y, 0.0, 16);
 	v3i_t b = v3iCreateFromFloat(mouseDragLocationInSlice.x, mouseDragLocationInSlice.y, 0.0, 16);
@@ -355,12 +356,10 @@
 	v3i_t p[4] = {min, v3iAdd(min, dx), max, v3iAdd(min, dy)};
 	
 	
-	SlicedLineSegment* segment = [[SlicedLineSegment alloc] init];
+	FixPolygonClosedSegment* segment = [[FixPolygonClosedSegment alloc] init];
 	
 	[segment addVertices: p count: 4];
-	
-	[segment closePolygonWithoutMergingEndpoints];
-	
+		
 	[segment analyzeSegment];
 	
 	
