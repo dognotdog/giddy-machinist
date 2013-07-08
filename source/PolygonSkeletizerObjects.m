@@ -122,51 +122,6 @@
 @end
 
 
-@implementation PSBranchEvent
-
-@synthesize rootSpoke, branchVertex;
-
-- (id) initWithLocation:(v3i_t)loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct rootSpoke:(PSMotorcycleSpoke *)spoke branchVertex:(PSCrashVertex *)vertex
-{
-	if (!(self = [super initWithLocation: loc time: t creationTime: ct]))
-		return nil;
-	
-	rootSpoke = spoke;
-	branchVertex = vertex;
-	
-	return self;
-}
-
-- (BOOL) isEqual: (PSBranchEvent*) object
-{
-	if (![super isEqual: object])
-		return NO;
-	if (self.branchVertex != object.branchVertex)
-		return NO;
-	if (self.rootSpoke != object.rootSpoke)
-		return NO;
-	
-	
-	return YES;
-}
-
-- (NSString*) hashString
-{
-	NSString* str = [NSString stringWithFormat: @"%@ %d %d", [super hashString], self.branchVertex.position.x, self.branchVertex.position.y];
-	return str;
-}
-
-- (NSArray*) spokes
-{
-	return @[rootSpoke];
-}
-
-@end
-
-@implementation PSBranchCollapseEvent
-
-@end
-
 @implementation PSCollapseEvent
 {
 	NSArray* spokes;
@@ -213,10 +168,36 @@
 	return cmp;
 }
 
+- (NSComparisonResult) compareToSwap: (PSSwapEvent *)event
+{
+	NSComparisonResult cmp = [super compare: event];
+	
+	if (cmp == 0)
+		return NSOrderedAscending; // swap comes after collapse
+	
+	return cmp;
+}
+
+- (NSComparisonResult) compareToEmit: (PSEmitEvent *)event
+{
+	NSComparisonResult cmp = [super compare: event];
+	
+	if (cmp == 0)
+		return NSOrderedAscending; // emit comes after collapse
+	
+	return cmp;
+}
+
+
+
 - (NSComparisonResult) compare:(PSCollapseEvent *)event
 {
 	if ([event isKindOfClass: [PSSplitEvent class]])
 		return [self compareToSplit: (id)event];
+	else if ([event isKindOfClass: [PSSwapEvent class]])
+		return [self compareToSwap: (id)event];
+	else if ([event isKindOfClass: [PSEmitEvent class]])
+		return [self compareToEmit: (id)event];
 	
 	
 	NSComparisonResult cmp = [super compare: event];
@@ -286,10 +267,31 @@
 
 	return cmp;
 }
+- (NSComparisonResult) compareToSwap: (PSSwapEvent *)event
+{
+	NSComparisonResult cmp = [super compare: event];
+	if (cmp == 0)
+		return NSOrderedAscending; // swap comes after split
+	
+	return cmp;
+}
+- (NSComparisonResult) compareToEmit: (PSEmitEvent *)event
+{
+	NSComparisonResult cmp = [super compare: event];
+	if (cmp == 0)
+		return NSOrderedAscending; // emit comes after split
+	
+	return cmp;
+}
+
 - (NSComparisonResult) compare: (PSSplitEvent *)event
 {
 	if ([event isKindOfClass: [PSCollapseEvent class]])
 		return [self compareToCollapse: (id)event];
+	else if ([event isKindOfClass: [PSSwapEvent class]])
+		return [self compareToSwap: (id)event];
+	else if ([event isKindOfClass: [PSEmitEvent class]])
+		return [self compareToEmit: (id)event];
 	
 	
 	NSComparisonResult cmp = [super compare: event];
@@ -319,56 +321,70 @@
 	return @[motorcycleSpoke, pivotSpoke];
 }
 
+- (NSComparisonResult) compareToCollapse: (PSCollapseEvent *)event
+{
+	NSComparisonResult cmp = [super compare: event];
+	if (cmp == 0)
+		return NSOrderedDescending; // swap comes after collapse
+	
+	return cmp;
+}
+- (NSComparisonResult) compareToSplit: (PSSplitEvent *)event
+{
+	NSComparisonResult cmp = [super compare: event];
+	if (cmp == 0)
+		return NSOrderedDescending; // swap comes after split
+	
+	return cmp;
+}
+- (NSComparisonResult) compareToEmit: (PSEmitEvent *)event
+{
+	NSComparisonResult cmp = [super compare: event];
+	if (cmp == 0)
+		return NSOrderedAscending; // emit comes after swap
+	
+	return cmp;
+}
+
+- (NSComparisonResult) compare: (PSSplitEvent *)event
+{
+	if ([event isKindOfClass: [PSCollapseEvent class]])
+		return [self compareToCollapse: (id)event];
+	else if ([event isKindOfClass: [PSSplitEvent class]])
+		return [self compareToSplit: (id)event];
+	else if ([event isKindOfClass: [PSEmitEvent class]])
+		return [self compareToEmit: (id)event];
+	
+	
+	NSComparisonResult cmp = [super compare: event];
+	return cmp;
+}
+
 
 
 @end
 
 
 @implementation PSEmitEvent
-@end
 
-@implementation PSReverseBranchEvent
-
-@synthesize rootSpoke, branchVertex;
-
-- (id) initWithLocation:(v3i_t)loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct rootSpoke:(PSMotorcycleSpoke *)spoke branchVertex:(PSCrashVertex *)vertex
+// emit event is always last
+- (NSComparisonResult) compare: (PSEmitEvent *)event
 {
-	if (!(self = [super initWithLocation: loc time: t creationTime: ct]))
-		return nil;
-	
-	rootSpoke = spoke;
-	branchVertex = vertex;
-	
-	return self;
-}
-
-- (BOOL) isEqual: (PSReverseBranchEvent*) object
-{
-	if (![super isEqual: object])
-		return NO;
-	if (self.branchVertex != object.branchVertex)
-		return NO;
-	if (self.rootSpoke != object.rootSpoke)
-		return NO;
+	if ([event isKindOfClass: [PSEmitEvent class]])
+		return [super compare: event];
 	
 	
-	return YES;
-}
-
-- (NSString*) hashString
-{
+	NSComparisonResult cmp = [super compare: event];
 	
-	NSString* str = [NSString stringWithFormat: @"%@ %d %d %d", [super hashString], self.branchVertex.position.x, self.branchVertex.position.y, self.branchVertex.position.shift];
-	return str;
-}
-
-- (NSArray*) spokes
-{
-	return @[rootSpoke];
+	if (cmp == 0)
+		return NSOrderedDescending;
+		
+	return cmp;
 }
 
 
 @end
+
 
 static double _maxBoundsDimension(NSArray* vertices)
 {
@@ -435,7 +451,8 @@ static MPVector2D* _mpLinePointDistanceNum(MPVector2D* A, MPVector2D* B, MPVecto
 	
 		MPDecimal* cross = [AB cross: AX];
 	
-		assert(cross.isPositive || cross.isZero); // assert that X is in the right half plane
+		if (!(cross.isPositive || cross.isZero)) // assert that X is in the right half plane
+			return [[MPDecimal alloc] initWithInt64: INT32_MAX shift: 0];
 	}
 	
 	MPDecimal* ABAB = [AB dot: AB];
@@ -1054,6 +1071,18 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	return cross.isPositive;
 }
 
+- (BOOL) isVertexCWFromSpoke: (MPVector2D *)mpx
+{
+	MPVector2D* dir = self.mpDirection;
+	
+	MPVector2D* xdir = [mpx sub: self.mpSourcePosition];
+	
+	MPDecimal* cross = [dir cross: xdir];
+	
+	return cross.isNegative;
+}
+
+
 - (BOOL) isSpokeCCW: (PSSpoke *) spoke
 {
 	MPVector2D* dir = self.mpDirection;
@@ -1194,44 +1223,15 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	if (!retiredLeftSpokes)
 		retiredLeftSpokes = @[];
 	
-	if (spoke)
-	{
-		assert(![retiredLeftSpokes containsObject: spoke]);
-		//assert(spoke.terminationTime >= spoke.start);
-	}
-	
-	if (leftSpoke && spoke)
-	{
-		assert(v3iEqual(leftSpoke.endLocation, spoke.startLocation));
-		assert([leftSpoke.terminationTime compare: spoke.startTime] <= 0);
-		//assert(leftSpoke.terminationTime);
-		//assert(spoke.startTime);
-
-	}
-	
-	if (leftSpoke)
-	{
-		
-		if (retiredLeftSpokes.count && leftSpoke)
-		{
-			PSSimpleSpoke* lastSpoke = [retiredLeftSpokes lastObject];
-			if (lastSpoke != leftSpoke)
-				assert(v3iEqual(lastSpoke.endLocation, leftSpoke.startLocation));
-		}
-	
-	}
 	
 	// hack against other error: ![retiredLeftSpokes containsObject: leftSpoke]
 	//if (leftSpoke && ![retiredLeftSpokes containsObject: leftSpoke])
-	if (leftSpoke && !v3iEqual(leftSpoke.endLocation, leftSpoke.startLocation))
+	if (leftSpoke && leftSpoke.terminalVertex && !v3iEqual(leftSpoke.endLocation, leftSpoke.startLocation))
 	{
-		// if it's a zero length spoke, ignore it
-		{
 
-			assert(![retiredLeftSpokes containsObject: leftSpoke]);
-			retiredLeftSpokes = [retiredLeftSpokes arrayByAddingObject: leftSpoke];
-			[leftSpoke.retiredWaveFronts addObject: self];
-		}
+		assert(![retiredLeftSpokes containsObject: leftSpoke]);
+		retiredLeftSpokes = [retiredLeftSpokes arrayByAddingObject: leftSpoke];
+		[leftSpoke.retiredWaveFronts addObject: self];
 	}
 	leftSpoke = spoke;
 }
@@ -1244,7 +1244,7 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	if (!retiredRightSpokes)
 		retiredRightSpokes = @[];
 	
-	if (rightSpoke && !v3iEqual(rightSpoke.endLocation, rightSpoke.startLocation))
+	if (rightSpoke && rightSpoke.terminalVertex && !v3iEqual(rightSpoke.endLocation, rightSpoke.startLocation))
 	{
 		assert(![retiredRightSpokes containsObject: rightSpoke]);
 		retiredRightSpokes = [retiredRightSpokes arrayByAddingObject: rightSpoke];
@@ -1254,7 +1254,7 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	rightSpoke = spoke;
 }
 
-static long _waveFrontsConvex(PSWaveFront* leftFront, PSWaveFront* rightFront)
+static long _waveFrontsWeaklyConvex(PSWaveFront* leftFront, PSWaveFront* rightFront)
 {
 	MPDecimal* cross = [leftFront.edge.mpEdge cross: rightFront.edge.mpEdge];
 	
@@ -1262,9 +1262,9 @@ static long _waveFrontsConvex(PSWaveFront* leftFront, PSWaveFront* rightFront)
 }
 
 
-- (BOOL) isConvexTo:(PSWaveFront *)wf
+- (BOOL) isWeaklyConvexTo:(PSWaveFront *)wf
 {
-	return _waveFrontsConvex(self, wf);
+	return _waveFrontsWeaklyConvex(self, wf);
 }
 /*
 - (BOOL) isEqual: (PSWaveFront*) object

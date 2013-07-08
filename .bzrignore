@@ -1,1 +1,9 @@
 .DS_Store
+docs/machinist.aux
+docs/machinist.bbl
+docs/machinist.lof
+docs/machinist.log
+docs/machinist.nlo
+docs/machinist.out
+docs/machinist.toc
+docs/machinist.synctex.gz

@@ -31,7 +31,7 @@
 - (MPDecimal*) length;
 - (MPVector2D*) negate;
 
-//- (MPVector2D*) rotateCCW;
+- (MPVector2D*) rotateCCW;
 
 //- (MPVector2D*) projectOn: (MPVector2D*) b;
 

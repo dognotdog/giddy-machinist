@@ -96,6 +96,7 @@
 @property(nonatomic, readonly) vector_t floatVelocity;
 
 - (BOOL) isVertexCCWFromSpoke: (MPVector2D*) mpv;
+- (BOOL) isVertexCWFromSpoke: (MPVector2D*) mpv;
 - (BOOL) isSpokeCCW: (PSSpoke *) spoke;
 
 @property(nonatomic, weak) PSEvent* upcomingEvent;
@@ -204,7 +205,7 @@
 @property(nonatomic, strong) MPDecimal* terminationTimeSqr;
 
 - (void) swapSpoke: (PSSpoke*) oldSpoke forSpoke: (PSSpoke*) newSpoke;
-- (BOOL) isConvexTo: (PSWaveFront*) wf;
+- (BOOL) isWeaklyConvexTo: (PSWaveFront*) wf;
 
 @end
 
@@ -234,10 +235,6 @@
 
 @end
 
-@interface PSBranchCollapseEvent : PSCollapseEvent
-
-@end
-
 
 @interface PSSplitEvent : PSEvent
 
@@ -256,6 +253,10 @@
 
 @end
 
+/*
+@interface PSBranchCollapseEvent : PSCollapseEvent
+
+@end
 
 @interface PSBranchEvent : PSEvent
 
@@ -265,16 +266,17 @@
 @property(nonatomic,weak) PSMotorcycleSpoke* rootSpoke;
 
 @end
-
-@interface PSEmitEvent : PSEvent
-
-@end
-
+ 
 @interface PSReverseBranchEvent : PSEvent
 
 - (id) initWithLocation: (v3i_t) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct rootSpoke: (PSMotorcycleSpoke*) spoke branchVertex: (PSCrashVertex*) vertex;
 
 @property(nonatomic,weak) PSMotorcycleSpoke* rootSpoke;
 @property(nonatomic,weak) PSCrashVertex* branchVertex;
+@end
+
+*/
+@interface PSEmitEvent : PSEvent
+
 @end
 

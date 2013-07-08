@@ -623,6 +623,7 @@ double mp_get_double2(mp_int *a) {
 	return [[MPDecimal alloc] initWithMPInt: r shift: decimalShift-shift];
 }
 
+
 - (MPInteger*) sqrt
 {
 	mp_int r;

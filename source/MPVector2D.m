@@ -108,6 +108,15 @@
 	return v;
 }
 
+- (MPVector2D*) rotateCCW
+{
+	MPVector2D* v = [[MPVector2D alloc] init];
+	v.x = self.y.negate;
+	v.y = self.x;
+	return v;
+}
+
+
 - (MPDecimal*) length
 {
 	
@@ -144,6 +153,15 @@
 - (double) floatAngle
 {
 	return atan2(self.y.toDouble, self.x.toDouble);
+}
+
+- (BOOL) isEqual:(MPVector2D*)object
+{
+	if (![object isMemberOfClass: [self class]])
+		return NO;
+	
+	return ([self.x compare: object.x] == 0) && ([self.y compare: object.y] == 0);
+	
 }
 
 @end

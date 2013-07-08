@@ -17,6 +17,12 @@
 
 @interface FixPolygon : NSObject
 
+/*!
+ This is essentially a boolean intersect.
+ */
+- (FixPolygon*) maskWithPolygon: (FixPolygon*) maskPolygon;
+
+@property(nonatomic, strong) NSArray* segments;
 
 @end
 

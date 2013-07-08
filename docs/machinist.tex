@@ -33,6 +33,8 @@
 \hypersetup{linkcolor=red,citecolor=blue,filecolor=blue,urlcolor=blue} % coloured links
 %\hypersetup{linkcolor=black,citecolor=black,filecolor=black,urlcolor=black} % black links, for print output
 
+\usepackage[noabbrev,nameinlink,capitalize]{cleveref}
+
 \usepackage{memhfixc}  % remove conflict between the memoir class & hyperref
 % \usepackage[activate]{pdfcprot}  % Turn on margin kerning (not in gwTeX)
 %\usepackage{pdfsync}  % enable tex source and pdf output syncronicity
@@ -143,7 +145,7 @@ A special difficulty occurs when a motorcycle terminates near an outline vertex,
 
 \subsubsection{Tracing Algorithm}
 
-The implementation is outlined in algorithm \ref{alg:mc}. Large performance improvements could be made by eliminating redundant intersection queries.
+The implementation is outlined in  \cref{alg:mc}. Large performance improvements could be made by eliminating redundant intersection queries.
 
 \begin{algorithm}
 \caption{Computation of motorcycle graph.}
@@ -393,7 +395,7 @@ As in \cite{gsh}.
 
 \subsection{Thermal Properties of PLA}
 
-Table \ref{table:plaheat} contains the specific heat values for PLA. A glass transition temperature of $\unit{57}{\celsius}$ is indicated. This corresponds with a king in the specific heat graph.
+\Cref{table:plaheat} contains the specific heat values for PLA. A glass transition temperature of $\unit{57}{\celsius}$ is indicated. This corresponds with a king in the specific heat graph.
 
 
 \begin{table}[htdp]
@@ -430,17 +432,13 @@ Based on the millimeter as a base unit, a 16.16 fixed point representation resul
 
 Furthermore, arbitrary scaling can be applied to increase the working area, or to increase resolution.
 
-\subsection{Exactness}
-
-All events during polygon offsetting result from angular bisectors, and the intersections of the angular bisectors and the segments of the source polygon.
-
-\subsubsection{3D Triangle-Plane Intersection}
+\subsection{3D Triangle-Plane Intersection}
 
 The Input for slicing is an STL file with floating point vertices. Several floating point vertices may map to a single fixed-point vertex. The line segment sliced by a plane is determined via the edges of the triangle intersecting the plane. A triangle intersects a plane in two points, which come from two different edges.
 
 For given vertices $A$ and $B$, the intersection point of the plane and the edges $AB$ and $BA$ must be the same point.
 
-\subsubsection{2D Line-Line Intersection}
+\subsection{2D Line-Line Intersection}
 
 The intersection of two lines in 2D must also be exact. Reversing any of the lines must yield the same intersection point.
 
@@ -458,7 +456,7 @@ X &=& \frac{R (Q \times S )  - S (P \times R )}{R \times S}
 \end{eqnarray*}
 
 
-\subsubsection{2D Line Point Distance}
+\subsection{2D Line Point Distance}
 
 %	vmfloat_t aDotB = vDot(a, b);
 %	vmfloat_t factor = aDotB/vDot(b,b);
@@ -485,7 +483,7 @@ D'_{AB} (UV \cdot UV) &<=>& D'_{UV} (AB \cdot AB) .
 The same rearrangement also works for different points, thus, order can  be determined exactly in a fixed point context with multi-precision integers, even for multiple lines and multiple points.
 
 
-\subsubsection{Vector Scaling}
+\subsection{Vector Scaling}
 
 As the intersection test yields parameters as a fraction of 64-bit integers, it must be examined if storing time in that format is reasonable.
 
@@ -499,7 +497,7 @@ Thus, it is necessary and sufficient to be able to represent $[2^{-31}, 2^{31})$
 
 No velocity vector can be faster than $2^{31}$, either.
 
-\subsubsection{2D Angular Bisectors}
+\subsection{2D Angular Bisectors}
 
 The angular bisectors must also exactly represent the intersection point of the two offset source edges, for any given time. For given source vertices $A,B,C$, the angular bisector $S$ bisects edges $E_{AB}, E_{BC}$:
 $$ S = E_{BC} \frac{N_{AB} \cdot N_{AB}}{N_{AB} \cdot E_{BC}} +  E_{AB} \frac{N_{BC} \cdot N_{BC}}{N_{BC} \cdot E_{AB}}.$$
@@ -570,13 +568,13 @@ R &=& R' \left( 1 - \frac{N_{UV} \cdot N_{UV}}{N_{UV} \cdot R'} \right)\\
 \end{eqnarray*}
 
 
-\subsubsection{Dealing with Rounding Errors}
+\subsection{Dealing with Rounding Errors}
 
 From the formula for bisector intersections, it can be seen that due to taking length of a vector, and the involved square root, no absolutely exact intersection time can be computed, even with arbitrary precision decimals. However, the intersection times can be computed exactly to arbitrary precision.
 
 Thus, the question is, what precision is necessary? The fixed point space has a Q16 precision. Attaining this spatial resolution for the intersection point is straight forward. However, for the order of events, the timing is important. How precise does the computed time have to be, to guarantee the right order of events?
 
-\subsubsection{Time and Order of Events}
+\subsection{Time and Order of Events}
 
 The order of events is important when dealing with degenerate cases of wavefront events.
 
@@ -590,17 +588,17 @@ How do we know that an event happens before a given spoke reaches our event loca
 
 The remaining caveat are spokes with infinite velocity. Practically, they pose no problem. Their source segments cannot be intersected, so the intersection point must be computed differently. The intermediate point between any two points on the source segments is well enough.
 
-\paragraph{Event Time Definition}
+\subsubsection{Event Time Definition}
 
 The time of an event is determined by when the last involved wavefront reaches the event location. The square of the time can be computed to high precision. This time will differ from the actual event time, but is a more reliable measure for event ordering\footnote{why? needs proof.}.
 
-\paragraph{Coalescing Events}
+\subsubsection{Coalescing Events}
 
 An interesting degenerate case occurs when we have three potential events, $A,B,C$. $A,C$ have the same location, $B$ has a different location. The events $B,C$ involve the same spoke. The order of events is $A < B < C$. By the above definition, $A,C$ belong together, but in this situation, $A$ has a dependency on the later event $B$.
 
 The only sane way of dealing with such situations seems to be to keep track of events on each spoke, and only allow the first event into the event list.
 
-\paragraph{Collapse Order by Distance Along Spoke}
+\subsubsection{Relative Timing by Distance Along Spoke}
 
 For opposing wavefronts, situations might occur where the order of split and collapse events becomes ill-defined as a result of numerical precision and the space quantization.
 
@@ -608,9 +606,167 @@ In the case with test object 3.2, a collapse on one side of the spoke is timed t
 
 Thus, if two simultaneous collapse events should occur, with differing locations, and they share a common spoke, the one closer to the source vertex should be chosen.
 
-\subsection{Conclusion}
+\subsection{Degenerate and Compound Events}
 
-In conclusion, the quantization of space results in a reliable method for event ordering and coalescing.
+\subsubsection{Simple Events}
+
+\begin{figure}[htpb]
+\begin{center}
+\subfigure[Collapse]{
+		\includegraphics[scale=0.6667]{fig-simple-collapse.pdf}
+		\label{fig:simplecollapse}}
+\subfigure[Split]{
+		\includegraphics[scale=0.6667]{fig-simple-split.pdf}
+		\label{fig:simplesplit}}
+\caption{Simple Events.}
+\label{fig:simpleevents}
+\end{center}
+\end{figure}
+
+Simple events, such as in \cref{fig:simpleevents}, are no problem to compute. There is no ambiguity or race condition.
+
+
+\subsubsection{Simple Degenerate Cases}
+
+\begin{figure}[htpb]
+\begin{center}
+\subfigure[Simultaneous Collapse]{
+		\includegraphics[scale=0.6667]{fig-degenerate-collapse.pdf}
+		\label{fig:degeneratecollapse}}
+\subfigure[Parallel Neighbours]{
+		\includegraphics[scale=0.6667]{fig-parallel-collapse.pdf}
+		\label{fig:parallelcollapse}}
+\subfigure[Parallel Neighbours Reverse]{
+		\includegraphics[scale=0.6667]{fig-parallel-collapse2.pdf}
+		\label{fig:parallelcollapse2}}
+\subfigure[Degenerate Parallel Collapse]{
+		\includegraphics[scale=0.6667]{fig-parallel-collapse3.pdf}
+		\label{fig:parallelcollapse3}}
+\caption{Degnerate Events.}
+\label{fig:degenerateevents}
+\end{center}
+\end{figure}
+
+
+Next up are degenerate events. \Cref{fig:degeneratecollapse} shows a form where multiple wavefronts collapse simultaneously in a single point. This kind of event poses no problem, however, as the order of event resolution does not matter. Similarly, \cref{fig:parallelcollapse} is not a problem in itself. The collapse generates a new spoke with infinite velocity. It's reverse condition in  \cref{fig:parallelcollapse2} results in the same situation as \cref{fig:degeneratecollapse}, only that the wavefront propagation terminates. A problem can occur, when the situation in \cref{fig:parallelcollapse3} arises. If the collapses were computed with perfect accuracy, this would be the actual situation, not the two previous cases. Mathematically the two spokes would collide. However, they clearly do have to collide.
+
+The question arises, how a fast\footnote{an angular bisector with infinite speed} spoke should be handled. The fundamental question is, are fast spokes always generated in pairs? If that is the case, the condition can be detected easily, as the two involved wavefronts form a two-member loop.
+
+\subsubsection{Compound Split and Collapse}
+
+\label{sec:compoundsplit}
+
+\begin{figure}[htpb]
+\begin{center}
+\includegraphics[scale=0.6667]{fig-compound-split-collapse.pdf}
+\caption{Compound Split and Collapse.}
+\label{fig:compoundcollapse}
+\end{center}
+\end{figure}
+
+
+There exist configurations, such as in \cref{fig:compoundcollapse}, which pose timing problems between split and collapse events. In the figure, the left side of the split collapses simultaneously. Due to limited numeric precision, the split or collapse might occur first. If the collapse occurs first, the split should be annulled, and the collapse resolves to the right configuration.
+
+\subsubsection{Terminal Split}
+
+\begin{figure}[htpb]
+\begin{center}
+\subfigure[Terminal Split Theory]{
+		\includegraphics[scale=0.6667]{fig-terminal-split.pdf}
+		\label{fig:terminalsplit:theory}}
+\subfigure[Terminal Split Ideal]{
+		\includegraphics[scale=0.6667]{fig-terminal-split-ideal.pdf}
+		\label{fig:terminalsplit:ideal}}
+\subfigure[Terminal Split Actual]{
+		\includegraphics[scale=0.6667]{fig-terminal-split2.pdf}
+		\label{fig:terminalsplit:actual}}
+\caption{Terminal Split Edge Case.}
+\label{fig:terminalsplit}
+\end{center}
+\end{figure}
+
+
+\Cref{fig:terminalsplit:theory} poses another challenge. Intuitively, the split should occur so that \cref{fig:terminalsplit:ideal} is the result. However, the wavefront graph is such that bisector $CD$ will split wavefront $A$, thus resulting in a situation as in \cref{fig:terminalsplit:actual}, with a leftover fragment of $A$, potentially of infinite length, if $AB$ and $CD$ meet where the split would occur.
+
+If the leftover fragment of $A$ is of finite size, the geometry is not degenerate, though unintuitive. However, an infinitely small wavefront with parallel spokes poses a problem
+
+Some important questions are:
+
+\paragraph{Can the event location be such that wavefronts $C$ and $B$ are oppositely ordered to \cref{fig:terminalsplit:actual}?} This case should not occur, as if $CD$ reaches the meeting point before $AB$, then motorcycle $AB$ would terminate, and the roles of the two motorcycles would be reversed, thus resulting in the same configuration, only mirrored vertically.
+
+The intersection point of $AB,CD$ may be exactly in between grid cells, in which case edges $A,D$ will not be in the same grid cell along $CD$ at any point in time. In this case, the point closer to the origin of $CD$ should be chosen as the split location, as that will always result in a configuration such as \cref{fig:terminalsplit:actual}.
+
+\paragraph{Is a zero-length leftover segment of $A$ a problem in further wave propagation?} This question assumes that the situation is exactly as in \cref{fig:terminalsplit:theory}, with $AB$ and $CD$ reaching their intersection points at exactly the same time.
+
+\begin{figure}[htpb]
+\begin{center}
+\includegraphics[scale=0.6667]{fig-terminal-split3.pdf}
+\caption{Resolution of split following terminal split.}
+\label{fig:terminalsplit:order}
+\end{center}
+\end{figure}
+
+If the split and terminal vertices are exactly coincident, there is a conflict with the situation as laid out in \cref{sec:compoundsplit}. As shown in \cref{fig:terminalsplit:order}, the collapse of wavefront $C$ should normally occur after the edge $E$ is split. If both coincide, however, the condition that a split follows a collapse at a given location and time, must be refined.
+
+In the case of coincidence, it seems reasonable to discard the vestigial wavefront immediately, when evaluating the original split event. Coincidence in this case is defined by exactly coincident virtual source vertices for the two spokes, as well as their colinearity.
+
+ 
+\subsubsection{Parallel Non-Split}
+
+
+\begin{figure}[htpb]
+\begin{center}
+\subfigure[Problem]{
+		\includegraphics[scale=0.6667]{fig-parallel-non-split.pdf}
+		\label{fig:parallelnonsplit:problem}}
+\subfigure[Solution]{
+		\includegraphics[scale=0.6667]{fig-parallel-non-split-solution.pdf}
+		\label{fig:parallelnonsplit:solution}}
+\caption{Degenerate Split.}
+\label{fig:parallelnonsplit}
+\end{center}
+\end{figure}
+
+
+\Cref{fig:parallelnonsplit} depicts a situation in which the bottom edge is made up of two parts which are not strictly concave, but exactly parallel. This case illustrates that a motorcycle must be generated 
+
+\subsubsection{The Degenerate Cross}
+
+\begin{figure}[htpb]
+\begin{center}
+\subfigure[Ambiguous Cross]{
+		\includegraphics[scale=0.6667]{fig-degenerate-cross.pdf}
+		\label{fig:degeneratecross:ambiguity}}
+\subfigure[Wheel]{
+		\includegraphics[scale=0.6667]{fig-degenerate-cross2.pdf}
+		\label{fig:degeneratecross:wheel}}
+\subfigure[Z]{
+		\includegraphics[scale=0.6667]{fig-degenerate-cross3.pdf}
+		\label{fig:degeneratecross:z}}
+\subfigure[Asymmetric]{
+		\includegraphics[scale=0.6667]{fig-degenerate-cross4.pdf}
+		\label{fig:degeneratecross:asymmetric}}
+\caption{Degenerate Cross Motorcycle Graph.}
+\label{fig:degeneratecross}
+\end{center}
+\end{figure}
+
+
+The degenerate cross configuration shown in \cref{fig:degeneratecross:ambiguity} is already non-deterministic at the motorcycle tracing phase, possibly leading to problems later on. All four motorcycles reach the intersection point at the same time, and several different arrangements, as depicted in \cref{fig:degeneratecross:wheel,fig:degeneratecross:z,,fig:degeneratecross:asymmetric}, can arise, depending on the starting vertex of the source polygon\footnote{that is the assumption, at least}, even without the depicted displacement of the four vertices.
+
+\Cref{fig:degeneratecross:asymmetric} has been observed to pose a problem, with the result that the split between corners $D,A$ (or $C,D$) is not completed right, when the four corners are in perfect alignment.
+
+Observing the arrangement, the configuration of $D$ seems straight forward, with a clear opposing front to the spoke. Following this, $A$ and $C$ may be assigned to either opposing or neighbour wavefronts, but the opposing wavefront for $B$ is tricky. The opposing front of $A$ should be $D$'s right neighbour, and $B$'s opposing front should be $A$'s right neighbour.
+
+However, 
+
+\subsection{Exactness}
+
+All events during polygon offsetting result from angular bisectors, and the intersections of the angular bisectors and the segments of the source polygon.
+
+\subsubsection{Conclusion}
+
+In conclusion, ???.
 
 %$$ S = v3Add(vReverseProject(v0, e1), vReverseProject(v1, e0))$$
 
