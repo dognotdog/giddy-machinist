@@ -29,7 +29,7 @@
 - (instancetype) negate;
 - (instancetype) abs;
 - (NSString*) stringValue;;
-- (long) sign;
+//- (long) sign;
 
 - (long) isZero;
 - (long) isPositive;

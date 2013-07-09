@@ -270,14 +270,18 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 		BOOL atEnd[4] = {NO, NO, YES, YES};
 		BOOL reverse[4] = {NO, YES, NO, YES};
 		
+		v3i_t rb = referenceSegment.begin;
+		v3i_t re = referenceSegment.end;
 		size_t si = 0;
 		for (FixPolygonOpenSegment* segment in unprocessedSegments)
 		{
+			v3i_t sb = segment.begin;
+			v3i_t se = segment.end;
 			v3i_t delta[4] = {
-				v3iSub(referenceSegment.begin, segment.begin),
-				v3iSub(referenceSegment.begin, segment.end),
-				v3iSub(referenceSegment.end, segment.begin),
-				v3iSub(referenceSegment.end, segment.end),
+				v3iSub(rb, sb),
+				v3iSub(rb, se),
+				v3iSub(re, sb),
+				v3iSub(re, se),
 			};
 			
 			vmlong_t distance[4];
