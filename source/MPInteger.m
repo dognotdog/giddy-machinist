@@ -376,7 +376,7 @@ static double mp_get_double(mp_int *a)
 - (void) increasePrecisionByBits:(size_t)shift
 {
 	mp_mul_2d(&mpint, shift, &mpint);
-	decimalShift+= shift;
+	decimalShift += shift;
 }
 
 - (void) decreasePrecisionByBits:(size_t)shift
@@ -629,6 +629,7 @@ double mp_get_double2(mp_int *a) {
 	mp_int r;
 	mp_init_copy(&r, &mpint);
 	
+	assert(decimalShift >= 0);
 	mp_mul_2d(&r, decimalShift, &r);
 	mp_sqrt(&r, &r);
 	

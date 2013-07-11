@@ -1114,6 +1114,9 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	
 	MPVector2D* v = [self.sourceVertex.mpPosition add: [num scaleNum: t den: den]];
 	
+	if (v.minIntegerBits > 15)
+		return v3iCreate(0, 0, 0, 16); // FIXME: should not be necessary to check here!
+	
 	v3i_t x = [v toVectorWithShift: 16];
 	
 	return x;

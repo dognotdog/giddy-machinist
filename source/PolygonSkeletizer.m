@@ -1225,6 +1225,53 @@ static MPVector2D* _splitLocation(PSMotorcycleSpoke* mspoke)
 	assert(waveFront.edge);
 	
 	
+	
+	v3i_t we = waveFront.edge.edge;
+	v3i_t wn = _rotateEdgeToNormal(we);
+	
+	assert(mspoke.mpNumerator && !(mspoke.mpNumerator.x.isZero && mspoke.mpNumerator.y.isZero));
+	MPDecimal* xx = [mspoke.mpDirection dot: [MPVector2D vectorWith3i: wn]];
+	
+	
+	if (xx.isPositive || xx.isZero)
+	{
+		return nil;
+	}
+	
+	MPVector2D* D = mspoke.mpNumerator;
+	MPDecimal* d = mspoke.mpDenominator;
+	
+	MPVector2D* E = waveFront.edge.mpEdge;
+	MPDecimal* El = E.length;
+//	MPDecimal* EE = [E dot: E];
+//	MPVector2D* N = E.rotateCCW;
+	
+	MPVector2D* V = mspoke.opposingWaveFront.edge.leftVertex.mpPosition;
+	MPVector2D* B = mspoke.sourceVertex.mpPosition;
+	
+	
+	MPDecimal* nom = [[V sub: B] cross: E];
+	MPDecimal* den = [[D cross: E] add: [d mul: El]];
+
+	MPVector2D* uR = [D scaleNum: nom den: den];
+	MPVector2D* X = [B add: uR];
+	
+	if (X.minIntegerBits > 15)
+		return nil;
+
+	assert([waveFront.edge mpVertexInPositiveHalfPlane: X]);
+	
+	return X;
+}
+
+static MPVector2D* _splitLocation2(PSMotorcycleSpoke* mspoke)
+{
+	PSWaveFront* waveFront = mspoke.opposingWaveFront;
+	assert(waveFront);
+	assert(mspoke.motorcycle.sourceVertex);
+	assert(waveFront.edge);
+	
+	
 	MPDecimal* tguess = [MPDecimal zero];
 	v3i_t xGuess = mspoke.motorcycle.sourceVertex.position;
 	

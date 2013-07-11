@@ -443,16 +443,16 @@ For given vertices $A$ and $B$, the intersection point of the plane and the edge
 The intersection of two lines in 2D must also be exact. Reversing any of the lines must yield the same intersection point.
 
 For given points $P,Q$ and segments $R,S$: $$ P + u\cdot R = Q + v \cdot S = X$$
-The times are given by
+The times are given by\footnote{$A \otimes B$ in this context is a pseudo cross product, equivalent to $x_A y_B - x_B y_A$. The extended cross product identities do not apply, but it is anticommutative, and distributive over addition and scalar multiplication. }
 \begin{eqnarray*}
-d &=& R \times S \\
-u &=& \frac{(Q-P) \times R}{d} \\
-v &=& \frac{(P-Q) \times S}{d}
+d &=& R \otimes S \\
+u &=& \frac{(Q-P) \otimes S}{d} \\
+v &=& \frac{(P-Q) \otimes R}{d}
 \end{eqnarray*}
 
 Alternatively, as described \cite{mw:lli}, via the equation system's determinant:
 \begin{eqnarray*}
-X &=& \frac{R (Q \times S )  - S (P \times R )}{R \times S}
+X &=& \frac{R (Q \otimes S )  - S (P \otimes R )}{R \otimes S}.
 \end{eqnarray*}
 
 
@@ -509,18 +509,18 @@ To be exact, during wavefront propagation, two neighbouring bisectors must reach
 The normal $N$ is composed of $N = (-y_E, x_E) / ||E||$, so\footnote{
 Substituting inversely, with $E = ||E||\cdot(y_N, -x_E)$ yields a very simple simplification, but with numeric pitfalls
 \begin{eqnarray*}
-S &=& \frac{E_{BC}}{||E_{BC}||} \frac{N_{AB} \cdot N_{AB}}{N_{AB} \times N_{BC}} +  \frac{E_{AB}}{||E_{AB}||} \frac{N_{BC} \cdot N_{BC}}{N_{BC} \times N_{AB}} \\
-S &=& {N_{BC}} \frac{N_{AB} \cdot N_{AB}}{N_{AB} \times N_{BC}} - N_{AB} \frac{N_{BC} \cdot N_{BC}}{N_{AB} \times N_{BC}} \\
-S &=& \frac{N_{BC} - N_{AB}}{N_{AB} \times N_{BC}}
+S &=& \frac{E_{BC}}{||E_{BC}||} \frac{N_{AB} \cdot N_{AB}}{N_{AB} \times N_{BC}} +  \frac{E_{AB}}{||E_{AB}||} \frac{N_{BC} \cdot N_{BC}}{N_{BC} \otimes N_{AB}} \\
+S &=& {N_{BC}} \frac{N_{AB} \cdot N_{AB}}{N_{AB} \otimes N_{BC}} - N_{AB} \frac{N_{BC} \cdot N_{BC}}{N_{AB} \otimes N_{BC}} \\
+S &=& \frac{N_{BC} - N_{AB}}{N_{AB} \otimes N_{BC}}
 \end{eqnarray*}
 }
 
 \begin{eqnarray*}
 S &=& \frac{E_{BC}}{|| E_{AB} ||} \frac{E_{AB} \cdot E_{AB}}{N'_{AB} \cdot E_{BC}} +  \frac{E_{AB}}{|| E_{BC} ||} \frac{E_{BC} \cdot E_{BC}}{N'_{BC} \cdot E_{AB}} \\
-S &=& \frac{E_{BC}}{|| E_{AB} ||} \frac{E_{AB} \cdot E_{AB}}{E_{AB} \times E_{BC}} +  \frac{E_{AB}}{|| E_{BC} ||} \frac{E_{BC} \cdot E_{BC}}{E_{BC} \times E_{AB}} \\
-S &=& E_{BC} \frac{|| E_{AB} ||}{E_{AB} \times E_{BC}} +  E_{AB} \frac{|| E_{BC} ||}{E_{BC} \times E_{AB}} \\
-S &=& E_{BC} \frac{|| E_{AB} ||}{E_{AB} \times E_{BC}} - E_{AB} \frac{|| E_{BC} ||}{E_{AB} \times E_{BC}} \\
-S &=& \frac{E_{BC}|| E_{AB} || - E_{AB} || E_{BC} ||}{E_{AB} \times E_{BC}}
+S &=& \frac{E_{BC}}{|| E_{AB} ||} \frac{E_{AB} \cdot E_{AB}}{E_{AB} \otimes E_{BC}} +  \frac{E_{AB}}{|| E_{BC} ||} \frac{E_{BC} \cdot E_{BC}}{E_{BC} \otimes E_{AB}} \\
+S &=& E_{BC} \frac{|| E_{AB} ||}{E_{AB} \otimes E_{BC}} +  E_{AB} \frac{|| E_{BC} ||}{E_{BC} \otimes E_{AB}} \\
+S &=& E_{BC} \frac{|| E_{AB} ||}{E_{AB} \otimes E_{BC}} - E_{AB} \frac{|| E_{BC} ||}{E_{AB} \otimes E_{BC}} \\
+S &=& \frac{E_{BC}|| E_{AB} || - E_{AB} || E_{BC} ||}{E_{AB} \otimes E_{BC}}
 \end{eqnarray*}
 
 A numeric problem occurs if $E_{AB} \times E_{BC}$ is zero. In that case, the lines are either parallel or anti-parallel to within numerical limits. If they are parallel, the term $E_{BC}|| E_{AB} || - E_{AB} || E_{BC} ||$ tends towards zero as well as the denominator, and a well-behaved bisector of the form
@@ -531,40 +531,56 @@ results. In the other case, the bisector is collinear with both vectors, and of 
 
 Carrying on to the intersection of bisectors $ABC, UVW$:
 \begin{eqnarray*}
-R &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \times E_{BC}} \\
-S &=& \frac{E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||}{E_{UV} \times E_{VW}} \\
-R \times S &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \times E_{BC}} \times \frac{E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||}{E_{UV} \times E_{VW}} \\
-R \times S &=& \frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)}{(E_{AB} \times E_{BC}) \cdot (E_{UV} \times E_{VW})} \\
-u &=& \frac{(V-B) \times R}{R \times S} \\
-u &=& \frac{(V-B) \times \left( \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \times E_{BC}}\right)}{\frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)}{(E_{AB} \times E_{BC}) \cdot (E_{UV} \times E_{VW})}} \\
-u &=& \frac{(V-B) \times \left( {E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}\right) \cdot (E_{UV} \times E_{VW})}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)} \\
-%uR &=& (E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \frac{(V-B) \times \left( {E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}\right) \cdot (E_{UV} \times E_{VW})}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)} \\
-v &=& \frac{(B-V) \times S}{S \times R} \\
-v &=& \frac{(V-B) \times \left( {E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||}\right) \cdot (E_{AB} \times E_{BC})}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)} \\
-X &=& \frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \cdot (V \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)) }{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)} \\
-  &-& \frac{(E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||) \cdot (B \times (E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||)) }{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)}
+R &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \otimes E_{BC}} \\
+S &=& \frac{E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||}{E_{UV} \otimes E_{VW}} \\
+R \otimes S &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \otimes E_{BC}} \otimes \frac{E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||}{E_{UV} \otimes E_{VW}} \\
+R \otimes S &=& \frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \otimes (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)}{(E_{AB} \otimes E_{BC}) \cdot (E_{UV} \otimes E_{VW})} \\
+X &=& \frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \cdot (V \otimes (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)) }{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \otimes (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)} \\
+  &-& \frac{(E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||) \cdot (B \otimes (E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||)) }{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \otimes (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)}
 \end{eqnarray*}
 
 \paragraph{Motorcycle-Edge Crash}
 The crashing of bisector of $ABC$ and edge $UV$:
 \begin{eqnarray*}
-R &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \times E_{BC}} \\
+R &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \otimes E_{BC}} \\
 S &=& E_{UV} \\
-R \times S &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \times E_{BC}} \times E_{UV} \\
-u &=& \frac{(U-B) \times R}{R \times S} \\
-u &=& \frac{(U-B) \times \left( E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||\right)}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times E_{UV}} \\
-v &=& \frac{(B-U) \times S}{S \times R} \\
-v &=& \frac{\left((U-B) \times E_{UV}\right) \cdot (E_{AB} \times E_{BC})}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times E_{UV}} \\
-X &=& \frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \cdot (V \times E_{UV}) - E_{UV} (B \times (E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||))}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \times E_{UV}}
+R \otimes S &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \otimes E_{BC}} \otimes E_{UV} \\
+X &=& \frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \cdot (V \otimes E_{UV}) - E_{UV} (B \otimes (E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||))}{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \otimes E_{UV}}
 \end{eqnarray*}
+
 
 \paragraph{Motorcycle-Wavefront Split}
 
-The split is different from the edge crash in the magnitude of the $R$ only. $R$'s magnitude is increased by the reverse projection of the wavefront normal to $R'$.
+The wavefront split is similar to the edge crash, except that the wavefront moves. The wavefront's velocity can be added to $R$. 
+
 \begin{eqnarray*}
-R' &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \times E_{BC}} \\
-R &=& R' - R' \frac{N_{UV} \cdot N_{UV}}{N_{UV} \cdot R'} \\
-R &=& R' \left( 1 - \frac{N_{UV} \cdot N_{UV}}{N_{UV} \cdot R'} \right)\\
+\hat{N} &=& \frac{(-y_E, x_E)}{||E||}\\
+R' &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \otimes E_{BC}} \\
+S &=& R' - \hat{N}_{UV} \\
+S &=& E_{UV} \\
+R \otimes S &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \otimes E_{BC}} \otimes E_{UV} - \hat{N}_{UV} \otimes E_{UV} \\
+u &=& \frac{(V-B) \otimes S}{R \otimes S} \\
+X &=& B+u \cdot R' \\
+X &=& B+\frac{(V-B) \otimes S}{R \otimes S} R' \\
+X &=& B+\frac{(V-B) \otimes E_{UV}}{R \otimes S} R' 
+\end{eqnarray*}
+
+The first part of the solution is the same as for the edge crash, but the second part is new, to compensate for the changed bisector ray. By applying the identity
+\begin{eqnarray*}
+A \otimes \hat{N} &=& \frac{A \cdot E}{||E||}
+\end{eqnarray*}
+the equation becomes
+\begin{eqnarray*}
+R \otimes S &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \otimes E_{BC}} \otimes E_{UV} + \frac{ E_{UV} \cdot E_{UV}}{||E_{UV}||} \\
+R \otimes S &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \otimes E_{BC}} \otimes E_{UV} + ||E_{UV}|| \\
+%X &=& B+\frac{(V-B) \otimes R' || E_{UV} ||- {E}_{UV}(V-B) }{|| E_{UV} || R \otimes S} R' 
+\end{eqnarray*}
+
+The equation becomes rather complex, and care must be taken to reduce it. Division should be avoided wherever possible to avoid rounding, and it seems prudent to execute it only at the last step. Similarly, the vector length operations need also to be further cancelled and rearranged.
+\begin{eqnarray*}
+R' &=& \frac{D}{d} \\
+X &=& B + \frac{(V-B) \otimes E}{\frac{D}{d} \otimes E + ||E||} \frac{D}{d} \\
+X &=& B + D \frac{(V-B) \otimes E}{D \otimes E + d ||E||} \\
 \end{eqnarray*}
 
 
