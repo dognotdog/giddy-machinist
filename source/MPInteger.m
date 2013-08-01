@@ -372,6 +372,11 @@ static double mp_get_double(mp_int *a)
 	return [[MPDecimal alloc] initWithInt64: 0 shift: 0];
 }
 
++ (id) largerThan32Sqr
+{
+	return [[MPDecimal alloc] initWithInt64: INT64_MAX shift: 32];
+}
+
 
 - (void) increasePrecisionByBits:(size_t)shift
 {

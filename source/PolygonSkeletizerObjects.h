@@ -110,6 +110,11 @@
 
 @end
 
+@interface PSDegenerateSpoke : PSSpoke
+//@property(nonatomic) v3i_t velocity;
+
+@end
+
 
 @interface PSMotorcycleSpoke : PSSimpleSpoke
 @property(nonatomic, weak) PSMotorcycle		*motorcycle;
@@ -193,7 +198,7 @@
 @property(nonatomic, strong) PSSpoke* leftSpoke;
 @property(nonatomic, strong) PSSpoke* rightSpoke;
 @property(nonatomic, weak) PSSourceEdge* edge;
-//@property(nonatomic, weak) PSCollapseEvent* collapseEvent;
+@property(nonatomic, weak) PSCollapseEvent* collapseEvent;
 
 @property(nonatomic) v3i_t startLocation, endLocation;
 @property(nonatomic, weak) PSWaveFront* successor;
@@ -206,6 +211,8 @@
 
 - (void) swapSpoke: (PSSpoke*) oldSpoke forSpoke: (PSSpoke*) newSpoke;
 - (BOOL) isWeaklyConvexTo: (PSWaveFront*) wf;
+
+- (MPVector2D*) computeCollapseLocation;
 
 @end
 
@@ -253,29 +260,8 @@
 
 @end
 
-/*
-@interface PSBranchCollapseEvent : PSCollapseEvent
 
-@end
 
-@interface PSBranchEvent : PSEvent
-
-- (id) initWithLocation: (v3i_t) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct rootSpoke: (PSMotorcycleSpoke*) spoke branchVertex: (PSCrashVertex*) vertex;
-
-@property(nonatomic,weak) PSCrashVertex* branchVertex;
-@property(nonatomic,weak) PSMotorcycleSpoke* rootSpoke;
-
-@end
- 
-@interface PSReverseBranchEvent : PSEvent
-
-- (id) initWithLocation: (v3i_t) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct rootSpoke: (PSMotorcycleSpoke*) spoke branchVertex: (PSCrashVertex*) vertex;
-
-@property(nonatomic,weak) PSMotorcycleSpoke* rootSpoke;
-@property(nonatomic,weak) PSCrashVertex* branchVertex;
-@end
-
-*/
 @interface PSEmitEvent : PSEvent
 
 @end

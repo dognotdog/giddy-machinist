@@ -148,7 +148,7 @@ A special difficulty occurs when a motorcycle terminates near an outline vertex,
 The implementation is outlined in  \cref{alg:mc}. Large performance improvements could be made by eliminating redundant intersection queries.
 
 \begin{algorithm}
-\caption{Computation of motorcycle graph.}
+\caption{[OBSOLETE] Computation of motorcycle graph.}
 \label{alg:mc}
 \begin{algorithmic}
 \Require{simple input polygon}
@@ -189,7 +189,7 @@ The implementation is outlined in  \cref{alg:mc}. Large performance improvements
 After the motorcycle graph is generated, the wavefront propagation can be started. Each edge emits a wavefront, which can either collapse, or be split by a motorcycle.
 
 \begin{algorithm}
-\caption{Wavefront Initialization.}
+\caption{[OBSOLETE] Wavefront Initialization.}
 \label{alg:wpi}
 \begin{algorithmic}
 \Require{simple input polygon}
@@ -210,10 +210,6 @@ After the motorcycle graph is generated, the wavefront propagation can be starte
 \For{each wavefront}
 	\State compute collapse time
 	\State add collapse event to event queue
-\EndFor
-
-\For{each branch and merge vertex}
-	\State add respective events to event queue
 \EndFor
 
 \For{each motorcycle spoke}
@@ -238,6 +234,70 @@ After the motorcycle graph is generated, the wavefront propagation can be starte
 
 \end{algorithmic}
 \end{algorithm}
+
+\begin{algorithm}
+\caption{Collapse Event Handling}
+\label{alg:fpce}
+\begin{algorithmic}
+
+	\State Add spokes belonging to wavefront, and neighbours, to changed spokes.
+	\State Remove wavefront's spokes from active list.
+	\State Terminate wavefront.
+
+	\If{both left and right spoke were already terminated} 
+		\State NOP
+%	\ElsIf{contains trace crash}
+	\Else
+		\If{left or right spoke terminated}
+			\State Use vertex for event.
+		\Else
+			\State Create new vertex at event location.
+		\EndIf
+		
+		\State Assign event vertex to unterminated spoke(s).
+		
+		\If{left and/or right spoke are motorcycle spokes}
+			\State As spoke is being terminated, remove it from opposing wavefront (split) tracking.
+		\EndIf
+		
+		\If{neighbours aren't weakly convex OR  both neighbours are the same object}
+			\State ¿ terminate neighbour wavefronts or not ?
+		\Else
+			\State Create new spoke between neighbours.
+			\State re-assign opposing spokes from wavefront to neighbours
+		\EndIf
+	\EndIf 
+	
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Split Event Handling}
+\label{alg:fpse}
+\begin{algorithmic}
+
+	\State Add spokes to changed spokes.
+	\State Create split vertex.
+	\State As splitting spoke is being terminated, remove it from opposing wavefront (split) tracking.
+	
+	\State create newLeftFront and newRightFront.
+
+
+	\State Terminate split wavefront.
+	
+	
+	\If{newLeftFront/newRightFront vestigial}
+		\State Discard vestigial front(s) again.
+	\EndIf
+	
+	\For{each opposing spoke of split front}
+		\State Re-assign tracking to newLeftFront/newRightFront accordingly.
+	\EndFor
+
+	
+\end{algorithmic}
+\end{algorithm}
+
 
 \subsubsection{Wavefront Events}
 
@@ -424,13 +484,21 @@ $\celsius$ & $\dfrac{\joule}{\kilo\gram \cdot \kelvin}$ \\
 
 Based on flow rate and specific heat capacity, the amount of heat energy required to melt the filament can be computed, and it can be used for better heat regulation.
 
-\section{Exact Fixed Point Arithmetic for Polygon Offsetting}
+\section{Fixed Point Arithmetic Polygon Offsetting}
 
 Fixed point math could get rid of numeric issues that plague floating point implementations for polygon offsetting.
 
-Based on the millimeter as a base unit, a 16.16 fixed point representation results in a work area of 65 by 65 meters, with a resolution of about 15 nanometers, which is quite sufficient for the intended target of FDM printing and milling.
+Based on the millimeter as a base unit, a 16.16 fixed point representation results in a work area of 65 by 65 meters, with a resolution of about 15 nanometers, which is quite sufficient for the intended target of FDM printing and small scale milling.
 
 Furthermore, arbitrary scaling can be applied to increase the working area, or to increase resolution.
+
+
+\subsection{Multi-Precision Integer Arithmetic}
+
+The use of multi-precision integer arithmetic allows good control of rounding artifact, and some operations are even exact. Multiplication and addition can be performed without penalty, only division and square root, of the common operations in this context, are rounded.
+
+Even though the final result of some computation is almost certainly rounded, the rounding operations can be factored out to be performed last, thus preventing the accumulation of rounding errors.
+
 
 \subsection{3D Triangle-Plane Intersection}
 
@@ -527,7 +595,7 @@ A numeric problem occurs if $E_{AB} \times E_{BC}$ is zero. In that case, the li
 $$ S = \frac{N_{AB} + N_{BC}}{2}$$
 results. In the other case, the bisector is collinear with both vectors, and of infinite velocity. The anti-parallel case results in the direction $ S' = E_{BC}|| E_{AB} || - E_{AB} || E_{BC} ||.$
 
-\paragraph{Motorcycle-Motorcycle Crash}
+\subsubsection{Motorcycle-Motorcycle Crash}
 
 Carrying on to the intersection of bisectors $ABC, UVW$:
 \begin{eqnarray*}
@@ -539,7 +607,8 @@ X &=& \frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \cdot (V \otimes (E_{VW} 
   &-& \frac{(E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||) \cdot (B \otimes (E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||)) }{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \otimes (E_{VW} || E_{UV} || - E_{UV}|| E_{VW} ||)}
 \end{eqnarray*}
 
-\paragraph{Motorcycle-Edge Crash}
+\subsubsection{Motorcycle-Edge Crash}
+
 The crashing of bisector of $ABC$ and edge $UV$:
 \begin{eqnarray*}
 R &=& \frac{E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||}{E_{AB} \otimes E_{BC}} \\
@@ -549,7 +618,7 @@ X &=& \frac{(E_{BC} || E_{AB} || - E_{AB}|| E_{BC} ||) \cdot (V \otimes E_{UV}) 
 \end{eqnarray*}
 
 
-\paragraph{Motorcycle-Wavefront Split}
+\subsubsection{Motorcycle-Wavefront Split}
 
 The wavefront split is similar to the edge crash, except that the wavefront moves. The wavefront's velocity can be added to $R$. 
 
@@ -589,38 +658,6 @@ X &=& B + D \frac{(V-B) \otimes E}{D \otimes E + d ||E||} \\
 From the formula for bisector intersections, it can be seen that due to taking length of a vector, and the involved square root, no absolutely exact intersection time can be computed, even with arbitrary precision decimals. However, the intersection times can be computed exactly to arbitrary precision.
 
 Thus, the question is, what precision is necessary? The fixed point space has a Q16 precision. Attaining this spatial resolution for the intersection point is straight forward. However, for the order of events, the timing is important. How precise does the computed time have to be, to guarantee the right order of events?
-
-\subsection{Time and Order of Events}
-
-The order of events is important when dealing with degenerate cases of wavefront events.
-
-We know that the wavefronts move at a speed of one unit of length per unit of time. Thus, it takes one quantum of time to move one quantum of space.
-
-The tip of a spoke, as a point, describes the moving intersection point of the two wavefronts, as they are moved along their normals. When a wavefront collapses, the resulting spoke can be tracked from the virtual intersection point of the original source edges, resulting in no accumulating error in the geometry over successive collapses. On a split, a spoke can be tracked in the same manner.
-
-Assuming that the event locations tracked in this manner are accurate to the spatial quantum, it follows that all events at a given point must happen at the same time. With an exact computation, this would be the exact same time. Thus, we can assume that events in the same place also happen at the same time, provided no events occur before.
-
-How do we know that an event happens before a given spoke reaches our event location quantum? It's easy: any location is reached by the spoke either before, or after reaching the location in question. It is not necessary to compare with another spoke, thus compound rounding errors are not an issue. So for comparing the time on any two events for a given spoke, it is only necessary to compute time to the location quantum, and this comparison only has to be made with enough precision that the time to one location is distinct from the next.
-
-The remaining caveat are spokes with infinite velocity. Practically, they pose no problem. Their source segments cannot be intersected, so the intersection point must be computed differently. The intermediate point between any two points on the source segments is well enough.
-
-\subsubsection{Event Time Definition}
-
-The time of an event is determined by when the last involved wavefront reaches the event location. The square of the time can be computed to high precision. This time will differ from the actual event time, but is a more reliable measure for event ordering\footnote{why? needs proof.}.
-
-\subsubsection{Coalescing Events}
-
-An interesting degenerate case occurs when we have three potential events, $A,B,C$. $A,C$ have the same location, $B$ has a different location. The events $B,C$ involve the same spoke. The order of events is $A < B < C$. By the above definition, $A,C$ belong together, but in this situation, $A$ has a dependency on the later event $B$.
-
-The only sane way of dealing with such situations seems to be to keep track of events on each spoke, and only allow the first event into the event list.
-
-\subsubsection{Relative Timing by Distance Along Spoke}
-
-For opposing wavefronts, situations might occur where the order of split and collapse events becomes ill-defined as a result of numerical precision and the space quantization.
-
-In the case with test object 3.2, a collapse on one side of the spoke is timed to be before the collapse on the other side, though the two collapses should occur at the exact same time. Without further ordering, the logically wrong collapse can be executed first, resulting in erroneous geometry.
-
-Thus, if two simultaneous collapse events should occur, with differing locations, and they share a common spoke, the one closer to the source vertex should be chosen.
 
 \subsection{Degenerate and Compound Events}
 
@@ -744,7 +781,11 @@ In the case of coincidence, it seems reasonable to discard the vestigial wavefro
 \end{figure}
 
 
-\Cref{fig:parallelnonsplit} depicts a situation in which the bottom edge is made up of two parts which are not strictly concave, but exactly parallel. This case illustrates that a motorcycle must be generated 
+\Cref{fig:parallelnonsplit} depicts a situation in which the bottom edge is made up of two parts which are not strictly concave, but exactly parallel. This case illustrates that a motorcycle must be generated.
+
+However, the motorcycle only solves the problem that a split event is generated, at all. The wavefronts may only collapse if a proper loop is formed by the two fast spokes. If between the two spokes, there's only two unique wavefronts, then no splitting spoke exists, and they may collapse.
+
+There exists also another problem: if the problematic spoke is not quite a fast spoke, a regular collapse might occur before the split. Therefore, I propose that while a wavefront has opposing motorcycles, it may not collapse.
 
 \subsubsection{The Degenerate Cross}
 
@@ -775,6 +816,46 @@ The degenerate cross configuration shown in \cref{fig:degeneratecross:ambiguity}
 Observing the arrangement, the configuration of $D$ seems straight forward, with a clear opposing front to the spoke. Following this, $A$ and $C$ may be assigned to either opposing or neighbour wavefronts, but the opposing wavefront for $B$ is tricky. The opposing front of $A$ should be $D$'s right neighbour, and $B$'s opposing front should be $A$'s right neighbour.
 
 However, 
+
+\subsection{Time and Order of Events}
+
+The order of events is important when dealing with degenerate cases of wavefront events.
+
+We know that the wavefronts move at a speed of one unit of length per unit of time. Thus, it takes one quantum of time to move one quantum of space.
+
+The tip of a spoke, as a point, describes the moving intersection point of the two wavefronts, as they are moved along their normals. When a wavefront collapses, the resulting spoke can be tracked from the virtual intersection point of the original source edges, resulting in no accumulating error in the geometry over successive collapses. On a split, a spoke can be tracked in the same manner.
+
+Assuming that the event locations tracked in this manner are accurate to the spatial quantum, it follows that all events at a given point must happen at the same time. With an exact computation, this would be the exact same time. Thus, we can assume that events in the same place also happen at the same time, provided no events occur before.
+
+How do we know that an event happens before a given spoke reaches our event location quantum? It's easy: any location is reached by the spoke either before, or after reaching the location in question. It is not necessary to compare with another spoke, thus compound rounding errors are not an issue. So for comparing the time on any two events for a given spoke, it is only necessary to compute time to the location quantum, and this comparison only has to be made with enough precision that the time to one location is distinct from the next.
+
+The remaining caveat are spokes with infinite velocity. Practically, they pose no problem. Their source segments cannot be intersected, so the intersection point must be computed differently. The intermediate point between any two points on the source segments is well enough.
+
+\subsubsection{Event Time Definition}
+
+The time of an event is determined by when the last involved wavefront reaches the event location. The square of the time can be computed to high precision. This time will differ from the actual event time, but is a more reliable measure for event ordering\footnote{why? needs proof.}.
+
+\subsubsection{Coalescing Events}
+
+An interesting degenerate case occurs when we have three potential events, $A,B,C$. $A,C$ have the same location, $B$ has a different location. The events $B,C$ involve the same spoke. The order of events is $A < B < C$. By the above definition, $A,C$ belong together, but in this situation, $A$ has a dependency on the later event $B$.
+
+The only sane way of dealing with such situations seems to be to keep track of events on each spoke, and only allow the first event into the event list.
+
+
+
+\subsubsection{Relative Timing by Distance Along Spoke}
+
+For opposing wavefronts, situations might occur where the order of split and collapse events becomes ill-defined as a result of numerical precision and the space quantization.
+
+In the case with test object 3.2, a collapse on one side of the spoke is timed to be before the collapse on the other side, though the two collapses should occur at the exact same time. Without further ordering, the logically wrong collapse can be executed first, resulting in erroneous geometry.
+
+Thus, if two simultaneous collapse events should occur, with differing locations, and they share a common spoke, the one closer to the source vertex should be chosen.
+
+\subsubsection{Non-Local Interaction}
+
+Some events may need to be suppressed non-locally, and exactly how to do it is yet unanswered.
+
+
 
 \subsection{Exactness}
 

@@ -49,6 +49,7 @@
 + (instancetype) zero;
 + (instancetype) one;
 + (instancetype) oneHalf;
++ (instancetype) largerThan32Sqr;
 
 - (instancetype) initWithInt64: (int64_t) i shift: (long) shift;
 - (instancetype) initWithDouble: (double) f;

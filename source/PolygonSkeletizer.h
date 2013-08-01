@@ -10,9 +10,11 @@
 
 #import "VectorMath_fixp.h"
 
+@class GfxMesh, PolygonSkeletizer, PSWaveFrontSnapshot, PSMotorcycle, PSEdge, PSVertex, MPDecimal, MPVector2D, PSSpoke;
 
 
-@class GfxMesh, PolygonSkeletizer, PSWaveFrontSnapshot, PSMotorcycle, PSEdge, PSVertex, MPDecimal;
+MPVector2D* PSIntersectSpokes(PSSpoke* spoke0, PSSpoke* spoke1);
+
 
 
 typedef void (^SkeletizerEventCallback)(PolygonSkeletizer* skeletizer, id event);
@@ -38,7 +40,6 @@ typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, PSWaveFron
 - (NSArray*) outlineDisplayPaths;
 
 - (NSArray*) waveFrontOutlinesTerminatedAfter: (MPDecimal*) tBegin upTo: (MPDecimal*) tEnd;
-
 
 @end
 

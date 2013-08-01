@@ -7,6 +7,7 @@
 //
 
 #import "PolygonSkeletizerObjects.h"
+#import "PolygonSkeletizer.h"
 #import "FoundationExtensions.h"
 #import "PriorityQueue.h"
 #import "MPVector2D.h"
@@ -38,7 +39,7 @@
 	
 	
 	
-	assert(!t || ([t compare: [[MPDecimal alloc] initWithInt64: INT32_MAX shift:  0]] < 0));
+	assert(!t || ([t compare: [MPDecimal largerThan32Sqr]] < 0));
 
 	location = loc;
 	timeSqr = t;
@@ -49,7 +50,7 @@
 
 - (void) setTimeSqr:(MPDecimal *)t
 {
-	assert([t compare: [[MPDecimal alloc] initWithInt64: INT32_MAX shift:  0]] < 0);
+	assert([t compare: [MPDecimal largerThan32Sqr]] < 0);
 	timeSqr = t;
 }
 
@@ -162,7 +163,7 @@
 {
 	NSComparisonResult cmp = [super compare: event];
 
-	if (cmp == 0)
+	if ((cmp == 0) && ([self.spokes containsObject: event.motorcycleSpoke]))
 		return NSOrderedAscending; // split comes after collapse
 
 	return cmp;
@@ -189,6 +190,10 @@
 }
 
 
+- (NSArray*) spokes
+{
+	return @[collapsingWaveFront.leftSpoke, collapsingWaveFront.rightSpoke];
+}
 
 - (NSComparisonResult) compare:(PSCollapseEvent *)event
 {
@@ -256,13 +261,16 @@
 
 - (NSArray*) spokes
 {
-	return @[motorcycleSpoke];
+	if (motorcycleSpoke.opposingWaveFront)
+		return @[motorcycleSpoke, motorcycleSpoke.opposingWaveFront.leftSpoke, motorcycleSpoke.opposingWaveFront.rightSpoke];
+	else
+		return @[motorcycleSpoke];
 }
 
 - (NSComparisonResult) compareToCollapse:(PSCollapseEvent *)event
 {
 	NSComparisonResult cmp = [super compare: event];
-	if (cmp == 0)
+	if ((cmp == 0) && ([event.spokes containsObject: motorcycleSpoke]))
 		return NSOrderedDescending; // split comes after collapse
 
 	return cmp;
@@ -381,6 +389,11 @@
 		
 	return cmp;
 }
+- (NSArray*) spokes
+{
+	return @[];
+}
+
 
 
 @end
@@ -452,7 +465,7 @@ static MPVector2D* _mpLinePointDistanceNum(MPVector2D* A, MPVector2D* B, MPVecto
 		MPDecimal* cross = [AB cross: AX];
 	
 		if (!(cross.isPositive || cross.isZero)) // assert that X is in the right half plane
-			return [[MPDecimal alloc] initWithInt64: INT32_MAX shift: 0];
+			return [MPDecimal largerThan32Sqr];
 	}
 	
 	MPDecimal* ABAB = [AB dot: AB];
@@ -462,7 +475,7 @@ static MPVector2D* _mpLinePointDistanceNum(MPVector2D* A, MPVector2D* B, MPVecto
 	
 	MPDecimal* tSqr = [[DAB dot: DAB] div: [ABAB mul: ABAB]];
 	
-	assert([tSqr compare: [[MPDecimal alloc] initWithInt64: INT32_MAX shift: 0]] < 0);
+	assert([tSqr compare: [MPDecimal largerThan32Sqr]] < 0);
 
 	return tSqr;
 }
@@ -1164,6 +1177,40 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 
 @end
 
+@implementation PSDegenerateSpoke
+
+- (v3i_t) positionAtTime: (MPDecimal*) t
+{
+	return self.startLocation;
+}
+
+- (MPVector2D*) mpDirection
+{
+	return [MPVector2D vectorWith3i: v3iCreate(0, 0, 0, 16)];
+}
+
+- (MPVector2D*) mpVelocity
+{
+	return [MPVector2D vectorWith3i: v3iCreate(0, 0, 0, 16)];
+}
+
+
+- (BOOL) convex
+{
+	return NO;
+}
+
+- (NSString *)description
+{
+	vector_t sl = v3iToFloat(self.startLocation);
+	
+	return [NSString stringWithFormat: @"%p (%@) @(%f, %f)", self, [self class], sl.farr[0], sl.farr[1]];
+}
+
+@end
+
+
+
 
 @implementation PSWaveFront
 {
@@ -1269,6 +1316,48 @@ static long _waveFrontsWeaklyConvex(PSWaveFront* leftFront, PSWaveFront* rightFr
 {
 	return _waveFrontsWeaklyConvex(self, wf);
 }
+
+
+
+- (MPVector2D*) computeCollapseLocation
+{
+//	PSSpoke* leftSpoke = self.leftSpoke;
+//	PSSpoke* rightSpoke = self.rightSpoke;
+	
+	MPVector2D* X = nil;
+	
+	
+	if ([leftSpoke isKindOfClass: [PSDegenerateSpoke class]])
+	{
+		X = [MPVector2D vectorWith3i: leftSpoke.startLocation];
+	}
+	
+	if (!X && [rightSpoke isKindOfClass: [PSDegenerateSpoke class]])
+	{
+		X = [MPVector2D vectorWith3i: rightSpoke.startLocation];
+	}
+	
+	if (!X)
+		X = PSIntersectSpokes(leftSpoke, rightSpoke);
+	
+	if (!X)
+	{
+		
+		// if we have a loop, we assume we're running two fast spokes into each other in a closing loop
+		if ((leftSpoke.leftWaveFront == rightSpoke.rightWaveFront) && (rightSpoke.leftWaveFront == leftSpoke.rightWaveFront))
+		{
+			//assert(leftSpoke.mpDenominator.isZero && rightSpoke.mpDenominator.isZero);
+			X = [[[MPVector2D vectorWith3i: leftSpoke.startLocation] add: [MPVector2D vectorWith3i: rightSpoke.startLocation]] scale: [MPDecimal oneHalf]];
+		}
+		
+	}
+
+	return X;
+}
+
+
+
+
 /*
 - (BOOL) isEqual: (PSWaveFront*) object
 {
@@ -1297,7 +1386,7 @@ static long _waveFrontsWeaklyConvex(PSWaveFront* leftFront, PSWaveFront* rightFr
 - (NSString *)description
 {
 	vector_t e = v3iToFloat(self.edge.edge);
-	return [NSString stringWithFormat: @"%p (%@): (%f, %f)", self, [self class], -e.farr[1], e.farr[0]];
+	return [NSString stringWithFormat: @"%p (%@): (%f, %f) o: %d", self, [self class], -e.farr[1], e.farr[0], opposingSpokes.count];
 }
 
 @end
