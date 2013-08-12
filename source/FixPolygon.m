@@ -559,7 +559,10 @@ static MPVector2D* _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
 		if (!X)
 			continue;
 		
-		v3i_t x = [X toVectorWithShift: 16];
+		//v3i_t x = [X toVectorWithShift: 16];
+		
+		MPVector2D* P0 = [MPVector2D vectorWith3i: p0];
+		MPVector2D* P1 = [MPVector2D vectorWith3i: p1];
 		
 		
 		v3i_t e = v3iSub(p1, p0);
@@ -570,9 +573,9 @@ static MPVector2D* _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
 		
 		BOOL goingY = e.y > 0;
 		
-		if (goingY && v3iEqual(p0, x))
+		if (goingY && [P0 isEqualToVector: X])
 			continue;
-		else if (!goingY && v3iEqual(p1, x))
+		else if (!goingY && [P1 isEqualToVector: X])
 			continue;
 		
 		v3i_t d = v3iSub(sc, p0);
@@ -619,12 +622,12 @@ static PolygonIntersection* _findNextIntersection(v3i_t* verticesi, size_t istar
 				v3i_t ej = v3iSub(pj1, pj0);
 				
 				vmlongfix_t crossi0 = v3iCross2D(ei, v3iSub(pj0, pi0));
-				vmlongfix_t crossj0 = v3iCross2D(ej, v3iSub(pi0, pj0));
 				vmlongfix_t crossi1 = v3iCross2D(ei, v3iSub(pj1, pi0));
+				vmlongfix_t crossj0 = v3iCross2D(ej, v3iSub(pi0, pj0));
 				vmlongfix_t crossj1 = v3iCross2D(ej, v3iSub(pi1, pj0));
 				
-				NSComparisonResult diri = lcompare(crossi1.x, crossi0.x);
-				NSComparisonResult dirj = lcompare(crossj1.x, crossj0.x);
+				NSComparisonResult dirj = lcompare(crossi1.x, crossi0.x);
+				NSComparisonResult diri = lcompare(crossj1.x, crossj0.x);
 				
 				PolygonIntersection* intersection = [[PolygonIntersection alloc] init];
 				intersection.location = x;
@@ -674,7 +677,7 @@ static PolygonIntersection* _findNextIntersection(v3i_t* verticesi, size_t istar
 		}
 	}
 	
-	// we would a first intersection, now we have to traverse the paths to find the loops
+	// we found a first intersection, now we have to traverse the paths to find the loops
 	// at an intersection, we decide as follows:
 	// - when both paths enter the other, the CW path is the outline (can only happen on CCW/CW intersect
 	// - when one enters the other, take the one entering
@@ -697,6 +700,8 @@ static PolygonIntersection* _findNextIntersection(v3i_t* verticesi, size_t istar
 			jstart = ix.indexJ+1;
 		}
 		
+		
+		// sort only this subset, as overall it's sorted already
 		[segmentIntersections sortWithOptions: NSSortStable usingComparator: ^NSComparisonResult(PolygonIntersection* X0, PolygonIntersection* X1) {
 			
 			v3i_t p0 = self.vertices[X0.indexI];
@@ -714,7 +719,7 @@ static PolygonIntersection* _findNextIntersection(v3i_t* verticesi, size_t istar
 			return [dot0 compare: dot1];
 			
 		}];
-		
+
 		[intersections addObjectsFromArray: segmentIntersections];
 	}
 	
@@ -722,6 +727,11 @@ static PolygonIntersection* _findNextIntersection(v3i_t* verticesi, size_t istar
 	
 	// next up sort in order of J
 	NSArray* intersectionsOnJ = [intersections sortedArrayWithOptions: NSSortStable usingComparator: ^NSComparisonResult(PolygonIntersection* X0, PolygonIntersection* X1) {
+		
+		NSComparisonResult cmp = lcompare(X0.indexJ, X1.indexJ);
+		
+		if (cmp != NSOrderedSame)
+			return cmp;
 		
 		v3i_t p0 = other.vertices[X0.indexJ];
 		v3i_t p1 = other.vertices[X1.indexJ];
@@ -768,23 +778,26 @@ static PolygonIntersection* _findNextIntersection(v3i_t* verticesi, size_t istar
 		[currentSegment insertVertexAtEnd: currentX.location];
 		
 		v3i_t* vs = followI ? self.vertices : other.vertices;
-		
-		size_t start = followI ? currentX.indexI+1 : currentX.indexJ+1;
-		size_t end = followI ? nextX.indexI : nextX.indexJ;
+		size_t vc = followI ? self.vertexCount : other.vertexCount;
+
+		size_t start = (followI ? currentX.indexI : currentX.indexJ)+1;
+		size_t end = (followI ? nextX.indexI : nextX.indexJ)+1;
 		
 		if (end < start)
-			end += followI ? self.vertexCount : other.vertexCount;
+			end += vc;
 		
 		for (size_t i = start; i < end; ++i)
 		{
 			// add one by one because of "looping" overflow
-			[currentSegment insertVertexAtEnd: vs[i]];
+			[currentSegment insertVertexAtEnd: vs[i % vc]];
 		}
 		
 		
 		
 		if (nextX == loopStartIntersection)
+		{
 			currentSegment = nil;
+		}
 	};
 	
 	
@@ -804,18 +817,20 @@ static PolygonIntersection* _findNextIntersection(v3i_t* verticesi, size_t istar
 		}
 		
 		if ((currentIntersection.dirI > 0) && (currentIntersection.dirJ > 0))
-		{ // entering both, means we're going into a hole
+		{ // entering both, invalid
 			//assert(!other.isCCW);
+			assert(0); // Not a valid configuration
 			
 			followI = !self.isCCW;
-			emitPath = YES;
+			emitPath = NO;
 		}
 		else if ((currentIntersection.dirI < 0) && (currentIntersection.dirJ < 0))
-		{ // exiting both, take the outline
+		{ // exiting both, invalid
 			//assert(!other.isCCW);
-			
+			assert(0); // Not a valid configuration
+
 			followI = self.isCCW;
-			emitPath = YES;
+			emitPath = NO;
 			
 		}
 		else if ((currentIntersection.dirI < 0) && (currentIntersection.dirJ > 0))

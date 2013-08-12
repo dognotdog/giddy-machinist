@@ -323,7 +323,7 @@ static int _divToFloor(int a, int b)
 			
 			
 			
-			if (X)
+			if (X && [[edge.mpEdge.rotateCCW dot: cycle.mpDirection] isNegative])
 			{
 				v3i_t x = [X toVectorWithShift: 16];
 				
@@ -349,6 +349,8 @@ static int _divToFloor(int a, int b)
 					vc.time0Sqr = ta;
 					vc.crashTimeSqr = ta;
 					crash = vc;
+
+					assert([[edge.mpEdge.rotateCCW dot: cycle.mpDirection] isNegative]);
 				}
 				else if (hitEnd)
 				{
@@ -359,6 +361,8 @@ static int _divToFloor(int a, int b)
 					vc.time0Sqr = ta;
 					vc.crashTimeSqr = ta;
 					crash = vc;
+
+					assert([[edge.mpEdge.rotateCCW dot: cycle.mpDirection] isNegative]);
 				}
 				else
 				{
@@ -369,10 +373,14 @@ static int _divToFloor(int a, int b)
 					ec.time0Sqr = ta;
 					ec.crashTimeSqr = ta;
 					crash = ec;
+					
+					assert([[edge.mpEdge.rotateCCW dot: cycle.mpDirection] isNegative]);
+
 				}
 				
 				if (crash)
 				{
+
 					[crashes addObject: crash];
 				}
 			}

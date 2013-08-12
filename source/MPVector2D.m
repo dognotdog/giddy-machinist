@@ -163,5 +163,9 @@
 	return ([self.x compare: object.x] == 0) && ([self.y compare: object.y] == 0);
 	
 }
+- (BOOL) isEqualToVector: (MPVector2D*) object
+{
+	return ([self.x compare: object.x] == 0) && ([self.y compare: object.y] == 0);
+}
 
 @end

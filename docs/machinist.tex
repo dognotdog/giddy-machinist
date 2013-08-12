@@ -856,6 +856,13 @@ Thus, if two simultaneous collapse events should occur, with differing locations
 Some events may need to be suppressed non-locally, and exactly how to do it is yet unanswered.
 
 
+\subsection{Idea: An Event Dependency Graph}
+
+As discussed above, the time of events is not enough to sort and determine which can be processed first. A smarter compare function does not seem to work, either, as it is very difficult to make the compares stable. However, maybe it is possible to generate a dependency graph to help with sorting.
+
+For example, a split will depend on either neighbouring wavefront of the spear collapsing, or the opposing wavefront collapsing. However, the opposing wavefront being split by another spear would not affect this split, it would only result in rearrangement of the wavefront graph, without altering timing of this event.
+
+
 
 \subsection{Exactness}
 
@@ -864,6 +871,15 @@ All events during polygon offsetting result from angular bisectors, and the inte
 \subsubsection{Conclusion}
 
 In conclusion, ???.
+
+\section{Boolean Operations on Polygons}
+
+Boolean operations on polygons are necessary for several FDM features.
+
+\subsection{Simple Polygons with Holes}
+
+The polygons we're dealing with are simple, in the sense that they are non self-intersecting.
+
 
 %$$ S = v3Add(vReverseProject(v0, e1), vReverseProject(v1, e0))$$
 

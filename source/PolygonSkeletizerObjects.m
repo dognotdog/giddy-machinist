@@ -20,7 +20,7 @@
 	NSUInteger hashCache;
 }
 
-@synthesize timeSqr, creationTimeSqr, location;
+@synthesize timeSqr, creationTimeSqr, mpLocation;
 
 - (id) init
 {
@@ -32,7 +32,7 @@
 	return self;
 }
 
-- (id) initWithLocation:(v3i_t)loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct
+- (id) initWithLocation:(MPVector2D*)loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct
 {
 	if (!(self = [super init]))
 		return nil;
@@ -41,7 +41,7 @@
 	
 	assert(!t || ([t compare: [MPDecimal largerThan32Sqr]] < 0));
 
-	location = loc;
+	mpLocation = loc;
 	timeSqr = t;
 	creationTimeSqr = ct;
 	
@@ -72,17 +72,17 @@
 
 - (vector_t) floatLocation
 {
-	return v3iToFloat(self.location);
+	return (self.mpLocation.toFloatVector);
 }
 
-- (MPVector2D*) mpLocation
+- (v3i_t) location
 {
-	return [MPVector2D vectorWith3i: self.location];
+	return [self.mpLocation toVectorWithShift: 16];
 }
 
 - (NSString*) hashString
 {
-	NSString* str = [NSString stringWithFormat: @"%f %f %@ %d %d", self.creationTimeSqr.sqrt.toDouble, timeSqr.sqrt.toDouble, [self class], location.x, location.y];
+	NSString* str = [NSString stringWithFormat: @"%f %f %@ %d %d", self.creationTimeSqr.sqrt.toDouble, timeSqr.sqrt.toDouble, [self class], self.location.x, self.location.y];
 	return str;
 }
 
@@ -98,7 +98,7 @@
 
 - (NSString *)description
 {
-	vector_t loc = v3iToFloat(self.location);
+	vector_t loc = self.floatLocation;
 	return [NSString stringWithFormat: @"%p @%f (%@) (%f, %f)", self, timeSqr.sqrt.toDouble, [self class], loc.farr[0], loc.farr[1]];
 }
 
@@ -119,7 +119,11 @@
 	return cmp;
 }
 
-
+- (BOOL) isIndependent
+{
+	[self doesNotRecognizeSelector: _cmd];
+	return NO;
+}
 @end
 
 
@@ -130,7 +134,7 @@
 
 @synthesize  spokes, collapsingWaveFront;
 
-- (id) initWithLocation:(v3i_t)loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct waveFront:(PSWaveFront *)waveFront
+- (id) initWithLocation: (MPVector2D*)loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct waveFront:(PSWaveFront *)waveFront
 {
 	if (!(self = [super initWithLocation: loc time: t creationTime: ct]))
 		return nil;
@@ -163,8 +167,8 @@
 {
 	NSComparisonResult cmp = [super compare: event];
 
-	if ((cmp == 0) && ([self.spokes containsObject: event.motorcycleSpoke]))
-		return NSOrderedAscending; // split comes after collapse
+//	if ((cmp == 0) && ([self.spokes containsObject: event.motorcycleSpoke]))
+//		return NSOrderedAscending; // split comes after collapse
 
 	return cmp;
 }
@@ -197,17 +201,21 @@
 
 - (NSComparisonResult) compare:(PSCollapseEvent *)event
 {
+	/*
 	if ([event isKindOfClass: [PSSplitEvent class]])
 		return [self compareToSplit: (id)event];
 	else if ([event isKindOfClass: [PSSwapEvent class]])
 		return [self compareToSwap: (id)event];
 	else if ([event isKindOfClass: [PSEmitEvent class]])
 		return [self compareToEmit: (id)event];
+	*/
 	
 	
 	NSComparisonResult cmp = [super compare: event];
 	if (![event isKindOfClass: [PSCollapseEvent class]] || (self.collapsingWaveFront == event.collapsingWaveFront))
 		return cmp;
+	
+	/*
 	
 	PSSpoke* spoke = nil;
 	if (self.collapsingWaveFront.leftSpoke == event.collapsingWaveFront.rightSpoke)
@@ -238,17 +246,66 @@
 		
 		return cmpd;
 	}
-	else
-		return cmp;
+*/
+	
+	return cmp;
+}
+
+- (BOOL) isIndependent
+{
+	if (self.collapsingWaveFront.opposingSpokes.count)
+		return NO;
+	
+	PSEvent* leftCollapse = self.collapsingWaveFront.leftSpoke.leftWaveFront.collapseEvent;
+	PSEvent* rightCollapse = self.collapsingWaveFront.rightSpoke.rightWaveFront.collapseEvent;
+	
+	
+	MPVector2D* X0 = self.mpLocation;
+	
+	if (leftCollapse)
+	{
+		MPVector2D* leftSource = self.collapsingWaveFront.leftSpoke.sourceVertex.mpPosition;
+
+		MPVector2D* XL = leftCollapse.mpLocation;
+		
+		MPVector2D* R0 = [X0 sub: leftSource];
+		MPVector2D* RL = [XL sub: leftSource];
+		
+		MPDecimal* D0 = [R0 dot: R0];
+		MPDecimal* DL = [RL dot: RL];
+		
+		if ([D0 compare: DL] == NSOrderedDescending)
+			return NO;
+	}
+	
+	if (rightCollapse)
+	{
+		MPVector2D* rightSource = self.collapsingWaveFront.rightSpoke.sourceVertex.mpPosition;
+		
+		MPVector2D* XR = rightCollapse.mpLocation;
+		
+		MPVector2D* R0 = [X0 sub: rightSource];
+		MPVector2D* RR = [XR sub: rightSource];
+		
+		MPDecimal* D0 = [R0 dot: R0];
+		MPDecimal* DR = [RR dot: RR];
+		
+		if ([D0 compare: DR] == NSOrderedDescending)
+			return NO;
+	}
+
+	return YES;
 }
 
 @end
+
+
 
 @implementation PSSplitEvent
 
 @synthesize motorcycleSpoke;
 
-- (id) initWithLocation: (v3i_t) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct motorcycleSpoke: (PSMotorcycleSpoke*) spoke;
+- (id) initWithLocation: (MPVector2D*) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct motorcycleSpoke: (PSMotorcycleSpoke*) spoke;
 {
 	if (!(self = [super initWithLocation: loc time: t creationTime: ct]))
 		return nil;
@@ -294,16 +351,57 @@
 
 - (NSComparisonResult) compare: (PSSplitEvent *)event
 {
+	/*
 	if ([event isKindOfClass: [PSCollapseEvent class]])
 		return [self compareToCollapse: (id)event];
 	else if ([event isKindOfClass: [PSSwapEvent class]])
 		return [self compareToSwap: (id)event];
 	else if ([event isKindOfClass: [PSEmitEvent class]])
 		return [self compareToEmit: (id)event];
-	
+	*/
 	
 	NSComparisonResult cmp = [super compare: event];
 	return cmp;
+}
+
+- (BOOL) isIndependent
+{
+	PSEvent* leftCollapse = self.motorcycleSpoke.leftWaveFront.collapseEvent;
+	PSEvent* rightCollapse = self.motorcycleSpoke.rightWaveFront.collapseEvent;
+	
+	
+	MPVector2D* X0 = self.mpLocation;
+	MPVector2D* source = self.motorcycleSpoke.sourceVertex.mpPosition;
+	MPVector2D* R0 = [X0 sub: source];
+	
+	if (leftCollapse)
+	{
+		
+		MPVector2D* XL = leftCollapse.mpLocation;
+		
+		MPVector2D* RL = [XL sub: source];
+		
+		MPDecimal* D0 = [R0 dot: R0];
+		MPDecimal* DL = [RL dot: RL];
+		
+		if ([D0 compare: DL] == NSOrderedDescending)
+			return NO;
+	}
+	
+	if (rightCollapse)
+	{
+		MPVector2D* XR = rightCollapse.mpLocation;
+		
+		MPVector2D* RR = [XR sub: source];
+		
+		MPDecimal* D0 = [R0 dot: R0];
+		MPDecimal* DR = [RR dot: RR];
+		
+		if ([D0 compare: DR] == NSOrderedDescending)
+			return NO;
+	}
+
+	return YES;
 }
 
 @end
@@ -313,7 +411,7 @@
 
 @synthesize motorcycleSpoke, pivotSpoke;
 
-- (id) initWithLocation:(v3i_t)loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct motorcycleSpoke:(PSMotorcycleSpoke *)spoke pivotSpoke:(PSSpoke *)pivot
+- (id) initWithLocation: (MPVector2D*) loc time:(MPDecimal *)t creationTime:(MPDecimal *)ct motorcycleSpoke:(PSMotorcycleSpoke *)spoke pivotSpoke:(PSSpoke *)pivot
 {
 	if (!(self = [super initWithLocation: loc time: t creationTime: ct]))
 		return nil;
@@ -356,19 +454,60 @@
 
 - (NSComparisonResult) compare: (PSSplitEvent *)event
 {
+	/*
 	if ([event isKindOfClass: [PSCollapseEvent class]])
 		return [self compareToCollapse: (id)event];
 	else if ([event isKindOfClass: [PSSplitEvent class]])
 		return [self compareToSplit: (id)event];
 	else if ([event isKindOfClass: [PSEmitEvent class]])
 		return [self compareToEmit: (id)event];
-	
+	*/
 	
 	NSComparisonResult cmp = [super compare: event];
 	return cmp;
 }
 
 
+- (BOOL) isIndependent
+{
+	/*
+	PSEvent* leftCollapse = self.motorcycleSpoke.leftWaveFront.collapseEvent;
+	PSEvent* rightCollapse = self.motorcycleSpoke.rightWaveFront.collapseEvent;
+	
+	
+	MPVector2D* X0 = self.mpLocation;
+	MPVector2D* source = self.motorcycleSpoke.sourceVertex.mpPosition;
+	MPVector2D* R0 = [X0 sub: source];
+	
+	if (leftCollapse)
+	{
+		
+		MPVector2D* XL = leftCollapse.mpLocation;
+		
+		MPVector2D* RL = [XL sub: source];
+		
+		MPDecimal* D0 = [R0 dot: R0];
+		MPDecimal* DL = [RL dot: RL];
+		
+		if ([D0 compare: DL] == NSOrderedDescending)
+			return NO;
+	}
+	
+	if (rightCollapse)
+	{
+		MPVector2D* XR = rightCollapse.mpLocation;
+		
+		MPVector2D* RR = [XR sub: source];
+		
+		MPDecimal* D0 = [R0 dot: R0];
+		MPDecimal* DR = [RR dot: RR];
+		
+		if ([D0 compare: DR] == NSOrderedDescending)
+			return NO;
+	}
+	*/
+	return YES;
+}
 
 @end
 
@@ -394,7 +533,10 @@
 	return @[];
 }
 
-
+- (BOOL) isIndependent
+{
+	return YES;
+}
 
 @end
 

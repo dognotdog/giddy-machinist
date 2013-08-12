@@ -33,6 +33,8 @@
 
 - (MPVector2D*) rotateCCW;
 
+- (BOOL) isEqualToVector: (MPVector2D*) v;
+
 //- (MPVector2D*) projectOn: (MPVector2D*) b;
 
 - (double) floatAngle;

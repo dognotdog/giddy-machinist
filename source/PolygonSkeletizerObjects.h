@@ -219,24 +219,26 @@
 
 @interface PSEvent : NSObject
 
-- (id) initWithLocation: (v3i_t) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct;
+- (id) initWithLocation: (MPVector2D*) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct;
 
 @property(nonatomic, strong) MPDecimal* creationTimeSqr;
 @property(nonatomic, strong) MPDecimal* timeSqr;
-@property(nonatomic) v3i_t location;
+@property(nonatomic) MPVector2D* mpLocation;
 @property(nonatomic, readonly) vector_t floatLocation;
 
 @property(nonatomic, readonly) NSArray* spokes;
 
 - (NSComparisonResult) compare: (PSEvent*) event;
 
-- (MPVector2D*) mpLocation;
+- (BOOL) isIndependent;
+
+- (v3i_t) location;
 
 @end
 
 @interface PSCollapseEvent : PSEvent
 
-- (id) initWithLocation: (v3i_t) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct waveFront: (PSWaveFront*) waveFront;
+- (id) initWithLocation: (MPVector2D*) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct waveFront: (PSWaveFront*) waveFront;
 
 @property(nonatomic,weak) PSWaveFront* collapsingWaveFront;
 
@@ -245,7 +247,7 @@
 
 @interface PSSplitEvent : PSEvent
 
-- (id) initWithLocation: (v3i_t) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct motorcycleSpoke: (PSMotorcycleSpoke*) spoke;
+- (id) initWithLocation: (MPVector2D*) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct motorcycleSpoke: (PSMotorcycleSpoke*) spoke;
 
 @property(nonatomic,weak) PSMotorcycleSpoke* motorcycleSpoke;
 
@@ -253,7 +255,7 @@
 
 @interface PSSwapEvent : PSEvent
 
-- (id) initWithLocation: (v3i_t) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct motorcycleSpoke: (PSMotorcycleSpoke*) spoke pivotSpoke: (PSSpoke*) pivot;
+- (id) initWithLocation: (MPVector2D*) loc time: (MPDecimal*) t creationTime: (MPDecimal*) ct motorcycleSpoke: (PSMotorcycleSpoke*) spoke pivotSpoke: (PSSpoke*) pivot;
 
 @property(nonatomic,weak) PSMotorcycleSpoke*	motorcycleSpoke;
 @property(nonatomic,weak) PSSpoke*				pivotSpoke;
