@@ -1108,6 +1108,7 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes)
 	spoke.rightEdge = cycle.rightEdge;
 
 	spoke.startLocation = vertex.position;
+	spoke.startTimeSqr = [MPDecimal zero];
 	
 	[spokes addObject: spoke];
 	_assertSpokeUnique(spoke, vertex.outgoingSpokes);
@@ -1373,7 +1374,7 @@ static void _assertWaveFrontsConsistent(NSArray* waveFronts)
 	{
 		MPVector2D* xLeftSwap = PSIntersectSpokes(leftSpoke, mspoke);
 				
-		BOOL swapOut = [leftSpoke isVertexCCWFromSpoke: mspoke.sourceVertex.mpPosition];
+		BOOL swapOut = (mspoke.opposingWaveFront != leftSpoke.rightWaveFront);
 		
 		if (xLeftSwap && swapOut)
 			[candidates addObject: @[ xLeftSwap, @[leftSpoke.leftEdge, leftSpoke.rightEdge], [[PSSwapEvent alloc] initWithLocation: xLeftSwap time: nil creationTime: t0 motorcycleSpoke: mspoke pivotSpoke: leftSpoke] ] ];
@@ -1381,7 +1382,7 @@ static void _assertWaveFrontsConsistent(NSArray* waveFronts)
 	{
 		MPVector2D* xRightSwap = PSIntersectSpokes(rightSpoke, mspoke);
 		
-		BOOL swapOut = ![rightSpoke isVertexCCWFromSpoke: mspoke.sourceVertex.mpPosition];
+		BOOL swapOut = (mspoke.opposingWaveFront != rightSpoke.leftWaveFront);
 		if (xRightSwap && swapOut)
 			[candidates addObject: @[ xRightSwap, @[rightSpoke.leftEdge, rightSpoke.rightEdge], [[PSSwapEvent alloc] initWithLocation: xRightSwap time: nil creationTime: t0 motorcycleSpoke: mspoke pivotSpoke: rightSpoke] ] ];
 	}
@@ -2030,6 +2031,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				PSSimpleSpoke* spoke = [[PSSimpleSpoke alloc] init];
 				spoke.sourceVertex = vertex;
 				spoke.startLocation = vertex.position;
+				spoke.startTimeSqr = [MPDecimal zero];
 				
 				spoke.leftEdge = edge0;
 				spoke.rightEdge = edge1;
@@ -2152,6 +2154,8 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 #pragma mark start loop
 	NSMutableArray* eventLog = [NSMutableArray array];
 	
+	static id trigger = nil;
+	
 	while (events.count)
 	{
 		@autoreleasepool {
@@ -2177,6 +2181,9 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 			while (events.count)
 			{
 				PSEvent* event = events.firstObject;
+				
+				if (event == trigger)
+					NSLog(@"trigger");
 				
 				if (!event.isIndependent)
 					[events removeObjectAtIndex: 0];
@@ -2354,6 +2361,8 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 					else if (!lrConvex)
 					{
 						PSSpoke* newSpoke = [[PSDegenerateSpoke alloc] init];
+						newSpoke.startTimeSqr = event.timeSqr;
+						assert(newSpoke.startTimeSqr);
 						
 						PSVirtualVertex* xVertex = [[PSVirtualVertex alloc] init];
 						[interiorVertices addObject: xVertex];
@@ -2381,6 +2390,8 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 					{
 						PSSpoke* newSpoke = _newSpokeBetweenWavefronts(leftFront, rightFront, event.location, interiorVertices, YES);
 						assert(newSpoke);
+						newSpoke.startTimeSqr = event.timeSqr;
+						assert(newSpoke.startTimeSqr);
 						
 						[eventLog addObject: [NSString stringWithFormat: @"  new spoke %@", newSpoke]];
 						[eventLog addObject: [NSString stringWithFormat: @"    left %@", newSpoke.leftWaveFront]];
@@ -2520,6 +2531,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				{
 					PSSpoke* newSpoke = _continuedSpoke(opposingFront.leftSpoke, opposingFront.leftSpoke.leftWaveFront, newLeftFront, opposingFront.leftSpoke.endLocation);
 					//PSSpoke* newSpoke = _newSpokeBetweenWavefronts(opposingFront.leftSpoke.leftWaveFront, newLeftFront, opposingFront.leftSpoke.endLocation, interiorVertices, NO);
+					newSpoke.startTimeSqr = event.timeSqr;
 					assert(newSpoke);
 					[activeSpokes addObject: newSpoke];
 					[changedSpokes addObject: newSpoke];
@@ -2528,6 +2540,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				{
 					PSSpoke* newSpoke = _continuedSpoke(opposingFront.rightSpoke, newRightFront, opposingFront.rightSpoke.rightWaveFront, opposingFront.rightSpoke.endLocation);
 					//PSSpoke* newSpoke = _newSpokeBetweenWavefronts(newRightFront, opposingFront.rightSpoke.rightWaveFront, opposingFront.rightSpoke.endLocation, interiorVertices, NO);
+					newSpoke.startTimeSqr = event.timeSqr;
 					assert(newSpoke);
 					[activeSpokes addObject: newSpoke];
 					[changedSpokes addObject: newSpoke];
@@ -2539,6 +2552,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				
 				PSSpoke* leftSpoke = _newSpokeBetweenWavefronts(leftFront,  newRightFront, event.location, interiorVertices, YES);
 				assert(leftSpoke);
+				leftSpoke.startTimeSqr = event.timeSqr;
 				
 				[eventLog addObject: [NSString stringWithFormat: @"     new left spoke:  %@", leftSpoke]];
 
@@ -2547,6 +2561,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 
 				PSSpoke* rightSpoke = _newSpokeBetweenWavefronts(newLeftFront, rightFront, event.location, interiorVertices, YES);
 				assert(rightSpoke);
+				rightSpoke.startTimeSqr = event.timeSqr;
 				
 				[eventLog addObject: [NSString stringWithFormat: @"    new right spoke:  %@", rightSpoke]];
 
@@ -2760,7 +2775,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				{
 					[terminationCandidateWavefronts addObject: spoke.rightWaveFront];
 				}
-				
+				spoke.terminationTimeSqr = firstEvent.timeSqr;
 				[terminatedSpokes addObject: spoke];
 				[activeSpokes removeObject: spoke];
 			}
@@ -2780,6 +2795,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 
 				[activeWaveFronts removeObject: waveFront];
 				[self terminateWaveFront: waveFront atLocation: firstEvent.location];
+				waveFront.terminationTimeSqr = firstEvent.timeSqr;
 				
 				waveFront.opposingSpokes = nil;
 
@@ -2791,7 +2807,11 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 			{
 				
 				if (spoke.upcomingEvent)
+				{
 					[invalidEvents addObject: spoke.upcomingEvent];
+					if (spoke.upcomingEvent == trigger)
+						NSLog(@"trigger");
+				}
 				spoke.upcomingEvent = nil;
 				if (spoke.leftWaveFront.collapseEvent)
 					[invalidEvents addObject: spoke.leftWaveFront.collapseEvent];
@@ -2839,6 +2859,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 		vertex.time = limitSqr.sqrt;
 		
 		spoke.terminalVertex = vertex;
+		spoke.terminationTimeSqr = limitSqr;
 		
 		[interiorVertices addObject: vertex];
 		
@@ -2959,6 +2980,8 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 {
 	NSArray* waveFronts = [self waveFrontsTerminatedAfter: tBegin upTo: tEnd];
 	
+	MPDecimal* tBeginSqr = [tBegin mul: tBegin];
+	
 	NSArray* paths = [waveFronts map: ^id(PSWaveFront* waveFront) {
 		
 		NSBezierPath* bpath = [NSBezierPath bezierPath];
@@ -2968,9 +2991,9 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 
 		for (PSSpoke* spoke in waveFront.retiredRightSpokes)
 		{
-			if (([spoke.startTime compare: tBegin] >= 0))
+			if (([spoke.startTimeSqr compare: tBeginSqr] >= 0))
 				[verts addObject: spoke.sourceVertex];
-			else if ((spoke.terminationTime >= tBegin))
+			else if ([spoke.terminationTimeSqr compare: tBeginSqr] >= 0)
 			{
 				PSRealVertex* vertex = [[PSRealVertex alloc] init];
 				vertex.position = [spoke positionAtTime: tBegin];
@@ -2984,9 +3007,9 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 		for (PSSpoke* spoke in [waveFront.retiredLeftSpokes reverseObjectEnumerator])
 		{
 			
-			if (([spoke.startTime compare: tBegin] >= 0))
+			if (([spoke.startTimeSqr compare: tBeginSqr] >= 0))
 				[verts addObject: spoke.sourceVertex];
-			else if ((spoke.terminationTime >= tBegin))
+			else if ([spoke.terminationTimeSqr compare: tBeginSqr])
 			{
 				PSRealVertex* vertex = [[PSRealVertex alloc] init];
 				vertex.position = [spoke positionAtTime: tBegin];

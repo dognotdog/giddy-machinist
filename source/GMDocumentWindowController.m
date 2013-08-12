@@ -178,7 +178,7 @@
 		
 		isBoundary = NO;
 		
-		/*
+		
 		for (PSWaveFrontSnapshot* snapshot in snapshots)
 		{
 			//[thinWallPaths addObjectsFromArray: [skeletizer waveFrontOutlinesTerminatedAfter:snapshot.time - 0.5*extrusionWidth_m*1e3 upTo: snapshot.time + 0.5*extrusionWidth_m*1e3]];
@@ -188,7 +188,7 @@
 				[underfillPaths addObject: [snapshot thinWallAreaLessThanWidth: 0.5*extrusionWidth_m*1e3 + 0.01]];
 			isBoundary = !isBoundary;
 		}
-		*/
+		
 	}
 	
 	

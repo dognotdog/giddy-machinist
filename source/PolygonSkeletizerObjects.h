@@ -40,6 +40,9 @@
 @end
 
 @interface PSRealVertex : PSVertex
+
++ (instancetype) vertexAtPosition: (v3i_t) pos;
+
 @property(nonatomic) v3i_t position;
 @end
 
@@ -88,8 +91,8 @@
 - (MPVector2D*) mpDirection;
 - (MPDecimal*) mpDenominator;
 
-@property(nonatomic, strong, readonly) MPDecimal* terminationTime;
-@property(nonatomic, strong, readonly) MPDecimal* startTime;
+@property(nonatomic, strong) MPDecimal* terminationTimeSqr;
+@property(nonatomic, strong) MPDecimal* startTimeSqr;
 
 - (MPDecimal*) timeSqrToLocation: (MPVector2D*) X;
 

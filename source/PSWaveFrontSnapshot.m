@@ -121,6 +121,8 @@
 	MPDecimal* width = [[MPDecimal alloc] initWithDouble: _width];
 	NSBezierPath* bpath = [NSBezierPath bezierPath];
 	
+	MPDecimal* timeSqr = [self.time mul: self.time];
+	
 	for (NSArray* loop in loops)
 	{
 		NSMutableArray* thinWaveFronts = [NSMutableArray array];
@@ -137,9 +139,12 @@
 		{
 			NSMutableArray* vertices = [NSMutableArray arrayWithObject: segment.rightVertex];
 			
+			NSArray* leftSpokes = [[[segment.waveFronts objectAtIndex: 0] retiredLeftSpokes] arrayByAddingObject: [[segment.waveFronts objectAtIndex: 0] leftSpoke]];
+			NSArray* rightSpokes = [[[segment.waveFronts lastObject] retiredRightSpokes] arrayByAddingObject: [[segment.waveFronts lastObject] rightSpoke]];
+			
 			//asserts regarding issue #2
-			{
-				NSArray* spokes = [[segment.waveFronts objectAtIndex: 0] retiredLeftSpokes];
+			if (0) {
+				NSArray* spokes = leftSpokes;
 				for (size_t i = 0; i+1 < spokes.count; ++i)
 				{
 					PSSpoke* spoke0 = [spokes objectAtIndex: i];
@@ -147,8 +152,8 @@
 					assert(v3iEqual(spoke0.endLocation, spoke1.startLocation));
 				}
 			}
-			{
-				NSArray* spokes = [[segment.waveFronts lastObject] retiredRightSpokes];
+			if (0) {
+				NSArray* spokes = rightSpokes;
 				for (size_t i = 0; i+1 < spokes.count; ++i)
 				{
 					PSSpoke* spoke0 = [spokes objectAtIndex: i];
@@ -159,16 +164,17 @@
 			
 			
 			
-			for (PSSpoke* spoke in [[segment.waveFronts lastObject] retiredRightSpokes])
+			for (PSSpoke* spoke in rightSpokes)
 			{
-				if (spoke.terminationTime > self.time)
+				assert(spoke.terminationTimeSqr);
+				if ([spoke.terminationTimeSqr compare: timeSqr] > 0)
 					[vertices addObject: spoke.terminalVertex];
 			}
-			for (PSSpoke* spoke in [[[segment.waveFronts objectAtIndex: 0] retiredLeftSpokes] reverseObjectEnumerator])
+			for (PSSpoke* spoke in [leftSpokes reverseObjectEnumerator])
 			{
-				
-				if ([spoke.startTime compare: self.time] > 0)
-					[vertices addObject: spoke.sourceVertex];
+				assert(spoke.startTimeSqr);
+				if ([spoke.startTimeSqr compare: timeSqr] > 0)
+					[vertices addObject: [PSRealVertex vertexAtPosition: spoke.startLocation]];
 			}
 			[vertices addObject: segment.leftVertex];
 			

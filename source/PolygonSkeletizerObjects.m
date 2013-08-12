@@ -540,7 +540,7 @@
 
 @end
 
-
+/*
 static double _maxBoundsDimension(NSArray* vertices)
 {
 	v3i_t minv = v3iCreate(INT32_MAX, INT32_MAX, INT32_MAX, 0);
@@ -557,6 +557,7 @@ static double _maxBoundsDimension(NSArray* vertices)
 	v3i_t r = v3iSub(maxv, minv);
 	return vLength(v3iToFloat(r));
 }
+*/
 
 @implementation PSEdge
 
@@ -1002,6 +1003,12 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	return [MPVector2D vectorWith3i: position];
 }
 
++ (instancetype) vertexAtPosition: (v3i_t) pos
+{
+	PSRealVertex* vertex = [[PSRealVertex alloc] init];
+	vertex.position = pos;
+	return vertex;
+}
 
 @end
 
@@ -1083,7 +1090,7 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 
 @implementation	PSSpoke
 
-@synthesize retiredWaveFronts, terminationTime, startTime, endLocation;
+@synthesize retiredWaveFronts, terminationTimeSqr, startTimeSqr, endLocation;
 
 - (id) init
 {
@@ -1383,7 +1390,7 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	assert(oldSpoke.sourceVertex == newSpoke.sourceVertex);
 	assert(oldSpoke.terminalVertex == newSpoke.terminalVertex);
 	assert(v3iEqual(oldSpoke.startLocation, newSpoke.startLocation));
-	assert(oldSpoke.terminationTime == newSpoke.terminationTime);
+//	assert([oldSpoke.terminationTimeSqr compare: newSpoke.terminationTimeSqr] == 0);
 	
 	if (leftSpoke == oldSpoke)
 		leftSpoke = newSpoke;
@@ -1528,7 +1535,7 @@ static long _waveFrontsWeaklyConvex(PSWaveFront* leftFront, PSWaveFront* rightFr
 - (NSString *)description
 {
 	vector_t e = v3iToFloat(self.edge.edge);
-	return [NSString stringWithFormat: @"%p (%@): (%f, %f) o: %d", self, [self class], -e.farr[1], e.farr[0], opposingSpokes.count];
+	return [NSString stringWithFormat: @"%p (%@): (%f, %f) o: %lu", self, [self class], -e.farr[1], e.farr[0], (unsigned long)opposingSpokes.count];
 }
 
 @end
