@@ -1287,7 +1287,7 @@ static void _assertSpokeConsistent(PSSpoke* spoke)
 
 static void _assertWaveFrontConsistent(PSWaveFront* waveFront)
 {
-	assert((waveFront.leftSpoke != waveFront.rightSpoke) || [waveFront.leftSpoke isKindOfClass: [PSDegenerateSpoke class]]);
+	assert((waveFront.leftSpoke != waveFront.rightSpoke) || [waveFront.leftSpoke isKindOfClass: [PSDegenerateSpoke class]] || [waveFront.rightSpoke isKindOfClass: [PSDegenerateSpoke class]]);
 	assert(waveFront.leftSpoke.rightWaveFront == waveFront);
 	assert(waveFront.rightSpoke.leftWaveFront == waveFront);
 
@@ -1337,54 +1337,52 @@ static void _assertWaveFrontsConsistent(NSArray* waveFronts)
 		
 		if (xSplit)
 		{
-			BOOL shouldSplitLeft = [mspoke.leftWaveFront isWeaklyConvexTo: mspoke.opposingWaveFront];
-			BOOL shouldSplitRight = [mspoke.opposingWaveFront isWeaklyConvexTo: mspoke.rightWaveFront];
+			//BOOL shouldSplitLeft = [mspoke.leftWaveFront isWeaklyConvexTo: mspoke.opposingWaveFront];
+			//BOOL shouldSplitRight = [mspoke.opposingWaveFront isWeaklyConvexTo: mspoke.rightWaveFront];
 			
-			// FIXME: when terminating in motorcycle crash,
+			// when terminating in motorcycle crash,
 			// split should only occur AFTER split wavefront passed terminating point
+			// presumably this is implicit
 
 			
 			NSArray* timingEdges = @[mspoke.leftEdge, mspoke.rightEdge, waveFront.edge];
 			
-			/* FIXME: not needed test?
-			if ([mspoke.motorcycle.terminator isKindOfClass: [PSMotorcycle class]])
-			{
-				PSMotorcycleSpoke* tspoke = ((PSMotorcycle*)mspoke.motorcycle.terminator).spoke;
-				if ((tspoke == mspoke.opposingWaveFront.leftSpoke) || (tspoke == mspoke.opposingWaveFront.rightSpoke))
-				{
-					timingEdges = [timingEdges arrayByAddingObjectsFromArray: @[tspoke.leftEdge, tspoke.rightEdge]];
-				}
-			}
-			 */
 			//v3i_t x = [xSplit toVectorWithShift: 16];
 			assert(mspoke.motorcycle.terminalVertex);
 			
-			//BOOL splitAtTerminal = v3iEqual(x, mspoke.motorcycle.terminalVertex.position);
-			//splitAtTerminal = NO; // FIXME: setting to NO for testing
-			// if split is at terminal vertex, and two motorcycles not opposing, dont split
 			
 			//MPVector2D* mdir = mspoke.mpDirection;
 			
+			BOOL neighboursOk = (mspoke.leftWaveFront != mspoke.opposingWaveFront) && (mspoke.rightWaveFront!= mspoke.opposingWaveFront);
 			
-			if (shouldSplitLeft && shouldSplitRight)
+			
+			if (/*shouldSplitLeft && shouldSplitRight && */neighboursOk)
 				[candidates addObject: @[ xSplit, timingEdges, [[PSSplitEvent alloc] initWithLocation: xSplit time: nil creationTime: t0 motorcycleSpoke: mspoke] ] ];
 		}
 	}
 	
 	{
 		MPVector2D* xLeftSwap = PSIntersectSpokes(leftSpoke, mspoke);
+		NSComparisonResult	winding = [[leftSpoke.mpDirection cross: mspoke.mpDirection] compare: [MPDecimal zero]];
+		BOOL isCW = winding < 0;
 				
-		BOOL swapOut = (mspoke.opposingWaveFront != leftSpoke.rightWaveFront);
-		
-		if (xLeftSwap && swapOut)
-			[candidates addObject: @[ xLeftSwap, @[leftSpoke.leftEdge, leftSpoke.rightEdge], [[PSSwapEvent alloc] initWithLocation: xLeftSwap time: nil creationTime: t0 motorcycleSpoke: mspoke pivotSpoke: leftSpoke] ] ];
+		BOOL startsOutside = isCW;
+		NSArray* timingEdges = startsOutside ? @[leftSpoke.leftEdge, leftSpoke.rightEdge] : @[mspoke.leftEdge, mspoke.rightEdge];
+
+		if (xLeftSwap && (winding != 0) && startsOutside)
+			[candidates addObject: @[ xLeftSwap, timingEdges, [[PSSwapEvent alloc] initWithLocation: xLeftSwap time: nil creationTime: t0 motorcycleSpoke: mspoke pivotSpoke: leftSpoke] ] ];
 	}
 	{
 		MPVector2D* xRightSwap = PSIntersectSpokes(rightSpoke, mspoke);
 		
-		BOOL swapOut = (mspoke.opposingWaveFront != rightSpoke.leftWaveFront);
-		if (xRightSwap && swapOut)
-			[candidates addObject: @[ xRightSwap, @[rightSpoke.leftEdge, rightSpoke.rightEdge], [[PSSwapEvent alloc] initWithLocation: xRightSwap time: nil creationTime: t0 motorcycleSpoke: mspoke pivotSpoke: rightSpoke] ] ];
+		NSComparisonResult	winding = [[rightSpoke.mpDirection cross: mspoke.mpDirection] compare: [MPDecimal zero]];
+		BOOL isCCW = winding > 0;
+
+		BOOL startsOutside = isCCW;
+		NSArray* timingEdges = startsOutside ? @[rightSpoke.leftEdge, rightSpoke.rightEdge] : @[mspoke.leftEdge, mspoke.rightEdge];
+		
+		if (xRightSwap && (winding != 0) && startsOutside)
+			[candidates addObject: @[ xRightSwap, timingEdges, [[PSSwapEvent alloc] initWithLocation: xRightSwap time: nil creationTime: t0 motorcycleSpoke: mspoke pivotSpoke: rightSpoke] ] ];
 	}
 	
 	// cull locations in wrong half plane
@@ -1549,7 +1547,7 @@ static void _assertWaveFrontsConsistent(NSArray* waveFronts)
 	}
 	
 	[events sortWithOptions: NSSortStable usingComparator: ^NSComparisonResult(PSEvent* obj0, PSEvent* obj1) {
-		
+		/* FIXME: conflicts for swap event, which is further along the spoke but could be sooner
 		v3i_t x0 = obj0.location;
 		v3i_t x1 = obj1.location;
 		
@@ -1563,7 +1561,7 @@ static void _assertWaveFrontsConsistent(NSArray* waveFronts)
 		
 		if (cmpl != NSOrderedSame)
 			return cmpl;
-		
+		*/
 		return [obj0 compare: obj1];
 	}];
 
@@ -1613,13 +1611,22 @@ static PSSpoke* _newSpokeBetweenWavefrontsNoInsert(PSWaveFront* leftFront, PSWav
 	
 	MPDecimal* cross = [[MPVector2D vectorWith3i: leftFront.edge.edge] cross: [MPVector2D vectorWith3i: rightFront.edge.edge]];
 	
-	if (convexOnly && !cross.isPositive && !cross.isZero)
-		return nil; // a new spoke must be between convex edges
+	PSSpoke* newSpoke = nil;
 	
+	if (cross.isNegative)
+	{
+		if (convexOnly) // a new spoke must be between convex edges
+			return nil;
+		
+		newSpoke = [[PSDegenerateSpoke alloc] init];
+	}
+	else
+	{
+		newSpoke = [[PSSimpleSpoke alloc] init];
+	}
+		
 	[vertices addObject: xVertex];
-	
-	PSSpoke* newSpoke = [[PSSimpleSpoke alloc] init];
-	
+
 	newSpoke.startLocation = loc;
 	newSpoke.sourceVertex = xVertex;
 	newSpoke.leftEdge = leftFront.edge;
@@ -2150,11 +2157,11 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 		}
 	}
 
-	
+	static id trigger = nil;
+
 #pragma mark start loop
 	NSMutableArray* eventLog = [NSMutableArray array];
 	
-	static id trigger = nil;
 	
 	while (events.count)
 	{
@@ -2212,7 +2219,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				
 			
 				PSWaveFront* waveFront = event.collapsingWaveFront;
-				assert(!waveFront.opposingSpokes.count);
+				//assert(!waveFront.opposingSpokes.count);
 				assert(v3iEqual([[waveFront computeCollapseLocation] toVectorWithShift: 16], event.location)); // a check to make sure that no "stray" events are processed
 
 			
@@ -2244,15 +2251,23 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				[changedSpokes addObjectsFromArray: rightSpoke.upcomingEvent.spokes];
 				[changedSpokes addObjectsFromArray: leftFront.leftSpoke.upcomingEvent.spokes];
 				[changedSpokes addObjectsFromArray: rightFront.rightSpoke.upcomingEvent.spokes];
+				[changedSpokes addObjectsFromArray: waveFront.opposingSpokes];
+				[changedSpokes addObjectsFromArray: leftFront.opposingSpokes];
+				[changedSpokes addObjectsFromArray: rightFront.opposingSpokes];
 
 				[terminationCandidateSpokes addObjectsFromArray: @[leftSpoke, rightSpoke]];
 				
-				NSArray* opposingSpokes = waveFront.opposingSpokes;
 								
 				if (leftSpoke.terminalVertex && rightSpoke.terminalVertex)
 				{
 					// no new spokes will come of this
 					[eventLog addObject: [NSString stringWithFormat: @"  nothing to do, left and right spokes already terminated"]];
+					
+					for (PSMotorcycleSpoke* mspoke in waveFront.opposingSpokes)
+					{
+						mspoke.opposingWaveFront = nil;
+					}
+					waveFront.opposingSpokes = @[];
 				}
 				else
 				{
@@ -2349,6 +2364,11 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 						
 						assert(leftSpoke.terminalVertex || rightSpoke.terminalVertex);
 						
+						for (PSMotorcycleSpoke* mspoke in waveFront.opposingSpokes)
+						{
+							mspoke.opposingWaveFront = nil;
+						}
+						waveFront.opposingSpokes = @[];
 						/*
 						[activeWaveFronts removeObjectsInArray: @[leftFront, rightFront]];
 						if (!leftFront.terminationTimeSqr)
@@ -2358,6 +2378,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 						*/
 						
 					}
+					/*
 					else if (!lrConvex)
 					{
 						PSSpoke* newSpoke = [[PSDegenerateSpoke alloc] init];
@@ -2385,10 +2406,16 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 
 						[eventLog addObject: [NSString stringWithFormat: @"  new degenerate spoke %@", newSpoke]];
 
+						for (PSMotorcycleSpoke* mspoke in waveFront.opposingSpokes)
+						{
+							mspoke.opposingWaveFront = nil;
+						}
+						waveFront.opposingSpokes = @[];
 					}
+					 */
 					else
 					{
-						PSSpoke* newSpoke = _newSpokeBetweenWavefronts(leftFront, rightFront, event.location, interiorVertices, YES);
+						PSSpoke* newSpoke = _newSpokeBetweenWavefronts(leftFront, rightFront, event.location, interiorVertices, NO);
 						assert(newSpoke);
 						newSpoke.startTimeSqr = event.timeSqr;
 						assert(newSpoke.startTimeSqr);
@@ -2404,31 +2431,38 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 						[activeSpokes addObject: newSpoke];
 						[changedSpokes addObject: newSpoke];
 						
-						// FIXME: as collapse is not allowed with opposing spokes, this should be deleted?
-						for (PSMotorcycleSpoke* ospoke in opposingSpokes)
+
+						for (PSMotorcycleSpoke* mspoke in waveFront.opposingSpokes)
 						{
-							// re-assign opposing wavefront to left or right neighbour
-							[eventLog addObject: [NSString stringWithFormat: @"    re-assign %@", ospoke]];
+							[eventLog addObject: [NSString stringWithFormat: @"  opponent: %@", mspoke]];
+							BOOL isLeft = [newSpoke isVertexCCWFromSpoke: mspoke.sourceVertex.mpPosition];
 							
-							if ([newSpoke isVertexCCWFromSpoke: ospoke.sourceVertex.mpPosition])
+							mspoke.opposingWaveFront = nil;
+							
+							if (isLeft)
 							{
-								ospoke.opposingWaveFront = leftFront;
-								leftFront.opposingSpokes = [leftFront.opposingSpokes arrayByAddingObject: ospoke];
+								if ([mspoke.mpDirection dot: leftFront.edge.mpEdge.rotateCCW].isNegative)
+								{
+									mspoke.opposingWaveFront = leftFront;
+									leftFront.opposingSpokes = [leftFront.opposingSpokes arrayByAddingObject: mspoke];
+								}
 							}
 							else
 							{
-								ospoke.opposingWaveFront = rightFront;
-								rightFront.opposingSpokes = [rightFront.opposingSpokes arrayByAddingObject: ospoke];
+								if ([mspoke.mpDirection dot: rightFront.edge.mpEdge.rotateCCW].isNegative)
+								{
+									mspoke.opposingWaveFront = rightFront;
+									rightFront.opposingSpokes = [rightFront.opposingSpokes arrayByAddingObject: mspoke];
+								}
 							}
-
-							[eventLog addObject: [NSString stringWithFormat: @"      to %@", ospoke.opposingWaveFront]];
+							[eventLog addObject: [NSString stringWithFormat: @"    to: %@", mspoke.opposingWaveFront]];
 						}
+						waveFront.opposingSpokes = @[];
 					}
 					
-				
+
 				}
 				
-				[changedSpokes addObjectsFromArray: opposingSpokes];
 			
 			}
 			else if ([firstEvent isKindOfClass: [PSSplitEvent class]])
@@ -2458,10 +2492,16 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				
 				[changedSpokes addObjectsFromArray: @[motorcycleSpoke, leftFront.leftSpoke, rightFront.rightSpoke, opposingFront.leftSpoke, opposingFront.rightSpoke]];
 				[changedSpokes addObjectsFromArray: opposingFront.opposingSpokes];
+				[changedSpokes addObjectsFromArray: leftFront.opposingSpokes];
+				[changedSpokes addObjectsFromArray: rightFront.opposingSpokes];
 				[changedSpokes addObjectsFromArray: leftFront.leftSpoke.upcomingEvent.spokes];
 				[changedSpokes addObjectsFromArray: rightFront.rightSpoke.upcomingEvent.spokes];
 				[changedSpokes addObjectsFromArray: opposingFront.leftSpoke.upcomingEvent.spokes];
 				[changedSpokes addObjectsFromArray: opposingFront.rightSpoke.upcomingEvent.spokes];
+				[changedSpokes addObjectsFromArray: opposingFront.leftSpoke.leftWaveFront.opposingSpokes];
+				[changedSpokes addObjectsFromArray: opposingFront.rightSpoke.rightWaveFront.opposingSpokes];
+				[changedSpokes addObjectsFromArray: leftFront.leftSpoke.leftWaveFront.opposingSpokes];
+				[changedSpokes addObjectsFromArray: rightFront.rightSpoke.rightWaveFront.opposingSpokes];
 
 				PSRealVertex* splitVertex = [[PSRealVertex alloc] init];
 				[interiorVertices addObject: splitVertex];
@@ -2504,16 +2544,14 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				_assertWaveFrontConsistent(leftFront);
 				_assertWaveFrontConsistent(rightFront);
 
-				//assert(![motorcycleSpoke.mpNumerator dot: [MPVector2D vectorWith3i: _rotateEdgeToNormal(opposingFront.edge.edge)]].isZero);
-				//assert(![motorcycleSpoke.mpNumerator dot: [MPVector2D vectorWith3i: _rotateEdgeToNormal(opposingFront.edge.edge)]].isPositive);
 				
 				
-				
+				/*
 				BOOL shouldSplitLeft = [leftFront isWeaklyConvexTo: opposingFront];
 				BOOL shouldSplitRight = [opposingFront isWeaklyConvexTo: rightFront];
 				
 				assert(shouldSplitLeft && shouldSplitRight); // according to lore, a split when one side also collapses is now illegal
-				
+				*/
 				
 				
 
@@ -2550,7 +2588,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 
 				[activeWaveFronts addObjectsFromArray: @[newLeftFront, newRightFront]];
 				
-				PSSpoke* leftSpoke = _newSpokeBetweenWavefronts(leftFront,  newRightFront, event.location, interiorVertices, YES);
+				PSSpoke* leftSpoke = _newSpokeBetweenWavefronts(leftFront,  newRightFront, event.location, interiorVertices, NO);
 				assert(leftSpoke);
 				leftSpoke.startTimeSqr = event.timeSqr;
 				
@@ -2559,7 +2597,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				[activeSpokes addObject: leftSpoke];
 				[changedSpokes addObject: leftSpoke];
 
-				PSSpoke* rightSpoke = _newSpokeBetweenWavefronts(newLeftFront, rightFront, event.location, interiorVertices, YES);
+				PSSpoke* rightSpoke = _newSpokeBetweenWavefronts(newLeftFront, rightFront, event.location, interiorVertices, NO);
 				assert(rightSpoke);
 				rightSpoke.startTimeSqr = event.timeSqr;
 				
@@ -2570,7 +2608,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				[changedSpokes addObject: newLeftFront.leftSpoke];
 				[changedSpokes addObject: rightFront.rightSpoke];
 				
-				assert(fabs([rightSpoke.mpDirection angleTo: leftSpoke.mpDirection]) > 1e-3); // check that the two spokes do point in different directions
+				assert([leftSpoke isKindOfClass: [PSDegenerateSpoke class]] || [rightSpoke isKindOfClass: [PSDegenerateSpoke class]] || (fabs([rightSpoke.mpDirection angleTo: leftSpoke.mpDirection]) > 1e-3)); // check that the two spokes do point in different directions
 
 				//_assertWaveFrontConsistent(leftFront);
 				//_assertWaveFrontConsistent(rightFront);
@@ -2594,6 +2632,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				
 				// check if we've got a case of vestigal wavefronts having been formed
 				
+				if (![rightSpoke isKindOfClass: [PSDegenerateSpoke class]])
 				{
 					BOOL newLeftFrontSourceCoincident = [newLeftFront.leftSpoke.sourceVertex.mpPosition isEqual: newLeftFront.rightSpoke.sourceVertex.mpPosition];
 					BOOL newLeftFrontColinear = [[newLeftFront.leftSpoke.mpDirection cross: newLeftFront.rightSpoke.mpDirection] isZero];
@@ -2610,6 +2649,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 					}
 				}
 				
+				if (![leftSpoke isKindOfClass: [PSDegenerateSpoke class]])
 				{
 					BOOL newRightFrontSourceCoincident = [newRightFront.leftSpoke.sourceVertex.mpPosition isEqual: newRightFront.rightSpoke.sourceVertex.mpPosition];
 					BOOL newRightFrontColinear = [[newRightFront.leftSpoke.mpDirection cross: newRightFront.rightSpoke.mpDirection] isZero];
@@ -2623,6 +2663,9 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 						[changedSpokes addObject: spoke];
 						[changedSpokes addObject: spoke.leftWaveFront.leftSpoke];
 						[changedSpokes addObject: spoke.rightWaveFront.rightSpoke];
+						
+						_assertWaveFrontConsistent(spoke.leftWaveFront);
+						_assertWaveFrontConsistent(spoke.rightWaveFront);
 					}
 				}
 				
@@ -2666,16 +2709,22 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				PSWaveFront* leftFront = pivot.leftWaveFront;
 				PSWaveFront* rightFront = pivot.rightWaveFront;
 				
+				[eventLog addObject: [NSString stringWithFormat: @"%f: swap @ %f, %f", event.timeSqr.sqrt.toDouble, event.floatLocation.farr[0], event.floatLocation.farr[1]]];
+				[eventLog addObject: [NSString stringWithFormat: @"     mspoke: %@", motorcycleSpoke]];
+				[eventLog addObject: [NSString stringWithFormat: @"  wavefront: %@", opposingFront]];
+				[eventLog addObject: [NSString stringWithFormat: @"      pivot: %@", pivot]];
+				[eventLog addObject: [NSString stringWithFormat: @"      mspoke time: %f", _maxTimeSqrFromEdges(@[motorcycleSpoke.leftEdge, motorcycleSpoke.rightEdge], event.mpLocation).sqrt.toDouble]];
+				[eventLog addObject: [NSString stringWithFormat: @"      pivot time: %f", _maxTimeSqrFromEdges(@[pivot.leftEdge, pivot.rightEdge], event.mpLocation).sqrt.toDouble]];
+				[eventLog addObject: [NSString stringWithFormat: @"      pivot l: %f", _maxTimeSqrFromEdges(@[pivot.leftEdge], event.mpLocation).sqrt.toDouble]];
+				[eventLog addObject: [NSString stringWithFormat: @"      pivot r: %f", _maxTimeSqrFromEdges(@[pivot.rightEdge], event.mpLocation).sqrt.toDouble]];
+
+				assert((pivot.leftWaveFront == opposingFront) || (pivot.rightWaveFront == opposingFront));
+				assert((opposingFront.leftSpoke == pivot) || (opposingFront.rightSpoke == pivot));
 				
 				assert(pivot);
 				assert(motorcycleSpoke);
 				assert(motorcycleSpoke.motorcycle);
 				
-				[eventLog addObject: [NSString stringWithFormat: @"%f: swap @ %f, %f", event.timeSqr.sqrt.toDouble, event.floatLocation.farr[0], event.floatLocation.farr[1]]];
-				[eventLog addObject: [NSString stringWithFormat: @"     mspoke: %@", motorcycleSpoke]];
-				[eventLog addObject: [NSString stringWithFormat: @"  wavefront: %@", opposingFront]];
-				[eventLog addObject: [NSString stringWithFormat: @"      pivot: %@", pivot]];
-
 				[changedSpokes addObject: motorcycleSpoke];
 				[changedSpokes addObject: pivot];
 				

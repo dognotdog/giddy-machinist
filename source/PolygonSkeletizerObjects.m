@@ -253,8 +253,35 @@
 
 - (BOOL) isIndependent
 {
-	if (self.collapsingWaveFront.opposingSpokes.count)
-		return NO;
+//	if (self.collapsingWaveFront.opposingSpokes.count)
+//		return NO;
+	
+	// checking for degenerates makes it worse
+	//BOOL hasDegenerateSpoke = [self.collapsingWaveFront.leftSpoke isKindOfClass: [PSDegenerateSpoke class]] || [self.collapsingWaveFront.rightSpoke isKindOfClass: [PSDegenerateSpoke class]];
+	//if (!hasDegenerateSpoke)
+
+	{
+		for (PSMotorcycleSpoke* mspoke in self.collapsingWaveFront.opposingSpokes)
+		{
+			// FIXME: how to determine when the collapse is independent?
+			// due to indirect motorcycle crashes, collapse might be valid even if opposing spokes exist
+			
+			BOOL neighboursOk = (mspoke.leftWaveFront != mspoke.opposingWaveFront) && (mspoke.rightWaveFront!= mspoke.opposingWaveFront);
+
+			if (!neighboursOk)
+				continue;
+			
+			
+			// proposed test: if motorcycle terminates "inside" triangle formed by the two opposing spokes, don't collapse
+						
+			MPVector2D* X = mspoke.motorcycle.terminalVertex.mpPosition;
+			
+			BOOL inside = ![self.collapsingWaveFront.leftSpoke isVertexCCWFromSpoke: X] && [self.collapsingWaveFront.rightSpoke isVertexCCWFromSpoke: X];
+			
+			if (inside)
+				return NO;
+		}
+	}
 	
 	PSEvent* leftCollapse = self.collapsingWaveFront.leftSpoke.leftWaveFront.collapseEvent;
 	PSEvent* rightCollapse = self.collapsingWaveFront.rightSpoke.rightWaveFront.collapseEvent;
