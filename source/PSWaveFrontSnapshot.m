@@ -170,6 +170,9 @@
 				if ([spoke.terminationTimeSqr compare: timeSqr] > 0)
 					[vertices addObject: spoke.terminalVertex];
 			}
+			
+			[vertices addObject: [[leftSpokes lastObject] terminalVertex]];
+			
 			for (PSSpoke* spoke in [leftSpokes reverseObjectEnumerator])
 			{
 				assert(spoke.startTimeSqr);

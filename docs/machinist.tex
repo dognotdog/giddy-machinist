@@ -764,7 +764,7 @@ If the split and terminal vertices are exactly coincident, there is a conflict w
 In the case of coincidence, it seems reasonable to discard the vestigial wavefront immediately, when evaluating the original split event. Coincidence in this case is defined by exactly coincident virtual source vertices for the two spokes, as well as their colinearity.
 
  
-\subsubsection{Parallel Non-Split}
+\subsubsection{Parallel Non-Split (unresolved)}
 
 
 \begin{figure}[htpb]
@@ -786,6 +786,8 @@ In the case of coincidence, it seems reasonable to discard the vestigial wavefro
 However, the motorcycle only solves the problem that a split event is generated, at all. The wavefronts may only collapse if a proper loop is formed by the two fast spokes. If between the two spokes, there's only two unique wavefronts, then no splitting spoke exists, and they may collapse.
 
 There exists also another problem: if the problematic spoke is not quite a fast spoke, a regular collapse might occur before the split. The proposal that while a wavefront has opposing motorcycles, it may not collapse, does not work. For \em direct \em motorcycle-edge crashes, it is fine, but when taking motorcycle-trace crashes into account, the scheme no longer works.
+
+Proposal: When motorcycle terminates \em inside \em slab delimited by the left and right spokes of the wavefront to be split, it is not allowed to collapse. This seems to not work in all cases.
 
 \subsubsection{The Degenerate Cross}
 
@@ -878,7 +880,17 @@ Boolean operations on polygons are necessary for several FDM features.
 
 \subsection{Simple Polygons with Holes}
 
-The polygons we're dealing with are simple, in the sense that they are non self-intersecting.
+The polygons we're dealing with are simple, in the sense that they are non self-intersecting. An area is a counter-clockwise loop, a hole is a clockwise loop.
+
+\subsection{Intersection Algorithm}
+
+An intersection of two polygons results in the area covered by both polygons. A hole is simply a polygon whose area lies outside the outline. Thus, the boolean intersection of a region and a hole, which do not intersect geometrically, and the the hole is contained by the region, results in a compound polygon with both sources.
+
+For more complex polygons, which consist of multiple non-intersecting loops\footnote{In this context, a loop is a closed polyline}, all loops of polygon $A$ are intersected against all loops of polygon $B$ sequentially. An intersection of two loops may result in zero or more new loops. The results of one intersection step are used as the input of the next.
+
+\subsection{Union Algorithm}
+
+The union algorithm works similarly to the intersection, except by taking the union of the loops instead of their intersection.
 
 
 %$$ S = v3Add(vReverseProject(v0, e1), vReverseProject(v1, e0))$$
