@@ -23,6 +23,13 @@
 @property(nonatomic,strong) IBOutlet NSButton* stepButton;
 @property(nonatomic,strong) IBOutlet NSSegmentedControl* displayOptionsControl;
 @property(nonatomic,strong) IBOutlet NSTextField* extensionLimitField;
+@property(nonatomic,strong) IBOutlet NSTextField* wavePhaseNumberField;
+@property(nonatomic,strong) IBOutlet NSSlider* wavePhaseNumberSlider;
+
+@property(nonatomic,strong) IBOutlet NSProgressIndicator* progressIndicator;
+
+@property(nonatomic) NSUInteger displayWaveFrontPhaseNumber;
+@property(nonatomic, readonly) NSUInteger waveFrontPhaseCount;
 
 
 - (IBAction) layerSelected: (id) sender;

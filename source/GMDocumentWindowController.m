@@ -18,15 +18,25 @@
 #import "PolygonSkeletizer.h"
 #import "GM3DPrinterDescription.h"
 #import "PSWaveFrontSnapshot.h"
+#import "MPVector2D.h"
+#import "PolySkelVideoGenerator.h"
 
 #import "FoundationExtensions.h"
 
+@import AVFoundation;
+@import CoreVideo;
+
+@class PolygonSkeletizer;
 
 @interface GMDocumentWindowController ()
 
 @end
 
 @implementation GMDocumentWindowController
+{
+	PolygonSkeletizer* skeletizer;
+}
+
 
 @synthesize layerSelector, layerView;
 
@@ -44,6 +54,53 @@
 {
     [super windowDidLoad];
 	
+	[self addObserver: self forKeyPath: @"waveFrontPhaseCount" options: NSKeyValueObservingOptionNew context: nil];
+	[self addObserver: self forKeyPath: @"displayWaveFrontPhaseNumber" options: NSKeyValueObservingOptionNew context: nil];
+
+}
+
+- (void) observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
+{
+	if ([keyPath isEqualToString: @"waveFrontPhaseCount"])
+	{
+		if (self.displayWaveFrontPhaseNumber >= self.waveFrontPhaseCount)
+		{
+			if (self.waveFrontPhaseCount)
+				self.displayWaveFrontPhaseNumber = self.waveFrontPhaseCount-1;
+			else
+				self.displayWaveFrontPhaseNumber = 0;
+		}
+	}
+	if ([keyPath isEqualToString: @"displayWaveFrontPhaseNumber"])
+	{
+		layerView.needsDisplay = YES;
+		
+		PolySkelPhase* phase = [skeletizer.doneSteps objectAtIndex: MIN(self.displayWaveFrontPhaseNumber, self.waveFrontPhaseCount-1)];
+		
+		layerView.markerPaths = @[];
+		
+		if (phase.location)
+		{
+			vector_t loc = phase.location.toFloatVector;
+			CGPoint X = CGPointMake(loc.farr[0], loc.farr[1]);
+			
+			NSBezierPath* bpath = [NSBezierPath bezierPathWithOvalInRect: CGRectMake(X.x-1.0, X.y-1.0, 2.0, 2.0)];
+			
+			layerView.markerPaths = @[bpath];
+		}
+		
+		layerView.motorcyclePaths = phase.motorcyclePaths;
+		layerView.spokePaths = [phase.activeSpokePaths arrayByAddingObjectsFromArray: phase.terminatedSpokePaths];
+		[layerView removeAllOffsetOutlinePaths];
+		[layerView addOffsetOutlinePaths: phase.waveFrontPaths];
+
+		NSString* logString = [phase.eventLog componentsJoinedByString: @"\n"];
+		
+		self.statusTextView.string = (logString ? logString : @"no event log");
+		
+		layerView.needsDisplay = YES;
+	}
+
 }
 
 - (void) windowDidBecomeMain: (NSNotification*) notification
@@ -93,21 +150,31 @@
 	
 }
 
-- (IBAction) runSlicing: (id) sender
+- (NSUInteger) waveFrontPhaseCount
+{
+	return skeletizer.doneSteps.count;
+}
+
+- (void) prepareLayerSlicing
 {
 	[layerView removeAllOffsetOutlinePaths];
 	[layerView removeAllOffsetBoundaryPaths];
+	
 	SlicedLayer* slice = [self currentLayer];
+
+	skeletizer = [[PolygonSkeletizer alloc] init];
+
+	SlicedOutline* srcOutline = [slice.outlinePaths objectAtIndex: [self.outlineSelector indexOfSelectedItem]];
 	
-	NSMutableArray* outlinePaths = [NSMutableArray array];
-	NSMutableArray* cyclePaths = [NSMutableArray array];
-	NSMutableArray* spokePaths = [NSMutableArray array];
-	NSMutableArray* snapshots = [NSMutableArray array];
-	NSMutableArray* overfillPaths = [NSMutableArray array];
-	NSMutableArray* underfillPaths = [NSMutableArray array];
-	
+	NSArray* outlines = @[ srcOutline ];
+
+	if (layerView.clippingOutline)
+	{
+		outlines = [srcOutline booleanIntersectOutline: layerView.clippingOutline];
+	}
+
 	GM3DPrintSettings* settings = [GM3DPrintSettings defaultPrintSettings];
-	
+
 	NSMutableArray* emissionTimes = [NSMutableArray arrayWithCapacity: settings.numPerimeters];
 	double extrusionWidth_m = [settings extrusionWidthForExtruder: 0];
 	
@@ -118,81 +185,88 @@
 		[emissionTimes addObject: [NSNumber numberWithDouble: emit*1000.0]]; // scale m -> mm
 	}
 	
-	//for (SlicedOutline* outline in slice.outlinePaths)
-	SlicedOutline* srcOutline = [slice.outlinePaths objectAtIndex: [self.outlineSelector indexOfSelectedItem]];
-	
-	NSArray* outlines = @[ srcOutline ];
-	
-	if (layerView.clippingOutline)
+
+	skeletizer.mergeThreshold = slice.mergeThreshold;
+	NSString* extensionString = [self.extensionLimitField stringValue];
+	if (!extensionString.length)
+		skeletizer.emissionTimes = emissionTimes;
+	else
 	{
-		outlines = [srcOutline booleanIntersectOutline: layerView.clippingOutline];
+		double limit = [self.extensionLimitField doubleValue];
+		skeletizer.extensionLimit = limit;
+		extrusionWidth_m = 0.001;
+		
+		NSMutableArray* times = [NSMutableArray array];
+		
+		for (double i = 0.0; i < limit; i += 0.5)
+		{
+			NSNumber* num = [NSNumber numberWithDouble: i];
+			[times addObject: num];
+		}
+		[times addObject: [NSNumber numberWithDouble: limit]];
+		skeletizer.emissionTimes = times;
+		
 	}
-	
-	
-	
+		
 	
 	for (SlicedOutline* outline in outlines)
 	{
-		PolygonSkeletizer* skeletizer = [[PolygonSkeletizer alloc] init];
-		skeletizer.mergeThreshold = slice.mergeThreshold;
-		NSString* extensionString = [self.extensionLimitField stringValue];
-		if (!extensionString.length)
-			skeletizer.emissionTimes = emissionTimes;
-		else
-		{
-			double limit = [self.extensionLimitField doubleValue];
-			skeletizer.extensionLimit = limit;
-			extrusionWidth_m = 0.001;
-			
-			NSMutableArray* times = [NSMutableArray array];
-
-			for (double i = 0.0; i < limit; i += 0.5)
-			{
-				NSNumber* num = [NSNumber numberWithDouble: i];
-				[times addObject: num];
-			}
-			[times addObject: [NSNumber numberWithDouble: limit]];
-			skeletizer.emissionTimes = times;
-			
-		}
-		
-		__block BOOL isBoundary = NO;
-
-		skeletizer.emitCallback = ^(PolygonSkeletizer* skeletizer, PSWaveFrontSnapshot* snapshot)
-		{
-			[snapshots addObject: snapshot];
-			id bpath = [snapshot waveFrontPath];
-			if (isBoundary)
-				SuppressSelfCaptureWarning([layerView addOffsetOutlinePath: bpath]);
-			else
-				SuppressSelfCaptureWarning([layerView addOffsetBoundaryPath: bpath]);
-			isBoundary = !isBoundary;
-		};
 		[outline addPathsToSkeletizer: skeletizer];
-		[skeletizer generateSkeleton];
-		
-		
-		[outlinePaths addObjectsFromArray: [skeletizer outlineDisplayPaths]];
-		[spokePaths addObjectsFromArray: [skeletizer spokeDisplayPaths]];
-		[cyclePaths addObjectsFromArray: [skeletizer motorcycleDisplayPaths]];
-		
-		isBoundary = NO;
-		
-		
-		for (PSWaveFrontSnapshot* snapshot in snapshots)
-		{
-			//[thinWallPaths addObjectsFromArray: [skeletizer waveFrontOutlinesTerminatedAfter:snapshot.time - 0.5*extrusionWidth_m*1e3 upTo: snapshot.time + 0.5*extrusionWidth_m*1e3]];
-			if (isBoundary)
-				[overfillPaths addObject: [snapshot thinWallAreaLessThanWidth: 0.5*extrusionWidth_m*1e3 + 0.01]];
-			else
-				[underfillPaths addObject: [snapshot thinWallAreaLessThanWidth: 0.5*extrusionWidth_m*1e3 + 0.01]];
-			isBoundary = !isBoundary;
-		}
-		
 	}
+
+}
+
+- (IBAction) runSlicing: (id) sender
+{
+	[self prepareLayerSlicing];
+	
+	GM3DPrintSettings* settings = [GM3DPrintSettings defaultPrintSettings];
+	double extrusionWidth_m = [settings extrusionWidthForExtruder: 0];
+
+	
+	NSMutableArray* outlinePaths = [NSMutableArray array];
+	NSMutableArray* cyclePaths = [NSMutableArray array];
+	NSMutableArray* spokePaths = [NSMutableArray array];
+	NSMutableArray* snapshots = [NSMutableArray array];
+	NSMutableArray* overfillPaths = [NSMutableArray array];
+	NSMutableArray* underfillPaths = [NSMutableArray array];
 	
 	
+	__block BOOL isBoundary = NO;
+	skeletizer.emitCallback = ^(PolygonSkeletizer* skeletizer, PSWaveFrontSnapshot* snapshot)
+	{
+		[snapshots addObject: snapshot];
+		id bpath = [snapshot waveFrontPath];
+		if (isBoundary)
+			SuppressSelfCaptureWarning([layerView addOffsetOutlinePath: bpath]);
+		else
+			SuppressSelfCaptureWarning([layerView addOffsetBoundaryPath: bpath]);
+		isBoundary = !isBoundary;
+	};
 	
+	[self willChangeValueForKey: @"waveFrontPhaseCount"];
+
+	[skeletizer generateSkeleton];
+	
+	[self didChangeValueForKey: @"waveFrontPhaseCount"];
+
+	[outlinePaths addObjectsFromArray: [skeletizer outlineDisplayPaths]];
+	[spokePaths addObjectsFromArray: [skeletizer spokeDisplayPaths]];
+	[cyclePaths addObjectsFromArray: [skeletizer motorcycleDisplayPaths]];
+	
+	isBoundary = NO;
+	
+	
+	for (PSWaveFrontSnapshot* snapshot in snapshots)
+	{
+		//[thinWallPaths addObjectsFromArray: [skeletizer waveFrontOutlinesTerminatedAfter:snapshot.time - 0.5*extrusionWidth_m*1e3 upTo: snapshot.time + 0.5*extrusionWidth_m*1e3]];
+		if (isBoundary)
+			[overfillPaths addObject: [snapshot thinWallAreaLessThanWidth: 0.5*extrusionWidth_m*1e3 + 0.01]];
+		else
+			[underfillPaths addObject: [snapshot thinWallAreaLessThanWidth: 0.5*extrusionWidth_m*1e3 + 0.01]];
+		isBoundary = !isBoundary;
+	}
+
 	layerView.motorcyclePaths = cyclePaths;
 	layerView.spokePaths = spokePaths;
 	layerView.outlinePaths = outlinePaths;
@@ -200,6 +274,32 @@
 	layerView.overfillPaths	= overfillPaths;
 	
 }
+
+- (IBAction) exportMovie:(id)sender
+{
+	int result = 0;
+	
+	NSSavePanel*	panel = [NSSavePanel savePanel];
+	[panel setTitle: @"Export Layer Slicing Movie"];
+	[panel setAllowedFileTypes: @[@"mov"]];
+	
+	
+	result = [panel runModal];
+	if (result == NSOKButton)
+	{
+		PolySkelVideoGenerator* exporter = [[PolySkelVideoGenerator alloc] init];
+		
+		[self.progressIndicator startAnimation: self];
+		
+		[exporter recordMovieToURL: panel.URL withSize: CGSizeMake(1280.0, 720.0) skeleton: skeletizer finishedCallback:^{
+			[self.progressIndicator stopAnimation: self];
+		}];
+			
+	}
+	
+}
+
+
 
 - (IBAction) displayOptionsChanged:(id)sender
 {

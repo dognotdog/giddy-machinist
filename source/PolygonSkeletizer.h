@@ -26,6 +26,7 @@ typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, PSWaveFron
 @property(nonatomic) double extensionLimit;
 @property(nonatomic) double mergeThreshold;
 @property(nonatomic,strong) NSArray* emissionTimes;
+@property(nonatomic,strong, readonly) NSArray* doneSteps;
 
 @property(nonatomic,strong) SkeletizerEventCallback eventCallback;
 @property(nonatomic,strong) SkeletizerEmitCallback emitCallback;
@@ -44,3 +45,21 @@ typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, PSWaveFron
 @end
 
 
+@interface PolySkelPhase : NSObject
+
+@property(nonatomic, strong) id (^nextHandler)(id);
+
+@property(nonatomic, strong) NSArray* outlinePaths;
+@property(nonatomic, strong) NSArray* motorcyclePaths;
+@property(nonatomic, strong) NSArray* activeSpokePaths;
+@property(nonatomic, strong) NSArray* terminatedSpokePaths;
+@property(nonatomic, strong) NSArray* waveFrontPaths;
+
+@property(nonatomic, strong) NSMutableArray* eventLog;
+
+@property(nonatomic, strong) MPDecimal* timeSqr;
+@property(nonatomic, strong) MPVector2D* location;
+
+@property(nonatomic) BOOL isFinished;
+
+@end

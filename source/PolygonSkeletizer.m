@@ -20,15 +20,6 @@
 #import "MPInteger.h"
 
 
-@interface PolySkelPhase : NSObject
-
-@property(nonatomic, strong) NSArray* outlinePaths;
-@property(nonatomic, strong) NSArray* motorcyclePaths;
-@property(nonatomic, strong) NSArray* activeSpokePaths;
-@property(nonatomic, strong) NSArray* terminatedSpokePaths;
-@property(nonatomic, strong) NSArray* waveFrontPaths;
-
-@end
 
 @interface PolySkelWavePhase : PolySkelPhase
 
@@ -36,7 +27,6 @@
 @property(nonatomic, strong) NSMutableArray* activeSpokes;
 @property(nonatomic, strong) NSMutableArray* motorcycleSpokes;
 @property(nonatomic, strong) NSMutableArray* activeWaveFronts;
-@property(nonatomic, strong) NSMutableArray* eventLog;
 
 @end
 
@@ -66,12 +56,12 @@
 	NSMutableArray* outlineMeshes;
 	
 	PriorityQueue* motorcycleCrashes;
-	//PriorityQueue* motorcycleEdgeCrashes;
-	//NSMutableDictionary* motorcycleMotorcycleCrashes;
+
+	NSMutableArray* doneSteps;
 	
 }
 
-@synthesize extensionLimit, mergeThreshold, eventCallback, emitCallback, emissionTimes;
+@synthesize extensionLimit, mergeThreshold, eventCallback, emitCallback, emissionTimes, doneSteps;
 
 - (id) init
 {
@@ -628,6 +618,7 @@ static double _lltodouble(vmlongerfix_t a)
 - (void) runMotorcycles
 {
 //	assert([edges count] == [vertices count]);
+	assert(terminatedMotorcycles.count == 0); // make sure we haven't run before
 	
 	NSMutableArray* eventLog = [NSMutableArray array];
 	
@@ -2038,11 +2029,18 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 - (PolySkelWavePhase*) prepareSpokePhase: (PolySkelPhase*) prevPhase;
 {
 	PolySkelWavePhase* phase = [[PolySkelWavePhase alloc] init];
+	phase.timeSqr = prevPhase.timeSqr;
 	phase.outlinePaths = prevPhase.outlinePaths;
 	phase.motorcyclePaths = prevPhase.motorcyclePaths;
+	phase.nextHandler = ^id(id phase){ return [self wavePropagationStep: phase]; };
 	
 	if (extensionLimit == 0.0)
+	{
+		phase.nextHandler = nil;
+		phase.isFinished = YES;
 		return phase;
+	}
+	
 
 	phase.motorcycleSpokes = [[NSMutableArray alloc] init];
 	phase.activeSpokes = [[NSMutableArray alloc] init];
@@ -2208,7 +2206,9 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 	phase.activeSpokes = prevPhase.activeSpokes.mutableCopy;
 	phase.motorcycleSpokes = prevPhase.motorcycleSpokes.mutableCopy;
 	phase.activeWaveFronts = prevPhase.activeWaveFronts.mutableCopy;
-	phase.eventLog = prevPhase.eventLog.mutableCopy;
+	phase.eventLog = [[NSMutableArray alloc] init];
+	phase.timeSqr = prevPhase.timeSqr;
+	phase.nextHandler = ^id(id phase){ return [self wavePropagationPost: phase]; };
 	
 	static id trigger = nil;
 
@@ -2246,13 +2246,18 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 	}
 	
 	if (!phase.events.count)
+	{
 		return phase;
+	}
 	
 	PSEvent* firstEvent = [phase.events objectAtIndex: 0];
 	
+	phase.timeSqr = firstEvent.timeSqr;
+	phase.location = firstEvent.mpLocation;
+	
 	if ([firstEvent.timeSqr compare: [[MPDecimal alloc] initWithDouble: extensionLimit*extensionLimit]] > 0)
 	{
-		phase.events = nil;
+		phase.timeSqr = [[MPDecimal alloc] initWithDouble: extensionLimit*extensionLimit];
 		return phase;
 	}
 	
@@ -2747,6 +2752,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 #pragma mark FIXP Emit Event Handling
 		[self emitOffsetOutlineForWaveFronts: phase.activeWaveFronts atTime: firstEvent.timeSqr];
 		
+		phase.location = nil; // emit has no location as such
 	}
 	else if ([firstEvent isKindOfClass: [PSSwapEvent class]])
 	{
@@ -2937,7 +2943,11 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 	}
 	
 
-	
+	if (phase.events.count)
+	{
+		phase.nextHandler = ^id(id phase){ return [self wavePropagationStep: phase]; };
+	}
+
 	return phase;
 }
 
@@ -2951,6 +2961,8 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 	phase.motorcycleSpokes = prevPhase.motorcycleSpokes.mutableCopy;
 	phase.activeWaveFronts = prevPhase.activeWaveFronts.mutableCopy;
 	phase.eventLog = prevPhase.eventLog.mutableCopy;
+	phase.timeSqr = prevPhase.timeSqr;
+	phase.isFinished = YES;
 
 	MPDecimal* limitSqr = [[MPDecimal alloc] initWithDouble: extensionLimit*extensionLimit];
 	
@@ -2988,6 +3000,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 	PolySkelWavePhase* phase = [[PolySkelWavePhase alloc] init];
 	phase.motorcyclePaths = [self motorcycleDisplayPaths];
 	phase.outlinePaths = [self outlineDisplayPaths];
+	phase.nextHandler = ^id(id phase){ return [self prepareSpokePhase: phase]; };
 	
 	phase = [self prepareSpokePhase: phase];
 	
@@ -3003,11 +3016,50 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 	
 }
 
+- (void) doSkeletizationStep
+{
+	if (!doneSteps)
+		doneSteps = [[NSMutableArray alloc] init];
+	
+	id prevPhase = [doneSteps lastObject];
+	
+	if (!prevPhase)
+	{
+		[self runMotorcycles];
+		PolySkelPhase* phase = [[PolySkelPhase alloc] init];
+		phase.motorcyclePaths = [self motorcycleDisplayPaths];
+		phase.outlinePaths = [self outlineDisplayPaths];
+		phase.timeSqr = [MPDecimal zero];
+		
+		phase.nextHandler = ^id(id phase){ return [self prepareSpokePhase: phase]; };
+		
+		phase.motorcyclePaths = [self motorcycleDisplayPaths];
+		
+		[doneSteps addObject: phase];
+	}
+	else if ([prevPhase nextHandler])
+	{
+		PolySkelWavePhase* phase = [prevPhase nextHandler](prevPhase);
+		phase.activeSpokePaths = [self displayPathsForSpokes: phase.activeSpokes atTimeSqr: phase.timeSqr];
+		phase.terminatedSpokePaths = [self displayPathsForSpokes: terminatedSpokes.allObjects atTimeSqr: phase.timeSqr];
+		phase.waveFrontPaths = [self displayPathsForWaveFronts: phase.activeWaveFronts atTimeSqr: phase.timeSqr];
+		[doneSteps addObject: phase];
+	}
+	else
+	{
+		assert([prevPhase isFinished]);
+	}
+}
+
 
 - (void) generateSkeleton
 {
-	[self runMotorcycles];
-	[self runSpokes];
+	while (![doneSteps.lastObject isFinished])
+		@autoreleasepool {
+			[self doSkeletizationStep];
+		}
+//	[self runMotorcycles];
+//	[self runSpokes];
 }
 
 
@@ -3030,6 +3082,54 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 	}
 	
 	return @[ bpath ];
+}
+
+- (NSArray*) displayPathsForWaveFronts: (NSArray*) waveFronts atTimeSqr: (MPDecimal*) timeSqr
+{
+	NSBezierPath* bpath = [NSBezierPath bezierPath];
+	
+	MPDecimal* time = timeSqr.sqrt;
+	
+	for (PSWaveFront* waveFront in waveFronts)
+	{
+		vector_t a = v3iToFloat([waveFront.leftSpoke positionAtTime: time]);
+		[bpath moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
+		vector_t b = v3iToFloat([waveFront.rightSpoke positionAtTime: time]);
+		[bpath lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
+		
+	}
+	
+	return @[ bpath ];
+	
+}
+
+
+- (NSArray*) displayPathsForSpokes: (NSArray*) spokes atTimeSqr: (MPDecimal*) timeSqr
+{
+	NSBezierPath* bpath = [NSBezierPath bezierPath];
+	
+	MPDecimal* time = timeSqr.sqrt;
+	
+	for (PSSpoke* spoke in spokes)
+	{
+		vector_t a = v3iToFloat(spoke.startLocation);
+		[bpath moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
+		
+		if (spoke.terminalVertex)
+		{
+			vector_t b = v3iToFloat(spoke.terminalVertex.position);
+			[bpath lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
+		}
+		else
+		{
+			vector_t b = v3iToFloat([spoke positionAtTime: time]);
+			[bpath lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
+
+		}
+	}
+	
+	return @[ bpath ];
+
 }
 
 - (NSArray*) spokeDisplayPaths

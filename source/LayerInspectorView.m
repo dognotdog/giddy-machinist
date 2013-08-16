@@ -26,14 +26,22 @@
 //	CGPoint mouseDownLocationInLayer, mouseDragLocationInLayer, mouseUpLocationInSlice;
 }
 
-@synthesize slice, indexOfSelectedOutline, motorcyclePaths, spokePaths, outlinePaths, overfillPaths, underfillPaths, mouseDownLocationInSlice, mouseDragLocationInSlice, mouseUpLocationInSlice, clippingOutline;
+@synthesize slice, indexOfSelectedOutline, motorcyclePaths, spokePaths, outlinePaths, overfillPaths, underfillPaths, mouseDownLocationInSlice, mouseDragLocationInSlice, mouseUpLocationInSlice, clippingOutline, markerPaths;
 
 - (id)initWithFrame:(NSRect)frame
 {
     if (!(self = [super initWithFrame:frame]))
 		return nil;
+	
+	offsetPaths = [[NSMutableArray alloc] init];
     
     return self;
+}
+
+- (void) addOffsetOutlinePaths: (NSArray*) paths;
+{
+	[offsetPaths addObjectsFromArray: paths];
+	[self setNeedsDisplay: YES];
 }
 
 - (void) addOffsetOutlinePath: (NSBezierPath*) bpath
@@ -174,28 +182,22 @@
 	return transform;
 }
 
-- (void)drawRect:(NSRect)dirtyRect
+- (void) drawRect: (NSRect)dirtyRect withOutline: (BOOL) displayOutline withMotorcycles: (BOOL) displayMotorcycles withSpokes: (BOOL) displaySpokes withWavefronts: (BOOL) displayWavefronts withThinWalls: (BOOL) displayThinWalls
 {
 	[[NSColor blackColor] set];
 	NSRectFill(dirtyRect);
 	
 	if (!outlinePaths.count && !openPaths.count)
 		return;
-
+	
 	NSAffineTransform* transform = [self contentTransform];
 	
 	NSGraphicsContext* ctx = [NSGraphicsContext currentContext];
 	[ctx saveGraphicsState];
-		
+	
 	float scale = transform.transformStruct.m11;
 	assert(scale);
-
-	BOOL displayOutline = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 0];
-	BOOL displayMotorcycles = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 1];
-	BOOL displaySpokes = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 2];
-	BOOL displayWavefronts = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 3];
-	BOOL displayThinWalls = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 4];
-
+		
 	[transform concat];
 	
 	if (displayOutline)
@@ -272,6 +274,16 @@
 			[path stroke];
 		}
 	}
+	
+	
+	for (NSBezierPath* path in markerPaths)
+	{
+		[[[NSColor whiteColor] colorWithAlphaComponent: 1.0] set];
+		
+		[path setLineWidth: 1.0/scale];
+		[path stroke];
+	}
+	
 	[[NSColor whiteColor] set];
 	
 	[NSBezierPath setDefaultLineWidth: 1.0/scale];
@@ -279,7 +291,7 @@
 	[NSBezierPath strokeLineFromPoint: CGPointAdd(self.cursor, CGPointMake(0.0, 10.0)) toPoint: CGPointAdd(self.cursor,  CGPointMake(0.0,  1.0))];
 	[NSBezierPath strokeLineFromPoint: CGPointAdd(self.cursor, CGPointMake(-10.0,0.0)) toPoint: CGPointAdd(self.cursor,  CGPointMake(-1.0, 0.0))];
 	[NSBezierPath strokeLineFromPoint: CGPointAdd(self.cursor, CGPointMake( 10.0,0.0)) toPoint: CGPointAdd(self.cursor,  CGPointMake(1.0, 0.0))];
-
+	
 	
 	if (clippingOutline)
 	{
@@ -296,7 +308,18 @@
 	[transform concat];
 	
 	[ctx restoreGraphicsState];
+	
+}
 
+- (void)drawRect:(NSRect)dirtyRect
+{
+	BOOL displayOutline = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 0];
+	BOOL displayMotorcycles = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 1];
+	BOOL displaySpokes = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 2];
+	BOOL displayWavefronts = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 3];
+	BOOL displayThinWalls = [[self.window.windowController displayOptionsControl] isSelectedForSegment: 4];
+
+	[self drawRect: dirtyRect withOutline: displayOutline withMotorcycles: displayMotorcycles withSpokes: displaySpokes withWavefronts: displayWavefronts withThinWalls: displayThinWalls];
 }
 
 - (CGPoint) convertPointToSlice: (CGPoint) aPoint

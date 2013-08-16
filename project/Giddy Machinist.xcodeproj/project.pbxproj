@@ -176,6 +176,7 @@
 		DA88D7481618E3E5001CE353 /* MotionPlanner.m in Sources */ = {isa = PBXBuildFile; fileRef = DA88D7471618E3E4001CE353 /* MotionPlanner.m */; };
 		DAAD9F8B177B50DB00108C86 /* FixPolygon.m in Sources */ = {isa = PBXBuildFile; fileRef = DAAD9F8A177B50DB00108C86 /* FixPolygon.m */; };
 		DAAFAF1A1770EE8200FBB343 /* PSSpatialHash.m in Sources */ = {isa = PBXBuildFile; fileRef = DAAFAF191770EE8200FBB343 /* PSSpatialHash.m */; };
+		DAE8303117BD58370098BCE5 /* PolySkelVideoGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = DAE8303017BD58370098BCE5 /* PolySkelVideoGenerator.m */; };
 		DAF9B5A6172846B700B8989D /* GMAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = DAF9B5A5172846B700B8989D /* GMAppDelegate.m */; };
 /* End PBXBuildFile section */
 
@@ -428,6 +429,8 @@
 		DAAFAF191770EE8200FBB343 /* PSSpatialHash.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PSSpatialHash.m; sourceTree = "<group>"; };
 		DAE47E23164818F00036AACF /* PolygonExtender.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolygonExtender.h; sourceTree = "<group>"; };
 		DAE47E24164818F00036AACF /* PolygonExtender.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PolygonExtender.m; sourceTree = "<group>"; };
+		DAE8302F17BD58370098BCE5 /* PolySkelVideoGenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolySkelVideoGenerator.h; sourceTree = "<group>"; };
+		DAE8303017BD58370098BCE5 /* PolySkelVideoGenerator.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PolySkelVideoGenerator.m; sourceTree = "<group>"; };
 		DAF9B5A4172846B700B8989D /* GMAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GMAppDelegate.h; sourceTree = "<group>"; };
 		DAF9B5A5172846B700B8989D /* GMAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GMAppDelegate.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -679,6 +682,8 @@
 				DA2E431E174AA1AF006791D3 /* STLFile.m */,
 				DA5FCA81171BE4FD00A374C3 /* GMDocumentWindowController.h */,
 				DA5FCA82171BE4FD00A374C3 /* GMDocumentWindowController.m */,
+				DAE8302F17BD58370098BCE5 /* PolySkelVideoGenerator.h */,
+				DAE8303017BD58370098BCE5 /* PolySkelVideoGenerator.m */,
 				DA50F04F15F0F78A0047CEF9 /* RS274Parser.h */,
 				DA50F05015F0F78A0047CEF9 /* RS274Parser.m */,
 				DA50F0A115F24A870047CEF9 /* RS274Interpreter.h */,
@@ -1007,6 +1012,7 @@
 				DA382BAA1752621B008C0CB4 /* bn_mp_signed_bin_size.c in Sources */,
 				DA382BAB1752621B008C0CB4 /* bn_mp_sqr.c in Sources */,
 				DA382BAC1752621B008C0CB4 /* bn_mp_sqrmod.c in Sources */,
+				DAE8303117BD58370098BCE5 /* PolySkelVideoGenerator.m in Sources */,
 				DA382BAD1752621B008C0CB4 /* bn_mp_sqrt.c in Sources */,
 				DA382BAE1752621B008C0CB4 /* bn_mp_sub.c in Sources */,
 				DA382BAF1752621B008C0CB4 /* bn_mp_sub_d.c in Sources */,
