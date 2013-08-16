@@ -107,6 +107,9 @@
 @property(nonatomic, weak) PSEvent* upcomingEvent;
 
 - (v3i_t) positionAtTime: (MPDecimal*) t;
+- (MPDecimal*) distanceSqrToPoint: (MPVector2D*) X;
+
+- (double) startOffsetQuants;
 
 @end
 

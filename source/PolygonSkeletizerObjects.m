@@ -716,8 +716,8 @@ static MPVector2D* _mpLinePointDistanceNum(MPVector2D* A, MPVector2D* B, MPVecto
 	MPVector2D* E_AB = [MPVector2D vectorWith3i: self.leftEdge.edge];
 	MPVector2D* E_BC = [MPVector2D vectorWith3i: self.rightEdge.edge];
 		
-	MPDecimal* l_E_AB = [E_AB length];
-	MPDecimal* l_E_BC = [E_BC length];
+	MPDecimal* l_E_AB = [E_AB longLength];
+	MPDecimal* l_E_BC = [E_BC longLength];
 	
 	MPVector2D* RU = [[E_BC scale: l_E_AB] sub: [E_AB scale: l_E_BC]];
 		
@@ -756,7 +756,7 @@ static MPVector2D* _mpLinePointDistanceNum(MPVector2D* A, MPVector2D* B, MPVecto
 		
 	MPVector2D* RU = self.mpNumerator;
 	
-	MPVector2D* R = [RU scaleNum: [MPDecimal one] den: E_ABxBC];
+	MPVector2D* R = [RU scaleNum: [MPDecimal longOne] den: E_ABxBC];
 	
 	assert(!isinf(R.x.toDouble));
 	assert(!isinf(R.y.toDouble));
@@ -822,7 +822,7 @@ static MPVector2D* _crashLocationME(v3i_t _B, v3i_t _E_AB, v3i_t _E_BC, v3i_t _U
 	MPVector2D* RQS = [E_ABC scale: [V cross: S]];
 	MPVector2D* SPR = [S scale: [B cross: E_ABC]];
 	
-	MPVector2D* X = [[RQS sub: SPR] scaleNum: [MPDecimal one] den: denum];
+	MPVector2D* X = [[RQS sub: SPR] scaleNum: [MPDecimal longOne] den: denum];
 	
 	
 	
@@ -1132,7 +1132,7 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	MPVector2D* cachedNumerator;
 }
 
-@synthesize retiredWaveFronts, terminationTimeSqr, startTimeSqr, endLocation, leftEdge, rightEdge;
+@synthesize retiredWaveFronts, terminationTimeSqr, startTimeSqr, endLocation, leftEdge, rightEdge, startLocation;
 
 - (void) setLeftEdge:(PSSourceEdge *)edge
 {
@@ -1145,6 +1145,25 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	assert(!rightEdge);
 	rightEdge = edge;
 }
+
+- (void) setStartLocation:(v3i_t) loc
+{
+	MPVector2D* X = [MPVector2D vectorWith3i: loc];
+	MPDecimal* dsqr = [self distanceSqrToPoint: X];
+	MPDecimal* ref = [MPDecimal decimalWithInt64: 2*2 shift: 16+16];
+	if (!([dsqr compare: ref] == NSOrderedAscending))
+	{
+		vector_t v = self.floatVelocity;
+		NSLog(@"exceeding start distance check by: %f quants (%f, %f)", dsqr.sqrt.toDouble*65536.0, v.farr[0], v.farr[1]);
+	}
+	startLocation = loc;
+}
+
+- (void) setStartLocationNoTest:(v3i_t) loc
+{
+	startLocation = loc;
+}
+
 
 - (id) init
 {
@@ -1163,6 +1182,17 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	return v3iCreate(0, 0, 0, 0);
 }
 
+- (MPDecimal*) distanceSqrToPoint: (MPVector2D*) X
+{
+	[self doesNotRecognizeSelector: _cmd];
+	return nil;
+}
+
+- (double) startOffsetQuants
+{
+	return [self distanceSqrToPoint: [MPVector2D vectorWith3i: self.startLocation]].sqrt.toDouble*65536.0;
+}
+
 - (MPDecimal*) timeSqrToLocation: (MPVector2D*) X;
 {
 	assert(self.leftEdge && self.rightEdge);
@@ -1178,7 +1208,7 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	MPDecimal* den = self.mpDenominator;
 	if (den.isZero)
 		return self.mpDirection;
-	MPVector2D* R = [self.mpNumerator scaleNum: [MPDecimal one] den: den];
+	MPVector2D* R = [self.mpNumerator scaleNum: [MPDecimal longOne] den: den];
 	
 	
 	assert(!isinf(R.x.toDouble));
@@ -1203,7 +1233,7 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	{
 		MPVector2D* R = [E_AB add: E_BC];
 				
-		R = [R scale: [MPDecimal decimalWithInt64: 1 shift: 1]]; // divide by 2
+		R = [R scale: [MPDecimal oneHalf]]; // divide by 2
 		return R.length;
 	}
 	return d;
@@ -1221,8 +1251,8 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	MPVector2D* E_AB = [MPVector2D vectorWith3i: self.leftEdge.edge];
 	MPVector2D* E_BC = [MPVector2D vectorWith3i: self.rightEdge.edge];
 		
-	MPDecimal* l_E_AB = [E_AB length];
-	MPDecimal* l_E_BC = [E_BC length];
+	MPDecimal* l_E_AB = [E_AB longLength];
+	MPDecimal* l_E_BC = [E_BC longLength];
 	
 	MPVector2D* R = [[E_BC scale: l_E_AB] sub: [E_AB scale: l_E_BC]];
 	
@@ -1347,6 +1377,20 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	
 }
 
+- (MPDecimal*) distanceSqrToPoint: (MPVector2D*) X
+{
+	MPVector2D* V = self.mpDirection;
+	MPVector2D* R = [X sub: self.sourceVertex.mpPosition];
+	
+	MPDecimal* num = [[V cross: R] mul: [V cross: R]];
+	MPDecimal* den = [V dot: V];
+	
+	return [[num mul: [MPDecimal decimalWithInt64: 1L << 32 shift: 32]] div: den];
+	
+//	MPVector2D* D = _mpLinePointDistanceNum(self.sourceVertex.mpPosition, [self.sourceVertex.mpPosition add: self.mpDirection], X);
+//	return [D dot: D];
+}
+
 /*
 - (void) setVelocity:(vector_t)velocity
 {
@@ -1432,7 +1476,7 @@ static v3i_t _rotateEdgeToNormal(v3i_t E)
 	MPDecimal* nom = [[V sub: B] cross: E];
 	MPDecimal* den = [[D cross: E] add: [d mul: El]];
 	
-	MPVector2D* uR = [D scaleNum: nom den: den];
+	MPVector2D* uR = [D scaleNum: [nom mul: [MPDecimal longOne]] den: den];
 	MPVector2D* X = [B add: uR];
 	
 	if (X.minIntegerBits > 15)
@@ -1451,6 +1495,19 @@ static v3i_t _rotateEdgeToNormal(v3i_t E)
 {
 	return self.startLocation;
 }
+
+- (void) setStartLocation:(v3i_t) loc
+{
+	[self setStartLocationNoTest: loc];
+}
+
+- (MPDecimal*) distanceSqrToPoint: (MPVector2D*) X
+{
+	MPVector2D* D = [[MPVector2D vectorWith3i: self.startLocation] sub: X];
+	
+	return [D dot: D];
+}
+
 
 - (MPVector2D*) mpDirection
 {

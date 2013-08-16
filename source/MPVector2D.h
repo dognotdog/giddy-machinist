@@ -29,6 +29,7 @@
 - (MPVector2D*) max: (MPVector2D*) b;
 - (MPVector2D*) scaleNum: (MPDecimal*) num den: (MPDecimal*) den;
 - (MPDecimal*) length;
+- (MPDecimal*) longLength;
 - (MPVector2D*) negate;
 
 - (MPVector2D*) rotateCCW;

@@ -48,6 +48,7 @@
 
 + (instancetype) zero;
 + (instancetype) one;
++ (instancetype) longOne;
 + (instancetype) oneHalf;
 + (instancetype) largerThan32Sqr;
 

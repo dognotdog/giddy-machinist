@@ -121,6 +121,15 @@
 {
 	
 	MPDecimal* v = [self dot: self];
+	// v = [v mul: [MPDecimal longOne]];
+	return v.sqrt;
+}
+
+- (MPDecimal*) longLength
+{
+	
+	MPDecimal* v = [self dot: self];
+	v = [v mul: [MPDecimal longOne]];
 	return v.sqrt;
 }
 

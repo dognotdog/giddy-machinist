@@ -374,10 +374,10 @@ static MPVector2D* _crashLocationBisectors(MPVector2D* B, MPVector2D* E_AB, MPVe
 	}
 	
 
-	MPDecimal* l_E_AB = [E_AB length];
-	MPDecimal* l_E_BC = [E_BC length];
-	MPDecimal* l_E_UV = [E_UV length];
-	MPDecimal* l_E_VW = [E_VW length];
+	MPDecimal* l_E_AB = [E_AB longLength];
+	MPDecimal* l_E_BC = [E_BC longLength];
+	MPDecimal* l_E_UV = [E_UV longLength];
+	MPDecimal* l_E_VW = [E_VW longLength];
 	
 	MPVector2D* E_ABC = [[E_BC scale: l_E_AB] sub: [E_AB scale: l_E_BC]];
 	MPVector2D* E_UVW = [[E_VW scale: l_E_UV] sub: [E_UV scale: l_E_VW]];
@@ -1598,13 +1598,13 @@ static PSSpoke* _newSpokeBetweenWavefrontsNoInsert(PSWaveFront* leftFront, PSWav
 		
 	[vertices addObject: xVertex];
 
-	newSpoke.startLocation = loc;
 	newSpoke.sourceVertex = xVertex;
 	newSpoke.leftEdge = leftFront.edge;
 	newSpoke.rightEdge = rightFront.edge;
 	newSpoke.leftWaveFront = leftFront;
 	newSpoke.rightWaveFront = rightFront;
-	
+	newSpoke.startLocation = loc;
+
 	return newSpoke;
 }
 
@@ -1634,12 +1634,12 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 {
 	PSSpoke* newSpoke = [[[spoke class] alloc] init];
 	
-	newSpoke.startLocation = loc;
 	newSpoke.sourceVertex = spoke.sourceVertex;
 	newSpoke.leftEdge = spoke.leftEdge;
 	newSpoke.rightEdge = spoke.rightEdge;
 	newSpoke.leftWaveFront = leftFront;
 	newSpoke.rightWaveFront = rightFront;
+	newSpoke.startLocation = loc;
 
 		
 	leftFront.rightSpoke = newSpoke;
@@ -2018,11 +2018,11 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 			{
 				PSSimpleSpoke* spoke = [[PSSimpleSpoke alloc] init];
 				spoke.sourceVertex = vertex;
+				spoke.leftEdge = edge0;
+				spoke.rightEdge = edge1;
 				spoke.startLocation = vertex.position;
 				spoke.startTimeSqr = [MPDecimal zero];
 				
-				spoke.leftEdge = edge0;
-				spoke.rightEdge = edge1;
 				
 				assert(spoke.leftEdge.rightVertex == spoke.rightEdge.leftVertex);
 				
@@ -2431,6 +2431,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 				assert(newSpoke.startTimeSqr);
 				
 				[phase.eventLog addObject: [NSString stringWithFormat: @"  new spoke %@", newSpoke]];
+				[phase.eventLog addObject: [NSString stringWithFormat: @"  start dx %f", newSpoke.startOffsetQuants]];
 				[phase.eventLog addObject: [NSString stringWithFormat: @"    left %@", newSpoke.leftWaveFront]];
 				[phase.eventLog addObject: [NSString stringWithFormat: @"   right %@", newSpoke.rightWaveFront]];
 				
@@ -2583,7 +2584,9 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 			assert(newSpoke);
 			[phase.activeSpokes addObject: newSpoke];
 			[changedSpokes addObject: newSpoke];
-			
+
+			[phase.eventLog addObject: [NSString stringWithFormat: @"    continued start dx: %f", newSpoke.startOffsetQuants]];
+
 		}
 		{
 			PSSpoke* newSpoke = _continuedSpoke(opposingFront.rightSpoke, newRightFront, opposingFront.rightSpoke.rightWaveFront, opposingFront.rightSpoke.endLocation);
@@ -2593,6 +2596,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 			[phase.activeSpokes addObject: newSpoke];
 			[changedSpokes addObject: newSpoke];
 			
+			[phase.eventLog addObject: [NSString stringWithFormat: @"    continued start dx: %f", newSpoke.startOffsetQuants]];
 		}
 		
 		
@@ -2603,7 +2607,8 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 		leftSpoke.startTimeSqr = event.timeSqr;
 		
 		[phase.eventLog addObject: [NSString stringWithFormat: @"     new left spoke:  %@", leftSpoke]];
-		
+		[phase.eventLog addObject: [NSString stringWithFormat: @"           start dx: %f", leftSpoke.startOffsetQuants]];
+
 		[phase.activeSpokes addObject: leftSpoke];
 		[changedSpokes addObject: leftSpoke];
 		
@@ -2612,7 +2617,8 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 		rightSpoke.startTimeSqr = event.timeSqr;
 		
 		[phase.eventLog addObject: [NSString stringWithFormat: @"    new right spoke:  %@", rightSpoke]];
-		
+		[phase.eventLog addObject: [NSString stringWithFormat: @"           start dx: %f", rightSpoke.startOffsetQuants]];
+	
 		[phase.activeSpokes addObject: rightSpoke];
 		[changedSpokes addObject: rightSpoke];
 		[changedSpokes addObject: newLeftFront.leftSpoke];

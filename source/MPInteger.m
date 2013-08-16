@@ -362,6 +362,15 @@ static double mp_get_double(mp_int *a)
 	return one;
 }
 
++ (id) longOne
+{
+	static MPDecimal* one = nil;
+	if (!one)
+		one = [[MPDecimal alloc] initWithInt64: 1L << 32 shift: 32];
+	return one;
+}
+
+
 + (id) oneHalf
 {
 	return [[MPDecimal alloc] initWithInt64: 1 shift: 1];
