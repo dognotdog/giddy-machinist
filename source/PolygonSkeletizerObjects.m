@@ -1132,7 +1132,19 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	MPVector2D* cachedNumerator;
 }
 
-@synthesize retiredWaveFronts, terminationTimeSqr, startTimeSqr, endLocation;
+@synthesize retiredWaveFronts, terminationTimeSqr, startTimeSqr, endLocation, leftEdge, rightEdge;
+
+- (void) setLeftEdge:(PSSourceEdge *)edge
+{
+	assert(!leftEdge);
+	leftEdge = edge;
+}
+
+- (void) setRightEdge:(PSSourceEdge *)edge
+{
+	assert(!rightEdge);
+	rightEdge = edge;
+}
 
 - (id) init
 {
