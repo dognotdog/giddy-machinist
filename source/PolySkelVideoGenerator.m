@@ -122,7 +122,8 @@
 				PolySkelPhase* phase = [skeletizer.doneSteps objectAtIndex: frameCount];
 				layerView.outlinePaths = phase.outlinePaths;
 				layerView.motorcyclePaths = phase.motorcyclePaths;
-				layerView.spokePaths = [phase.activeSpokePaths arrayByAddingObjectsFromArray: phase.terminatedSpokePaths];
+				layerView.activeSpokePaths = phase.activeSpokePaths;
+				layerView.terminatedSpokePaths = phase.terminatedSpokePaths;
 				[layerView removeAllOffsetOutlinePaths];
 				[layerView addOffsetOutlinePaths: phase.waveFrontPaths];
 				

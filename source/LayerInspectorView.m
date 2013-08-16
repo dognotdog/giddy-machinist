@@ -26,7 +26,7 @@
 //	CGPoint mouseDownLocationInLayer, mouseDragLocationInLayer, mouseUpLocationInSlice;
 }
 
-@synthesize slice, indexOfSelectedOutline, motorcyclePaths, spokePaths, outlinePaths, overfillPaths, underfillPaths, mouseDownLocationInSlice, mouseDragLocationInSlice, mouseUpLocationInSlice, clippingOutline, markerPaths;
+@synthesize slice, indexOfSelectedOutline, motorcyclePaths, activeSpokePaths, terminatedSpokePaths, outlinePaths, overfillPaths, underfillPaths, mouseDownLocationInSlice, mouseDragLocationInSlice, mouseUpLocationInSlice, clippingOutline, markerPaths;
 
 - (id)initWithFrame:(NSRect)frame
 {
@@ -82,7 +82,8 @@
 	offsetPaths = [NSMutableArray array];
 	offsetBoundaryPaths = [NSMutableArray array];
 	motorcyclePaths = @[];
-	spokePaths = @[];
+	activeSpokePaths = @[];
+	terminatedSpokePaths = @[];
 	overfillPaths = @[];
 	underfillPaths = @[];
 	
@@ -221,23 +222,6 @@
 			[path stroke];
 		}
 	}
-	if (displayMotorcycles)
-		for (NSBezierPath* path in motorcyclePaths)
-		{
-			[[[NSColor blueColor] colorWithAlphaComponent: 1.0] set];
-			
-			[path setLineWidth: 1.0/scale];
-			[path stroke];
-		}
-	if (displaySpokes)
-		for (NSBezierPath* path in spokePaths)
-		{
-			[[[NSColor redColor] colorWithAlphaComponent: 1.0] set];
-			
-			[path setLineWidth: 1.0/scale];
-			[path stroke];
-		}
-	
 	if (displayWavefronts)
 	{
 		for (NSBezierPath* path in offsetPaths)
@@ -255,6 +239,33 @@
 			[path stroke];
 		}
 	}
+
+	if (displayMotorcycles)
+		for (NSBezierPath* path in motorcyclePaths)
+		{
+			[[[NSColor blueColor] colorWithAlphaComponent: 1.0] set];
+			
+			[path setLineWidth: 1.0/scale];
+			[path stroke];
+		}
+	if (displaySpokes)
+	{
+		for (NSBezierPath* path in terminatedSpokePaths)
+		{
+			[[[NSColor redColor] colorWithAlphaComponent: 0.5] set];
+			
+			[path setLineWidth: 1.0/scale];
+			[path stroke];
+		}
+		for (NSBezierPath* path in activeSpokePaths)
+		{
+			[[[NSColor redColor] colorWithAlphaComponent: 1.0] set];
+			
+			[path setLineWidth: 1.0/scale];
+			[path stroke];
+		}
+	}
+	
 	if (displayThinWalls)
 	{
 		for (NSBezierPath* path in underfillPaths)

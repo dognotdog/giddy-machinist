@@ -273,13 +273,27 @@
 			
 			
 			// proposed test: if motorcycle terminates "inside" triangle formed by the two opposing spokes, don't collapse
+			// problem: when spoke is nearly parallel to wavefront, "inside" test is inaccurate
+			
+			// proposed test #2: test if split location is closer than collapse
 						
-			MPVector2D* X = mspoke.motorcycle.terminalVertex.mpPosition;
+			MPVector2D* X = mspoke.splitLocation;
 			
-			BOOL inside = ![self.collapsingWaveFront.leftSpoke isVertexCCWFromSpoke: X] && [self.collapsingWaveFront.rightSpoke isVertexCCWFromSpoke: X];
-			
-			if (inside)
-				return NO;
+			if (X)
+			{
+				MPDecimal* tLX = [self.collapsingWaveFront.leftSpoke.sourceVertex timeSqrToLocation: X];
+				MPDecimal* tLE = [self.collapsingWaveFront.leftSpoke.sourceVertex timeSqrToLocation: self.mpLocation];
+				MPDecimal* tRX = [self.collapsingWaveFront.rightSpoke.sourceVertex timeSqrToLocation: X];
+				MPDecimal* tRE = [self.collapsingWaveFront.rightSpoke.sourceVertex timeSqrToLocation: self.mpLocation];
+				
+				BOOL closerLeft = [tLX compare: tLE] == NSOrderedAscending;
+				BOOL closerRight = [tRX compare: tRE] == NSOrderedAscending;
+				
+				BOOL inside = ![self.collapsingWaveFront.leftSpoke isVertexCCWFromSpoke: X] && ![self.collapsingWaveFront.rightSpoke isVertexCWFromSpoke: X];
+				
+				if (inside || closerRight || closerLeft)
+					return NO;
+			}
 		}
 	}
 	
@@ -291,15 +305,10 @@
 	
 	if (leftCollapse)
 	{
-		MPVector2D* leftSource = self.collapsingWaveFront.leftSpoke.sourceVertex.mpPosition;
-
 		MPVector2D* XL = leftCollapse.mpLocation;
 		
-		MPVector2D* R0 = [X0 sub: leftSource];
-		MPVector2D* RL = [XL sub: leftSource];
-		
-		MPDecimal* D0 = [R0 dot: R0];
-		MPDecimal* DL = [RL dot: RL];
+		MPDecimal* D0 = [self.collapsingWaveFront.leftSpoke.sourceVertex timeSqrToLocation: X0];
+		MPDecimal* DL = [self.collapsingWaveFront.leftSpoke.sourceVertex timeSqrToLocation: XL];
 		
 		if ([D0 compare: DL] == NSOrderedDescending)
 			return NO;
@@ -307,15 +316,10 @@
 	
 	if (rightCollapse)
 	{
-		MPVector2D* rightSource = self.collapsingWaveFront.rightSpoke.sourceVertex.mpPosition;
-		
 		MPVector2D* XR = rightCollapse.mpLocation;
 		
-		MPVector2D* R0 = [X0 sub: rightSource];
-		MPVector2D* RR = [XR sub: rightSource];
-		
-		MPDecimal* D0 = [R0 dot: R0];
-		MPDecimal* DR = [RR dot: RR];
+		MPDecimal* D0 = [self.collapsingWaveFront.rightSpoke.sourceVertex timeSqrToLocation: X0];
+		MPDecimal* DR = [self.collapsingWaveFront.rightSpoke.sourceVertex timeSqrToLocation: XR];
 		
 		if ([D0 compare: DR] == NSOrderedDescending)
 			return NO;
@@ -954,6 +958,14 @@ static long _locationOnEdge_boxTest(v3i_t A, v3i_t B, v3i_t x)
 	incomingMotorcycles = [incomingMotorcycles arrayByRemovingObject: cycle];
 }
 
+- (MPDecimal*) timeSqrToLocation: (MPVector2D*) X
+{
+	MPVector2D* D = [X sub: self.mpPosition];
+	
+	return [D dot: D];
+}
+
+
 #if 0
 static double _angle2d(v3i_t from, v3i_t to)
 {
@@ -1116,6 +1128,9 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 
 
 @implementation	PSSpoke
+{
+	MPVector2D* cachedNumerator;
+}
 
 @synthesize retiredWaveFronts, terminationTimeSqr, startTimeSqr, endLocation;
 
@@ -1184,6 +1199,9 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 
 - (MPVector2D*) mpNumerator
 {
+	if (cachedNumerator)
+		return cachedNumerator;
+
 	assert(self.leftEdge);
 	assert(self.rightEdge);
 	assert(v3iLength2D(self.leftEdge.edge).x > 0);
@@ -1222,6 +1240,9 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	
 	assert(!isinf(R.x.toDouble));
 	assert(!isinf(R.y.toDouble));
+	
+	cachedNumerator = R;
+	
 	return R;
 }
 
@@ -1345,11 +1366,70 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 
 @implementation PSMotorcycleSpoke
 
+@synthesize opposingWaveFront;
+
 - (BOOL) convex
 {
 	return NO;
 }
 
+- (void) setOpposingWaveFront: (PSWaveFront *)wf
+{
+	assert(!wf || ((wf != self.leftWaveFront) && (wf != self.rightWaveFront)));
+	opposingWaveFront = wf;
+}
+
+static v3i_t _rotateEdgeToNormal(v3i_t E)
+{
+	return v3iCreate(-E.y, E.x, E.z, E.shift);
+}
+
+- (MPVector2D*) splitLocation
+{
+	PSWaveFront* waveFront = self.opposingWaveFront;
+	assert(waveFront);
+	assert(self.motorcycle.sourceVertex);
+	assert(waveFront.edge);
+	
+	
+	
+	v3i_t we = waveFront.edge.edge;
+	v3i_t wn = _rotateEdgeToNormal(we);
+	
+	assert(self.mpNumerator && !(self.mpNumerator.x.isZero && self.mpNumerator.y.isZero));
+	MPDecimal* xx = [self.mpDirection dot: [MPVector2D vectorWith3i: wn]];
+	
+	
+	if (xx.isPositive || xx.isZero)
+	{
+		return nil;
+	}
+	
+	MPVector2D* D = self.mpNumerator;
+	MPDecimal* d = self.mpDenominator;
+	
+	MPVector2D* E = waveFront.edge.mpEdge;
+	MPDecimal* El = E.length;
+	//	MPDecimal* EE = [E dot: E];
+	//	MPVector2D* N = E.rotateCCW;
+	
+	MPVector2D* V = self.opposingWaveFront.edge.leftVertex.mpPosition;
+	MPVector2D* B = self.sourceVertex.mpPosition;
+	
+	
+	MPDecimal* nom = [[V sub: B] cross: E];
+	MPDecimal* den = [[D cross: E] add: [d mul: El]];
+	
+	MPVector2D* uR = [D scaleNum: nom den: den];
+	MPVector2D* X = [B add: uR];
+	
+	if (X.minIntegerBits > 15)
+		return nil;
+	
+	assert([waveFront.edge mpVertexInPositiveHalfPlane: X]);
+	
+	return X;
+}
 
 @end
 
@@ -1502,18 +1582,23 @@ static long _waveFrontsWeaklyConvex(PSWaveFront* leftFront, PSWaveFront* rightFr
 	
 	MPVector2D* X = nil;
 	
+	BOOL hasActiveMotorcycle = ([leftSpoke isKindOfClass: [PSMotorcycleSpoke class]] && [(PSMotorcycleSpoke*)leftSpoke opposingWaveFront]) || ([rightSpoke isKindOfClass: [PSMotorcycleSpoke class]] && [(PSMotorcycleSpoke*)rightSpoke opposingWaveFront]);
+	BOOL leftDegenerate = [leftSpoke isKindOfClass: [PSDegenerateSpoke class]];
+	BOOL rightDegenerate = [rightSpoke isKindOfClass: [PSDegenerateSpoke class]];
+	BOOL hasDegenerate = leftDegenerate || rightDegenerate;
 	
-	if ([leftSpoke isKindOfClass: [PSDegenerateSpoke class]])
+	
+	if (leftDegenerate && !hasActiveMotorcycle)
 	{
 		X = [MPVector2D vectorWith3i: leftSpoke.startLocation];
 	}
 	
-	if (!X && [rightSpoke isKindOfClass: [PSDegenerateSpoke class]])
+	if (!X && rightDegenerate && !hasActiveMotorcycle)
 	{
 		X = [MPVector2D vectorWith3i: rightSpoke.startLocation];
 	}
 	
-	if (!X)
+	if (!X && !hasDegenerate)
 		X = PSIntersectSpokes(leftSpoke, rightSpoke);
 	
 	if (!X)

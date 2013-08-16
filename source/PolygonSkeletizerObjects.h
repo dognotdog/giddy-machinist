@@ -26,6 +26,8 @@
 
 //- (PSSpoke*) nextSpokeClockwiseFrom: (v3i_t) startDir to: (v3i_t) endDir;
 
+- (MPDecimal*) timeSqrToLocation: (MPVector2D*) X;
+
 - (MPVector2D*) intersectEdges;
 
 - (void) addMotorcycle: (PSMotorcycle*) cycle;
@@ -124,6 +126,9 @@
 @property(nonatomic, weak) PSWaveFront		*opposingWaveFront;
 @property(nonatomic, weak) PSEvent			*upcomingEvent;
 @property(nonatomic, strong) NSArray* remainingBranchVertices;
+
+- (MPVector2D*) splitLocation;
+
 @end
 
 @interface PSMotorcycle : NSObject

@@ -90,7 +90,8 @@
 		}
 		
 		layerView.motorcyclePaths = phase.motorcyclePaths;
-		layerView.spokePaths = [phase.activeSpokePaths arrayByAddingObjectsFromArray: phase.terminatedSpokePaths];
+		layerView.activeSpokePaths = phase.activeSpokePaths;
+		layerView.terminatedSpokePaths = phase.terminatedSpokePaths;
 		[layerView removeAllOffsetOutlinePaths];
 		[layerView addOffsetOutlinePaths: phase.waveFrontPaths];
 
@@ -268,7 +269,8 @@
 	}
 
 	layerView.motorcyclePaths = cyclePaths;
-	layerView.spokePaths = spokePaths;
+	layerView.activeSpokePaths = nil;
+	layerView.terminatedSpokePaths = spokePaths;
 	layerView.outlinePaths = outlinePaths;
 	layerView.underfillPaths = underfillPaths;
 	layerView.overfillPaths	= overfillPaths;

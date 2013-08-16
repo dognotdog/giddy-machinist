@@ -16,7 +16,8 @@
 @property(nonatomic, strong) SlicedOutline* clippingOutline;
 @property(nonatomic) NSInteger indexOfSelectedOutline;
 @property(nonatomic, strong) NSArray* motorcyclePaths;
-@property(nonatomic, strong) NSArray* spokePaths;
+@property(nonatomic, strong) NSArray* activeSpokePaths;
+@property(nonatomic, strong) NSArray* terminatedSpokePaths;
 @property(nonatomic, strong) NSArray* outlinePaths;
 @property(nonatomic, strong) NSArray* markerPaths;
 
