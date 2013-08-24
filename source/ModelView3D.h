@@ -13,6 +13,7 @@
 
 @property(strong) NSArray* models;
 @property(strong) NSDictionary* layers;
+@property(strong) NSArray* contours;
 
 @property(nonatomic,strong) IBOutlet NSSegmentedControl* modelViewScrollModeControl;
 

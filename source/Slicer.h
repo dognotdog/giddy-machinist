@@ -19,7 +19,7 @@
 @property(nonatomic, strong) NSArray* openPaths;
 @property(nonatomic) double layerZ;
 
-- (GfxMesh*) layerMesh;
+- (GfxMesh*) gfxMesh;
 
 @property(nonatomic) double mergeThreshold;
 

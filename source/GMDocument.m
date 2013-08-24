@@ -22,6 +22,8 @@
 
 #import "FoundationExtensions.h"
 #import "STLFile.h"
+#import "ShapeUtilities.h"
+#import "FixPolygon.h"
 
 
 @implementation GMDocument
@@ -30,10 +32,12 @@
 	
 	NSArray* slicedLayers;
 	
+	NSArray* contourPolygons;
+	
 	dispatch_queue_t processingQueue;
 }
 
-@synthesize mainWindowController, slicedLayers;
+@synthesize mainWindowController, slicedLayers, contourPolygons;
 
 - (id)init
 {
@@ -44,6 +48,7 @@
 	
 	slicedLayers = @[];
 	machineCommands = @[];
+	contourPolygons = @[];
 	
 	return self;
 }
@@ -58,6 +63,7 @@
 	mainWindowController = [[GMDocumentWindowController alloc] initWithWindowNibName: @"GMDocument"];
 	
 	[self addWindowController: mainWindowController];
+	
 }
 
 
@@ -90,6 +96,11 @@
 	if ([typeName isEqual: @"com.elmonkey.stl"])
 	{
 		[self loadSTLFromData: data];
+		return YES;
+	}
+	else if ([typeName isEqual: @"com.adobe.encapsulated-postscript"])
+	{
+		[self loadEPSFromData: data];
 		return YES;
 	}
 	
@@ -162,6 +173,28 @@
 			[wc layerDidLoad: layer];
 	}
 	
+}
+
+- (void) contourDidLoad: (FixPolygon*) contour
+{
+	for (id wc in self.windowControllers)
+	{
+		if ([wc respondsToSelector: @selector(contourDidLoad:)])
+			[wc contourDidLoad: contour];
+	}
+	
+}
+
+
+
+- (void) loadEPSFromData: (NSData*) data
+{
+	NSBezierPath* bpath = [ShapeUtilities createBezierPathFromData: data];
+	
+	FixPolygon* polygon = [FixPolygon polygonFromBezierPath: bpath withTransform: nil flatness: 0.1];
+	
+	contourPolygons = [contourPolygons arrayByAddingObject: polygon];
+	[self contourDidLoad: polygon];
 }
 
 - (void) loadSTLFromData: (NSData*) data

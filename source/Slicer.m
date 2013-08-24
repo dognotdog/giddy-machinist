@@ -397,7 +397,7 @@ static vector_t _lineSegmentDistanceScore(SlicedLineSegment* segment0, SlicedLin
 
 @synthesize outlinePaths, openPaths;
 
-- (GfxMesh*) layerMesh
+- (GfxMesh*) gfxMesh
 {
 	GfxMesh* layerMesh = [[GfxMesh alloc] init];
 	

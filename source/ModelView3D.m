@@ -36,7 +36,7 @@
 	GfxMesh*	movePaths;
 }
 
-@synthesize models, layers;
+@synthesize models, layers, contours;
 
 - (void) generateMovePathWithMachineCommands:(NSArray *)commands
 {
@@ -175,8 +175,9 @@
 	statusString = [[GLString alloc] initWithString: @"test" withAttributes: [GLString defaultStringAttributes] withTextColor: [NSColor whiteColor] withBoxColor: [NSColor blackColor] withBorderColor: [NSColor grayColor]];
 	
 	if (!models)
-		models = [NSArray array];
-	layers = [NSDictionary dictionary];
+		models = [[NSArray alloc] init];
+	layers = [[NSDictionary alloc] init];
+	contours = [[NSMutableArray alloc] init];
 
 	camPos = vCreatePos(300.0, 300.0, 300.0);
 	printableVolume.maxv = vCreatePos(200.0, 200.0, 200.0);
@@ -303,7 +304,11 @@
 	{
 		[model drawHierarchyWithState: gfxState];
 	}
-	
+	for (GfxMesh* model in contours)
+	{
+		[model drawHierarchyWithState: gfxState];
+	}
+
 	[self drawMovePathsWithState: gfxState];
 	
 	[grid justDraw];

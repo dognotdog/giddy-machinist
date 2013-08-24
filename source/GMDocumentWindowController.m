@@ -20,6 +20,7 @@
 #import "PSWaveFrontSnapshot.h"
 #import "MPVector2D.h"
 #import "PolySkelVideoGenerator.h"
+#import "FixPolygon.h"
 
 #import "FoundationExtensions.h"
 
@@ -56,52 +57,65 @@
 	
 	[self addObserver: self forKeyPath: @"waveFrontPhaseCount" options: NSKeyValueObservingOptionNew context: nil];
 	[self addObserver: self forKeyPath: @"displayWaveFrontPhaseNumber" options: NSKeyValueObservingOptionNew context: nil];
+	[self.document addObserver: self forKeyPath: @"contourPolygons" options: NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial context: nil];
 
 }
 
 - (void) observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
-	if ([keyPath isEqualToString: @"waveFrontPhaseCount"])
+	if (object == self)
 	{
-		if (self.displayWaveFrontPhaseNumber >= self.waveFrontPhaseCount)
+		if ([keyPath isEqualToString: @"waveFrontPhaseCount"])
 		{
-			if (self.waveFrontPhaseCount)
-				self.displayWaveFrontPhaseNumber = self.waveFrontPhaseCount-1;
-			else
-				self.displayWaveFrontPhaseNumber = 0;
+			if (self.displayWaveFrontPhaseNumber >= self.waveFrontPhaseCount)
+			{
+				if (self.waveFrontPhaseCount)
+					self.displayWaveFrontPhaseNumber = self.waveFrontPhaseCount-1;
+				else
+					self.displayWaveFrontPhaseNumber = 0;
+			}
+		}
+		if ([keyPath isEqualToString: @"displayWaveFrontPhaseNumber"])
+		{
+			layerView.needsDisplay = YES;
+			
+			PolySkelPhase* phase = [skeletizer.doneSteps objectAtIndex: MIN(self.displayWaveFrontPhaseNumber, self.waveFrontPhaseCount-1)];
+			
+			layerView.markerPaths = @[];
+			
+			if (phase.location)
+			{
+				vector_t loc = phase.location.toFloatVector;
+				CGPoint X = CGPointMake(loc.farr[0], loc.farr[1]);
+				
+				NSBezierPath* bpath = [NSBezierPath bezierPathWithOvalInRect: CGRectMake(X.x-1.0, X.y-1.0, 2.0, 2.0)];
+				
+				layerView.markerPaths = @[bpath];
+			}
+			
+			layerView.motorcyclePaths = phase.motorcyclePaths;
+			layerView.activeSpokePaths = phase.activeSpokePaths;
+			layerView.terminatedSpokePaths = phase.terminatedSpokePaths;
+			[layerView removeAllOffsetOutlinePaths];
+			[layerView addOffsetOutlinePaths: phase.waveFrontPaths];
+
+			NSString* logString = [phase.eventLog componentsJoinedByString: @"\n"];
+			
+			self.statusTextView.string = (logString ? logString : @"no event log");
+			
+			layerView.needsDisplay = YES;
 		}
 	}
-	if ([keyPath isEqualToString: @"displayWaveFrontPhaseNumber"])
+	else if (object == self.document)
 	{
-		layerView.needsDisplay = YES;
-		
-		PolySkelPhase* phase = [skeletizer.doneSteps objectAtIndex: MIN(self.displayWaveFrontPhaseNumber, self.waveFrontPhaseCount-1)];
-		
-		layerView.markerPaths = @[];
-		
-		if (phase.location)
+		if ([keyPath isEqualToString: @"contourPolygons"])
 		{
-			vector_t loc = phase.location.toFloatVector;
-			CGPoint X = CGPointMake(loc.farr[0], loc.farr[1]);
-			
-			NSBezierPath* bpath = [NSBezierPath bezierPathWithOvalInRect: CGRectMake(X.x-1.0, X.y-1.0, 2.0, 2.0)];
-			
-			layerView.markerPaths = @[bpath];
+			self.modelView.contours = [[self.document contourPolygons] map:^id(FixPolygon* obj) {
+				return obj.gfxMesh;
+			}];
 		}
-		
-		layerView.motorcyclePaths = phase.motorcyclePaths;
-		layerView.activeSpokePaths = phase.activeSpokePaths;
-		layerView.terminatedSpokePaths = phase.terminatedSpokePaths;
-		[layerView removeAllOffsetOutlinePaths];
-		[layerView addOffsetOutlinePaths: phase.waveFrontPaths];
 
-		NSString* logString = [phase.eventLog componentsJoinedByString: @"\n"];
-		
-		self.statusTextView.string = (logString ? logString : @"no event log");
-		
-		layerView.needsDisplay = YES;
 	}
-
 }
 
 - (void) windowDidBecomeMain: (NSNotification*) notification
@@ -111,10 +125,11 @@
 
 - (void) layerDidLoad: (SlicedLayer*) layer
 {
-	self.modelView.layers = [self.modelView.layers dictionaryBySettingObject: [layer layerMesh] forKey: [NSNumber numberWithDouble: layer.layerZ]];
+	self.modelView.layers = [self.modelView.layers dictionaryBySettingObject: [layer gfxMesh] forKey: [NSNumber numberWithDouble: layer.layerZ]];
 	[self layersChanged];
 
 }
+
 
 - (void) layersChanged
 {

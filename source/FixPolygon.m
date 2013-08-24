@@ -10,6 +10,7 @@
 
 #import "MPInteger.h"
 #import "MPVector2D.h"
+#import "gfx.h"
 
 @import AppKit;
 
@@ -50,6 +51,154 @@
 	
 	
 	return self;
+}
+
+
++ (FixPolygon*) polygonFromBezierPath: (NSBezierPath*) bpath withTransform: (NSAffineTransform*) transform flatness: (CGFloat) flatness
+{
+	bpath = [bpath copy]; // copy path because we don't want to alter the original
+	if (transform)
+		[bpath transformUsingAffineTransform: transform];
+	
+	CGFloat oldFlatness = [NSBezierPath defaultFlatness];
+	
+	[NSBezierPath setDefaultFlatness: flatness];
+	[bpath setFlatness: flatness];
+	NSBezierPath* flatPath = [bpath bezierPathByFlatteningPath];
+	
+	[NSBezierPath setDefaultFlatness: oldFlatness];
+
+	NSInteger count = flatPath.elementCount;
+	
+	FixPolygonOpenSegment* currentSegment = nil;
+	
+	NSMutableArray* segments = [[NSMutableArray alloc] init];
+	
+	id (^attemptClose)(id) = ^id(FixPolygonOpenSegment* segment){
+		if (!segment.isClosed)
+		{
+			FixPolygonClosedSegment* csegment = [segment closePolygonByMergingEndpoints];
+			if (csegment)
+				return csegment;
+		}
+		return segment;
+	};
+	
+	for (NSInteger i = 0; i < count; ++i)
+	{
+		NSPoint pa[3];
+		NSBezierPathElement element = [flatPath elementAtIndex: i associatedPoints: pa];
+		
+		switch (element) {
+			case NSMoveToBezierPathElement:
+			{
+				if (currentSegment)
+				{
+					[segments addObject: attemptClose(currentSegment)];
+				}
+				currentSegment = [[FixPolygonOpenSegment alloc] init];
+				v3i_t v = v3iCreateFromFloat(pa[0].x, pa[0].y, 0.0, 16);
+				[currentSegment insertVertexAtEnd: v];
+				break;
+			}
+			case NSLineToBezierPathElement:
+			{
+				v3i_t v = v3iCreateFromFloat(pa[0].x, pa[0].y, 0.0, 16);
+				[currentSegment insertVertexAtEnd: v];
+				break;
+			}
+			case NSClosePathBezierPathElement:
+			{
+				FixPolygonClosedSegment* cseg = [currentSegment closePolygonWithoutMergingEndpoints];
+
+				if (cseg)
+					[segments addObject: cseg];
+				currentSegment = nil;
+				break;
+			}
+			default:
+				assert(0); // unsupported path element
+				break;
+		}
+		
+	}
+	
+	if (currentSegment)
+		[segments addObject: attemptClose(currentSegment)];
+	
+	FixPolygon* polygon = [[FixPolygon alloc] init];
+	polygon.segments = segments;
+	
+	return polygon;
+}
+
+- (GfxMesh*) gfxMesh
+{
+	GfxMesh* gfxMesh = [[GfxMesh alloc] init];
+	
+	size_t vertexCount = 0;
+	
+	for (FixPolygonSegment* segment in self.segments)
+	{
+		if (segment.isClosed)
+			vertexCount += (segment.vertexCount)*2;
+		else if (segment.vertexCount)
+			vertexCount += (segment.vertexCount-1)*2;
+	}
+
+	if (!vertexCount)
+		return gfxMesh;
+	
+	vector_t* vertices = calloc(vertexCount, sizeof(*vertices));
+	vector_t* colors = calloc(vertexCount, sizeof(*colors));
+	uint32_t* indices = calloc(vertexCount, sizeof(*indices));
+	
+	for (size_t i = 0; i < vertexCount; ++i)
+		indices[i] = i;
+	for (size_t i = 0; i < vertexCount; ++i)
+		colors[i] = vCreate(1.0, 1.0, 0.0, 1.0);
+	
+	size_t k = 0;
+	
+	for (FixPolygonSegment* segment in self.segments)
+	{
+		if (segment.isClosed)
+		{
+			//vector_t color = vCreate(0.0, 0.5+0.5*(segment.isCCW), segment.isSelfIntersecting, 1.0);
+			for (size_t i = 0; i < segment.vertexCount; ++i)
+			{
+				double fa = (double)i/segment.vertexCount;
+				double fb = (double)(i+1)/segment.vertexCount;
+				
+				colors[k] = (vCreate(fa, 1.0, 0.0, 1.0));
+				vertices[k++] = v3iToFloat(segment.vertices[i]);
+				colors[k] = (vCreate(fb, 1.0, 0.0, 1.0));
+				vertices[k++] = v3iToFloat(segment.vertices[(i+1)%segment.vertexCount]);
+			}
+		}
+		else
+		{
+			for (size_t i = 0; i+1 < segment.vertexCount; ++i)
+			{
+				colors[k] = vCreate(1.0, 0.0, 0.0, 1.0);
+				vertices[k++] = v3iToFloat(segment.vertices[i]);
+				colors[k] = vCreate(1.0, 0.0, 0.0, 1.0);
+				vertices[k++] = v3iToFloat(segment.vertices[i+1]);
+			}
+		}
+	}
+
+	assert(k==vertexCount);
+	
+	
+	[gfxMesh setVertices: vertices count: vertexCount copy: NO];
+	[gfxMesh setColors: colors count: vertexCount copy: NO];
+	[gfxMesh addDrawArrayIndices: indices count: vertexCount withMode: GL_LINES];
+	
+	free(indices);
+	
+	
+	return gfxMesh;
 }
 
 @end

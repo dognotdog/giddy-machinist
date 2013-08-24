@@ -15,6 +15,7 @@
 @property(nonatomic, strong) GMDocumentWindowController*  mainWindowController;
 
 @property(nonatomic, strong, readonly) NSArray* slicedLayers;
+@property(nonatomic, strong, readonly) NSArray* contourPolygons;
 
 @property(nonatomic, strong) GM3DPrintSettings* printSettings;
 
