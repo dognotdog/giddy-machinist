@@ -177,6 +177,7 @@
 		DAAD9F8B177B50DB00108C86 /* FixPolygon.m in Sources */ = {isa = PBXBuildFile; fileRef = DAAD9F8A177B50DB00108C86 /* FixPolygon.m */; };
 		DAAFAF1A1770EE8200FBB343 /* PSSpatialHash.m in Sources */ = {isa = PBXBuildFile; fileRef = DAAFAF191770EE8200FBB343 /* PSSpatialHash.m */; };
 		DABC2F7A17C8EE1C003A9500 /* ShapeUtilities.m in Sources */ = {isa = PBXBuildFile; fileRef = DABC2F7917C8EE1C003A9500 /* ShapeUtilities.m */; };
+		DABC2F7D17C91FDB003A9500 /* PolygonContour.m in Sources */ = {isa = PBXBuildFile; fileRef = DABC2F7C17C91FDB003A9500 /* PolygonContour.m */; };
 		DAE8303117BD58370098BCE5 /* PolySkelVideoGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = DAE8303017BD58370098BCE5 /* PolySkelVideoGenerator.m */; };
 		DAF9B5A6172846B700B8989D /* GMAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = DAF9B5A5172846B700B8989D /* GMAppDelegate.m */; };
 /* End PBXBuildFile section */
@@ -430,6 +431,8 @@
 		DAAFAF191770EE8200FBB343 /* PSSpatialHash.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PSSpatialHash.m; sourceTree = "<group>"; };
 		DABC2F7817C8EE1C003A9500 /* ShapeUtilities.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ShapeUtilities.h; sourceTree = "<group>"; };
 		DABC2F7917C8EE1C003A9500 /* ShapeUtilities.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ShapeUtilities.m; sourceTree = "<group>"; };
+		DABC2F7B17C91FDB003A9500 /* PolygonContour.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolygonContour.h; sourceTree = "<group>"; };
+		DABC2F7C17C91FDB003A9500 /* PolygonContour.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PolygonContour.m; sourceTree = "<group>"; };
 		DAE47E23164818F00036AACF /* PolygonExtender.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolygonExtender.h; sourceTree = "<group>"; };
 		DAE47E24164818F00036AACF /* PolygonExtender.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PolygonExtender.m; sourceTree = "<group>"; };
 		DAE8302F17BD58370098BCE5 /* PolySkelVideoGenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolySkelVideoGenerator.h; sourceTree = "<group>"; };
@@ -731,6 +734,8 @@
 				DA382BC617529703008C0CB4 /* MPInteger.m */,
 				DAAD9F89177B50DB00108C86 /* FixPolygon.h */,
 				DAAD9F8A177B50DB00108C86 /* FixPolygon.m */,
+				DABC2F7B17C91FDB003A9500 /* PolygonContour.h */,
+				DABC2F7C17C91FDB003A9500 /* PolygonContour.m */,
 			);
 			path = source;
 			sourceTree = "<group>";
@@ -997,6 +1002,7 @@
 				DA382B951752621B008C0CB4 /* bn_mp_prime_next_prime.c in Sources */,
 				DA382B961752621B008C0CB4 /* bn_mp_prime_rabin_miller_trials.c in Sources */,
 				DA382B971752621B008C0CB4 /* bn_mp_prime_random_ex.c in Sources */,
+				DABC2F7D17C91FDB003A9500 /* PolygonContour.m in Sources */,
 				DA382B981752621B008C0CB4 /* bn_mp_radix_size.c in Sources */,
 				DA382B991752621B008C0CB4 /* bn_mp_radix_smap.c in Sources */,
 				DA382B9A1752621B008C0CB4 /* bn_mp_rand.c in Sources */,

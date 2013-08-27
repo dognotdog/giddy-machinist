@@ -9,6 +9,7 @@
 #import "PSWaveFrontSnapshot.h"
 #import "PolygonSkeletizerObjects.h"
 #import "MPInteger.h"
+#import "FixPolygon.h"
 
 #import "FoundationExtensions.h"
 
@@ -93,6 +94,27 @@
 		return inLoop;
 	}];
 */
+}
+
+- (FixPolygon*) waveFrontPolygon
+{
+	NSMutableArray* segments = [[NSMutableArray alloc] init];
+	for (NSArray* loop in loops)
+	{
+		FixPolygonClosedSegment* polyseg = [[FixPolygonClosedSegment alloc] init];
+		
+		for (PSWaveFrontSegment* segment in loop)
+		{
+			[polyseg insertVertexAtEnd: segment.leftVertex.position];
+		}
+		[segments addObject: polyseg];
+	}
+
+	
+	FixPolygon* polygon = [[FixPolygon alloc] init];
+	polygon.segments = segments;
+	
+	return polygon;
 }
 
 - (NSBezierPath*) waveFrontPath

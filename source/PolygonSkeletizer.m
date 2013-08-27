@@ -3023,6 +3023,7 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 		}
 //	[self runMotorcycles];
 //	[self runSpokes];
+	self.emitCallback = nil;
 }
 
 

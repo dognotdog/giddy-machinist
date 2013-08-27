@@ -106,10 +106,10 @@ static size_t _hashXY(unsigned long x, unsigned long y, size_t ncells)
 			int signx = i32compare(r.x, 0);
 			int signy = i32compare(r.y, 0);
 			
-			int posx = startLoc.x / gridSize.x;
-			int posy = startLoc.y / gridSize.x;
-			int endx = endLoc.x / gridSize.x;
-			int endy = endLoc.y / gridSize.x;
+			int posx = _divToFloor(startLoc.x, gridSize.x);
+			int posy = _divToFloor(startLoc.y, gridSize.x);
+			int endx = _divToFloor(endLoc.x, gridSize.x);
+			int endy = _divToFloor(endLoc.y, gridSize.x);
 			
 			int deltax = startLoc.x - posx*gridSize.x;
 			int deltay = startLoc.y - posy*gridSize.x;
@@ -147,17 +147,24 @@ static size_t _hashXY(unsigned long x, unsigned long y, size_t ncells)
 			
 			while ((posx != endx) || (posy != endy))
 			{
-				
+				assert((signx <= 0) || (posx <= endx));
+				assert((signx >= 0) || (posx >= endx));
+				assert((signy <= 0) || (posy <= endy));
+				assert((signy >= 0) || (posy >= endy));
 				
 				if (txry < tyrx)
 				{
-					txry += labs(r.y)*gridSize.x;
 					posx += signx;
+					assert((signx <= 0) || (posx <= endx));
+					assert((signx >= 0) || (posx >= endx));
+					txry += labs(r.y)*gridSize.x;
 				}
 				else
 				{
-					tyrx += labs(r.x)*gridSize.x;
 					posy += signy;
+					assert((signy <= 0) || (posy <= endy));
+					assert((signy >= 0) || (posy >= endy));
+					tyrx += labs(r.x)*gridSize.x;
 				}
 				
 				//printf(" pos: %d, %d\n", posx, posy);
@@ -537,8 +544,8 @@ static MPVector2D* _crashLocationMM(PSMotorcycle* ma, PSMotorcycle* mb)
 	long stepx = [r.x compareToZero];
 	long stepy = [r.y compareToZero];
 	
-	MPVector2D* pos = [startLoc div: grid];
-	MPVector2D* end = [endLoc div: grid];
+	MPVector2D* pos = [startLoc divToFloor: grid];
+	MPVector2D* end = [endLoc divToFloor: grid];
 	
 	v3i_t starti = [pos toVectorWithShift: 0];
 	v3i_t endi = [end toVectorWithShift: 0];

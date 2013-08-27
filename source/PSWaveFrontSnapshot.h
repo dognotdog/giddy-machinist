@@ -12,7 +12,7 @@
 
 #import "VectorMath.h"
 
-@class PSWaveFront, PSRealVertex, MPDecimal;
+@class PSWaveFront, PSRealVertex, MPDecimal, FixPolygon;
 
 
 /*!
@@ -22,6 +22,8 @@
 
 @property(nonatomic, strong) MPDecimal*		time;
 @property(nonatomic, strong) NSArray*		loops;
+
+- (FixPolygon*) waveFrontPolygon;
 
 @property(nonatomic, readonly) NSBezierPath* waveFrontPath;
 

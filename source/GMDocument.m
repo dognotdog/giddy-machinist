@@ -24,6 +24,7 @@
 #import "STLFile.h"
 #import "ShapeUtilities.h"
 #import "FixPolygon.h"
+#import "PolygonContour.h"
 
 
 @implementation GMDocument
@@ -175,16 +176,6 @@
 	
 }
 
-- (void) contourDidLoad: (FixPolygon*) contour
-{
-	for (id wc in self.windowControllers)
-	{
-		if ([wc respondsToSelector: @selector(contourDidLoad:)])
-			[wc contourDidLoad: contour];
-	}
-	
-}
-
 
 
 - (void) loadEPSFromData: (NSData*) data
@@ -193,8 +184,18 @@
 	
 	FixPolygon* polygon = [FixPolygon polygonFromBezierPath: bpath withTransform: nil flatness: 0.1];
 	
-	contourPolygons = [contourPolygons arrayByAddingObject: polygon];
-	[self contourDidLoad: polygon];
+	PolygonContour* contour = [[PolygonContour alloc] init];
+	contour.polygon = polygon;
+	[contour generateToolpathWithOffset: 3.0];
+	
+	
+	[self willChangeValueForKey: @"contourPolygons"];
+	
+	
+	
+	contourPolygons = [contourPolygons arrayByAddingObject: contour];
+
+	[self didChangeValueForKey: @"contourPolygons"];
 }
 
 - (void) loadSTLFromData: (NSData*) data

@@ -25,6 +25,7 @@
 - (MPVector2D*) add: (MPVector2D*) b;
 - (MPVector2D*) scale: (MPDecimal*) b;
 - (MPVector2D*) div: (MPDecimal*) b;
+- (MPVector2D*) divToFloor: (MPDecimal*) b;
 - (MPVector2D*) min: (MPVector2D*) b;
 - (MPVector2D*) max: (MPVector2D*) b;
 - (MPVector2D*) scaleNum: (MPDecimal*) num den: (MPDecimal*) den;

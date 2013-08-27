@@ -91,6 +91,48 @@
 	return v;
 }
 
+static int _divToFloor(int a, int b)
+{
+	int d = abs(a)/abs(b);
+	
+	long ab = a*(long)b;
+	
+	if (ab < 0)
+	{
+		if (d*abs(b) != abs(a))
+			d = -d-1;
+		else
+			d = -d;
+	}
+	
+	return d;
+}
+
+- (MPVector2D*) divToFloor: (MPDecimal*) b
+{
+	MPVector2D* d = [self div: b];
+	
+	MPVector2D* ab = [self scale: b];
+	
+	if ([ab.x compareToZero] < 0)
+	{
+		if ([[d.x mul: b.abs] compare: self.x.abs] != 0)
+			d.x = [d.x.negate sub: [MPDecimal one]];
+		else
+			d.x = d.x.negate;
+	}
+	if ([ab.y compareToZero] < 0)
+	{
+		if ([[d.y mul: b.abs] compare: self.y.abs] != 0)
+			d.y = [d.y.negate sub: [MPDecimal one]];
+		else
+			d.y = d.y.negate;
+	}
+
+	
+	return d;
+}
+
 
 - (MPVector2D*) scaleNum:(MPDecimal *)num den:(MPDecimal *)den
 {

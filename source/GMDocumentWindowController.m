@@ -21,6 +21,7 @@
 #import "MPVector2D.h"
 #import "PolySkelVideoGenerator.h"
 #import "FixPolygon.h"
+#import "PolygonContour.h"
 
 #import "FoundationExtensions.h"
 
@@ -49,6 +50,16 @@
     }
     
     return self;
+}
+
+- (void) close
+{
+	[self removeObserver: self forKeyPath: @"waveFrontPhaseCount"];
+	[self removeObserver: self forKeyPath: @"displayWaveFrontPhaseNumber"];
+	[self.document removeObserver: self forKeyPath: @"contourPolygons"];
+	
+	
+	[super close];
 }
 
 - (void)windowDidLoad
@@ -110,9 +121,10 @@
 	{
 		if ([keyPath isEqualToString: @"contourPolygons"])
 		{
-			self.modelView.contours = [[self.document contourPolygons] map:^id(FixPolygon* obj) {
-				return obj.gfxMesh;
-			}];
+			NSMutableArray* meshes = [[NSMutableArray alloc] init];
+			for (PolygonContour* obj in [self.document contourPolygons])
+				[meshes addObjectsFromArray: obj.gfxMeshes];
+			self.modelView.contours = meshes;
 		}
 
 	}

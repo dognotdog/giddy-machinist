@@ -12,8 +12,11 @@
 #import "MPVector2D.h"
 #import "gfx.h"
 
+
+
 @import AppKit;
 
+#import "FoundationExtensions.h"
 
 
 @interface PolygonIntersection : NSObject
@@ -28,6 +31,25 @@
 
 @end
 
+
+
+@interface FixPolygonRecursive : NSObject
+
+@property(nonatomic, strong) FixPolygonSegment* segment;
+@property(nonatomic, strong) NSArray* children;
+
++ (NSArray*) recursivelySortSegments: (NSArray*) segments;
+
+- (void) recursivelySortSegments;
+
+- (void) recursivelyAdjustWindigs: (BOOL) startCCW;
+
+- (NSArray*) allSegments;
+
+@end
+
+
+
 @implementation PolygonIntersection
 
 - (NSString *)description
@@ -38,7 +60,118 @@
 
 @end
 
+@implementation FixPolygonRecursive
 
++ (NSArray*) recursivelySortSegments: (NSArray*) segments
+{
+	NSArray* inputList = [segments map:^id(FixPolygonSegment* obj) {
+		FixPolygonRecursive* poly = [[FixPolygonRecursive alloc] init];
+		
+		if (obj.isClosed)
+		{
+			FixPolygonClosedSegment* cseg = (id) obj;
+			[cseg analyzeSegment];
+			if (!cseg.isCCW)
+				[cseg reverse];
+		}
+		
+		poly.segment = obj;
+		poly.children = @[];
+		return poly;
+	}];
+	
+	NSMutableArray* unsortedPolys = inputList.mutableCopy;
+	NSMutableArray* rootPolys = [[NSMutableArray alloc] init];
+	
+	while (unsortedPolys.count)
+	{
+		FixPolygonRecursive* poly = [unsortedPolys lastObject];
+		[unsortedPolys removeLastObject];
+		for (FixPolygonRecursive* poly2 in unsortedPolys.copy)
+		{
+			if (poly2.segment.isClosed)
+			{
+				FixPolygonClosedSegment* cseg = (id)poly2.segment;
+			
+				if ([cseg containsPath: poly.segment])
+				{
+					poly2.children = [poly2.children arrayByAddingObject: poly];
+					poly = nil;
+					break;
+				}
+			}
+		}
+		if (poly)
+			[rootPolys addObject: poly];
+		
+	}
+	
+	for (FixPolygonRecursive* poly in rootPolys)
+		[poly recursivelySortSegments];
+	
+	return rootPolys;
+	
+}
+
+- (void) recursivelySortSegments
+{
+	NSMutableArray* unsortedPolys = self.children.mutableCopy;
+	NSMutableArray* rootPolys = [[NSMutableArray alloc] init];
+	
+	while (unsortedPolys.count)
+	{
+		FixPolygonRecursive* poly = [unsortedPolys lastObject];
+		[unsortedPolys removeLastObject];
+		for (FixPolygonRecursive* poly2 in unsortedPolys.copy)
+		{
+			if (poly2.segment.isClosed)
+			{
+				FixPolygonClosedSegment* cseg = (id)poly2.segment;
+				
+				if ([cseg containsPath: poly.segment])
+				{
+					poly2.children = [poly2.children arrayByAddingObject: poly];
+					poly = nil;
+					break;
+				}
+			}
+		}
+		if (poly)
+			[rootPolys addObject: poly];
+		
+	}
+	
+	for (FixPolygonRecursive* poly in rootPolys)
+		[poly recursivelySortSegments];
+
+	self.children = rootPolys;
+}
+
+- (void) recursivelyAdjustWindigs: (BOOL) startCCW
+{
+	if (self.segment.isClosed)
+	{
+		FixPolygonClosedSegment* cseg = (id) self.segment;
+		if (cseg.isCCW != startCCW)
+			[cseg reverse];
+	}
+	
+	for (FixPolygonRecursive* child in self.children)
+		[child recursivelyAdjustWindigs: !startCCW];
+}
+
+- (NSArray*) allSegments
+{
+	NSMutableArray* all = @[self.segment].mutableCopy;
+	
+	for (FixPolygonRecursive* child in self.children)
+	{
+		[all addObjectsFromArray: [child allSegments]];
+	}
+	return all;
+}
+
+@end
 
 
 
@@ -51,6 +184,31 @@
 	
 	
 	return self;
+}
+
+- (instancetype) copyWithZone:(NSZone *)zone
+{
+	FixPolygon* poly = [[FixPolygon alloc] init];
+	
+	poly.segments = [self.segments map:^id(id obj) {
+		return  [obj copyWithZone: zone];
+	}];
+	
+	return poly;
+}
+
+- (void) reviseWinding
+{
+	NSArray* polys = [FixPolygonRecursive recursivelySortSegments: self.segments];
+	NSMutableArray* allSegments = [[NSMutableArray alloc] init];
+	
+	for (FixPolygonRecursive* poly in polys)
+	{
+		[poly recursivelyAdjustWindigs: YES];
+		[allSegments addObjectsFromArray: poly.allSegments];
+	}
+	
+	self.segments = allSegments;
 }
 
 
@@ -75,9 +233,14 @@
 	NSMutableArray* segments = [[NSMutableArray alloc] init];
 	
 	id (^attemptClose)(id) = ^id(FixPolygonOpenSegment* segment){
+		[segment cleanupDoubleVertices];
+
 		if (!segment.isClosed)
 		{
 			FixPolygonClosedSegment* csegment = [segment closePolygonByMergingEndpoints];
+			[csegment analyzeSegment];
+			
+			
 			if (csegment)
 				return csegment;
 		}
@@ -201,6 +364,18 @@
 	return gfxMesh;
 }
 
+- (r3i_t) bounds
+{
+	r3i_t bounds = {v3iCreate(INT32_MAX, INT32_MAX, INT32_MAX, 16), v3iCreate(INT32_MIN, INT32_MIN, INT32_MIN, 16)};
+	for (FixPolygonSegment* seg in self.segments)
+	{
+		r3i_t pb = seg.bounds;
+		bounds.min = v3iMin(pb.min, bounds.min);
+		bounds.max = v3iMax(pb.max, bounds.max);
+	}
+	return bounds;
+}
+
 @end
 
 
@@ -223,6 +398,15 @@
 		return nil;
 		
 	return self;
+}
+
+- (instancetype) copyWithZone:(NSZone *)zone
+{
+	FixPolygonSegment* poly = [[[self class] alloc] init];
+	
+	[poly addVertices: vertices count: vertexCount];
+		
+	return poly;
 }
 
 - (void) expandVertexCount: (size_t) count
@@ -279,7 +463,7 @@
 
 - (r3i_t) bounds
 {
-	r3i_t r = {v3iCreate(INT32_MAX, INT32_MAX, INT32_MAX, 0), v3iCreate(INT32_MIN, INT32_MIN, INT32_MIN, 0)};
+	r3i_t r = {v3iCreate(INT32_MAX, INT32_MAX, INT32_MAX, 16), v3iCreate(INT32_MIN, INT32_MIN, INT32_MIN, 16)};
 	for (long i = 0; i < vertexCount; ++i)
 	{
 		r.min.shift = vertices[i].shift;
@@ -328,6 +512,29 @@
 	return NO;
 }
 
+- (void) cleanupDoubleVertices
+{
+	if (vertexCount < 2)
+		return;
+	
+	size_t max = self.vertexCount;
+	
+	for (size_t i = 0; i+1 < max; ++i)
+	{
+		if (v3iEqual(vertices[i], vertices[i+1]))
+		{
+			memmove(vertices + i, vertices + i + 1, sizeof(*vertices)*(vertexCount-i-1));
+			--vertexCount;
+			--max;
+			--i;
+		}
+	}
+	
+	if (self.isClosed)
+		while (v3iEqual(self.begin, self.end))
+			--vertexCount;
+	
+}
 
 static NSString* _verticesToSVGPolygon(v3i_t* vertices, size_t numVertices)
 {
@@ -495,7 +702,16 @@ static NSString* _verticesToSVG(v3i_t* vertices, size_t numVertices)
 	if (v3iEqual(self.begin, self.end))
 	{
 		FixPolygonClosedSegment* seg = [[FixPolygonClosedSegment alloc] init];
-		[seg addVertices: vertices count: vertexCount-1];
+		
+		size_t newCount = vertexCount;
+		
+		while (newCount && v3iEqual(vertices[0], vertices[newCount-1]))
+			newCount--;
+
+		if (newCount < 3)
+			return nil;
+		
+		[seg addVertices: vertices count: newCount];
 		return seg;
 	}
 	else
@@ -508,7 +724,17 @@ static NSString* _verticesToSVG(v3i_t* vertices, size_t numVertices)
 		return nil;
 	
 	FixPolygonClosedSegment* seg = [[FixPolygonClosedSegment alloc] init];
-	[seg addVertices: vertices count: vertexCount];
+
+	size_t newCount = vertexCount;
+	
+	while (newCount && v3iEqual(vertices[0], vertices[newCount-1]))
+		newCount--;
+	
+	if (newCount < 3)
+		return nil;
+	
+	[seg addVertices: vertices count: newCount];
+
 	return seg;
 }
 
@@ -670,7 +896,6 @@ static MPVector2D* _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
 	return NO;
 }
 
-
 /*! Checks via ray casting if a single vertex of self is contained in segment.
  
  */
@@ -681,9 +906,11 @@ static MPVector2D* _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
 	v3i_t sc = segment.begin;
 	r3i_t bounds = self.bounds;
 	
+	if (vertexCount < 3)
+		return NO;
+	
 	//	if (!rRangeContainsPointXYInclusiveMinExclusiveMax(bounds, sc))
 	//		return NO;
-	
 	
 	// ray is going along X
 	v3i_t ray = v3iCreate(bounds.max.x, 0, 0, bounds.max.shift);
@@ -728,6 +955,10 @@ static MPVector2D* _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
 			continue;
 		
 		v3i_t d = v3iSub(sc, p0);
+		
+		if (!d.x && !d.y)
+			continue;
+		
 		assert(e.z == 0);
 		v3i_t n = {-e.y, e.x, e.z, e.shift};
 		vmlong_t f = v3iDot(n, d).x;

@@ -15,7 +15,7 @@
 @class FixPolygonClosedSegment, NSBezierPath;
 
 
-@interface FixPolygon : NSObject
+@interface FixPolygon : NSObject <NSCopying>
 
 /*!
  This is essentially a boolean intersect.
@@ -28,10 +28,14 @@
 
 - (GfxMesh*) gfxMesh;
 
+- (r3i_t) bounds;
+
+- (void) reviseWinding;
+
 @end
 
 
-@interface FixPolygonSegment : NSObject
+@interface FixPolygonSegment : NSObject <NSCopying>
 
 @property(nonatomic,readonly) v3i_t* vertices;
 @property(nonatomic,readonly) size_t vertexCount;
@@ -39,11 +43,15 @@
 @property(nonatomic, readonly) v3i_t begin;
 @property(nonatomic, readonly) v3i_t end;
 
+@property(nonatomic, readonly) r3i_t bounds;
+
 - (BOOL) isClosed;
 
 - (void) addVertices: (v3i_t*) v count: (size_t) count;
 - (void) insertVertexAtBeginning: (v3i_t) v;
 - (void) insertVertexAtEnd: (v3i_t) v;
+
+- (void) cleanupDoubleVertices;
 
 - (void) reverse;
 
