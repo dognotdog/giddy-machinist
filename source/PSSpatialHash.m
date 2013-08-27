@@ -582,79 +582,81 @@ static MPVector2D* _crashLocationMM(PSMotorcycle* ma, PSMotorcycle* mb)
 			if (cycle1 == cycle0)
 				continue;
 			
-			MPVector2D* X = _crashLocationMM(cycle0, cycle1);
+			@autoreleasepool {
+				MPVector2D* X = _crashLocationMM(cycle0, cycle1);
 
-			if (X)
-				if(![cycle0.leftEdge mpVertexInPositiveHalfPlane: X] || ![cycle0.rightEdge mpVertexInPositiveHalfPlane: X] || ![cycle1.leftEdge mpVertexInPositiveHalfPlane: X] || ![cycle1.rightEdge mpVertexInPositiveHalfPlane: X])
-				X = nil;
-			
-			
-			
-			v3i_t xloc = [X toVectorWithShift: 16];
-			
-			if (X)
-			{
-				//assert(fabs([cycle0 angleToLocation: X]) < 100.0*FLT_EPSILON);
-				//assert(fabs([cycle1 angleToLocation: X]) < 100.0*FLT_EPSILON);
+				if (X)
+					if(![cycle0.leftEdge mpVertexInPositiveHalfPlane: X] || ![cycle0.rightEdge mpVertexInPositiveHalfPlane: X] || ![cycle1.leftEdge mpVertexInPositiveHalfPlane: X] || ![cycle1.rightEdge mpVertexInPositiveHalfPlane: X])
+					X = nil;
 				
-				MPDecimal* ta0 = [cycle0.leftEdge timeSqrToLocation: X];
-				MPDecimal* ta1 = [cycle0.rightEdge timeSqrToLocation: X];
-				MPDecimal* tb0 = [cycle1.leftEdge timeSqrToLocation: X];
-				MPDecimal* tb1 = [cycle1.rightEdge timeSqrToLocation: X];
 				
-				MPDecimal* ta = [ta0 max: ta1];
-				MPDecimal* tb = [tb0 max: tb1];
-				MPDecimal* hitTime = [ta max: tb];
-				id survivor = nil;
-				id crasher = nil;
-				MPDecimal* ts = nil, *tc = nil;
 				
-				NSComparisonResult cmpab = [ta compare: tb];
+				v3i_t xloc = [X toVectorWithShift: 16];
 				
-				if (cmpab == 0)
+				if (X)
 				{
-					MPVector2D* P = cycle0.sourceVertex.mpPosition;
-					MPVector2D* Q = cycle1.sourceVertex.mpPosition;
+					//assert(fabs([cycle0 angleToLocation: X]) < 100.0*FLT_EPSILON);
+					//assert(fabs([cycle1 angleToLocation: X]) < 100.0*FLT_EPSILON);
 					
-					cmpab = [P.x compare: Q.x];
+					MPDecimal* ta0 = [cycle0.leftEdge timeSqrToLocation: X];
+					MPDecimal* ta1 = [cycle0.rightEdge timeSqrToLocation: X];
+					MPDecimal* tb0 = [cycle1.leftEdge timeSqrToLocation: X];
+					MPDecimal* tb1 = [cycle1.rightEdge timeSqrToLocation: X];
+					
+					MPDecimal* ta = [ta0 max: ta1];
+					MPDecimal* tb = [tb0 max: tb1];
+					MPDecimal* hitTime = [ta max: tb];
+					id survivor = nil;
+					id crasher = nil;
+					MPDecimal* ts = nil, *tc = nil;
+					
+					NSComparisonResult cmpab = [ta compare: tb];
 					
 					if (cmpab == 0)
-						cmpab = [P.y compare: Q.y];
+					{
+						MPVector2D* P = cycle0.sourceVertex.mpPosition;
+						MPVector2D* Q = cycle1.sourceVertex.mpPosition;
+						
+						cmpab = [P.x compare: Q.x];
+						
+						if (cmpab == 0)
+							cmpab = [P.y compare: Q.y];
+					}
+					
+					if (cmpab < 0)
+					{
+						ts = ta;
+						tc = tb;
+						survivor = cycle0;
+						crasher = cycle1;
+					}
+					else if (cmpab > 0)
+					{
+						ts = tb;
+						tc = ta;
+						survivor = cycle1;
+						crasher = cycle0;
+					}
+					else
+						assert(0);
+					
+					if (cycle0 != crasher)
+						continue;
+					
+					PSMotorcycleMotorcycleCrash* crash = [[PSMotorcycleMotorcycleCrash alloc] init];
+					
+					crash.cycle0 = crasher;
+					crash.cycle1 = survivor;
+					crash.crashTimeSqr = hitTime;
+					crash.time0Sqr = tc;
+					crash.time1Sqr = ts;
+					crash.location = xloc;
+									
+					[crashes addObject: crash];
+					[crash.cycle0.crashQueue addObject: crash];
+					
+					
 				}
-				
-				if (cmpab < 0)
-				{
-					ts = ta;
-					tc = tb;
-					survivor = cycle0;
-					crasher = cycle1;
-				}
-				else if (cmpab > 0)
-				{
-					ts = tb;
-					tc = ta;
-					survivor = cycle1;
-					crasher = cycle0;
-				}
-				else
-					assert(0);
-				
-				if (cycle0 != crasher)
-					continue;
-				
-				PSMotorcycleMotorcycleCrash* crash = [[PSMotorcycleMotorcycleCrash alloc] init];
-				
-				crash.cycle0 = crasher;
-				crash.cycle1 = survivor;
-				crash.crashTimeSqr = hitTime;
-				crash.time0Sqr = tc;
-				crash.time1Sqr = ts;
-				crash.location = xloc;
-								
-				[crashes addObject: crash];
-				[crash.cycle0.crashQueue addObject: crash];
-				
-				
 			}
 		}
 			
@@ -667,19 +669,21 @@ static MPVector2D* _crashLocationMM(PSMotorcycle* ma, PSMotorcycle* mb)
 	
 	while (!v3iEqual(posi, endi))
 	{
-		if ([tr.x compare: tr.y] < 0)
-		{
-			tr.x = [tr.x add: [r.y.abs mul: grid]];
-			pos.x = [pos.x add: [MPDecimal decimalWithInt64: stepx shift: 0]];
+		@autoreleasepool {
+			if ([tr.x compare: tr.y] < 0)
+			{
+				tr.x = [tr.x add: [r.y.abs mul: grid]];
+				pos.x = [pos.x add: [MPDecimal decimalWithInt64: stepx shift: 0]];
+			}
+			else
+			{
+				tr.y = [tr.y add: [r.x.abs mul: grid]];
+				pos.y = [pos.y add: [MPDecimal decimalWithInt64: stepy shift: 0]];
+				
+			}
+			posi = [pos toVectorWithShift: 0];
+			visitCellBlock(posi);
 		}
-		else
-		{
-			tr.y = [tr.y add: [r.x.abs mul: grid]];
-			pos.y = [pos.y add: [MPDecimal decimalWithInt64: stepy shift: 0]];
-			
-		}
-		posi = [pos toVectorWithShift: 0];
-		visitCellBlock(posi);
 	}
 
 	return crashes;

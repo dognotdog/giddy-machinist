@@ -646,7 +646,7 @@ static double _lltodouble(vmlongerfix_t a)
 	
 	// build crash lists
 
-	PSSpatialHash* spaceHash = [[PSSpatialHash alloc] initWithGridSize: (vmintfix_t){16 << 16, 16} numCells: 201];
+	PSSpatialHash* spaceHash = [[PSSpatialHash alloc] initWithGridSize: (vmintfix_t){16 << 16, 16} numCells: 1009];
 	 
 	for (NSArray* edges in edgeLoops)
 	{
