@@ -191,6 +191,8 @@
 	SlicedLayer* slice = [self currentLayer];
 
 	skeletizer = [[PolygonSkeletizer alloc] init];
+	
+	skeletizer.debugLoggingEnabled = YES;
 
 	SlicedOutline* srcOutline = [slice.outlinePaths objectAtIndex: [self.outlineSelector indexOfSelectedItem]];
 	

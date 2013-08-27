@@ -23,6 +23,8 @@ typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, PSWaveFron
 
 @interface PolygonSkeletizer : NSObject
 
+@property(nonatomic) BOOL debugLoggingEnabled;
+
 @property(nonatomic) double extensionLimit;
 @property(nonatomic) double mergeThreshold;
 @property(nonatomic,strong) NSArray* emissionTimes;

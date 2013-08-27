@@ -61,7 +61,7 @@
 	
 }
 
-@synthesize extensionLimit, mergeThreshold, eventCallback, emitCallback, emissionTimes, doneSteps;
+@synthesize extensionLimit, mergeThreshold, eventCallback, emitCallback, emissionTimes, doneSteps, debugLoggingEnabled;
 
 - (id) init
 {
@@ -70,6 +70,8 @@
 	
 	extensionLimit = 500.0;
 	mergeThreshold = 0.001;
+	
+	debugLoggingEnabled = NO;
 	
 	vertices = [NSArray array];
 	originalVertices = [NSArray array];
@@ -442,44 +444,6 @@ static MPVector2D* _crashLocationBisectors(MPVector2D* B, MPVector2D* E_AB, MPVe
 		[NSException raise: @"PolgyonSkeletizer.crashException" format: @"A bisector is invalid"];
 	}
 	return nil;
-}
-
-static PSSpoke* _disconnectRightWaveFront(PSSpoke* spoke)
-{
-	//PSSpoke* leftSpoke = spoke.leftWaveFront.leftSpoke;
-	PSSpoke* rightSpoke = spoke.rightWaveFront.rightSpoke;
-	
-	spoke.endLocation = spoke.startLocation;
-	spoke.leftWaveFront.rightSpoke = spoke.rightWaveFront.rightSpoke;
-	spoke.rightWaveFront.rightSpoke.leftWaveFront = spoke.leftWaveFront;
-	
-	//leftSpoke.rightEdge = leftSpoke.rightWaveFront.edge;
-	//rightSpoke.leftEdge = rightSpoke.leftWaveFront.edge;
-	
-	spoke.leftWaveFront = nil;
-	spoke.rightWaveFront.rightSpoke = nil;
-	spoke.rightWaveFront.leftSpoke = nil;
-	
-	return rightSpoke;
-}
-
-static PSSpoke* _disconnectLeftWaveFront(PSSpoke* spoke)
-{
-	PSSpoke* leftSpoke = spoke.leftWaveFront.leftSpoke;
-	//PSSpoke* rightSpoke = spoke.rightWaveFront.rightSpoke;
-
-	spoke.endLocation = spoke.startLocation;
-	spoke.rightWaveFront.leftSpoke = spoke.leftWaveFront.leftSpoke;
-	spoke.leftWaveFront.leftSpoke.rightWaveFront = spoke.rightWaveFront;
-	
-	//leftSpoke.rightEdge = leftSpoke.rightWaveFront.edge;
-	//rightSpoke.leftEdge = rightSpoke.leftWaveFront.edge;
-	
-	spoke.rightWaveFront = nil;
-	spoke.leftWaveFront.leftSpoke = nil;
-	spoke.leftWaveFront.rightSpoke = nil;
-	
-	return leftSpoke;
 }
 
 
@@ -1031,39 +995,6 @@ static double _lltodouble(vmlongerfix_t a)
 		
 }
 
-/*
-static vector_t _spokeVertexAtTime(ps_spoke_t spoke, ps_vertex_t* vertices, double t)
-{
-	vector_t v = spoke.velocity;
-	vector_t x = vertices[spoke.sourceVertex].position;
-	return v3Add(x, v3MulScalar(v, t - spoke.start));
-}
-
-static inline int _eventSorter(const void * a, const void * b)
-{
-	const ps_event_t* e0 = a;
-	const ps_event_t* e1 = b;
-	double t0 = e0->time, t1 = e1->time;
-	if (t0 < t1)
-		return 1; // sort in descending order
-	else if (t0 > t1)
-		return -1;
-	else return 0;
-	
-}
-static size_t _findBigger(ps_event_t* events, size_t start, size_t end, double refTime)
-{
-	size_t pivot = (start+end)/2;
-	
-	if (start+1 >= end)
-		return start;
-	
-	if (events[pivot].time < refTime)
-		return _findBigger(events, start, pivot, refTime);
-	else
-		return _findBigger(events, pivot, end, refTime);
-}
- */
 
 - (NSArray*) insertEvent: (PSEvent*) event intoArray: (NSArray*) events
 {
@@ -1135,61 +1066,6 @@ static void _generateCycleSpoke(PSMotorcycle* cycle, NSMutableArray* spokes)
 	
 	
 }
-
-#if 0
-
-static NSBezierPath* _bezierPathFromOffsetSegments(vector_t* vertices, size_t numVertices)
-{
-	NSBezierPath* path = [NSBezierPath bezierPath];
-	
-	assert(numVertices % 2 == 0);
-	
-	vector_t lastVertex = vZero();
-	vector_t loopVertex = vZero();
-	
-	for (size_t i = 0; i < numVertices/2; ++i)
-	{
-		vector_t a = vertices[2*i+0];
-		vector_t b = vertices[2*i+1];
-		if (i == 0)
-		{
-			[path moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
-			[path lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
-			loopVertex = a;
-			lastVertex = b;
-		}
-		else
-		{
-			
-			if (vEqualWithin3D(a, lastVertex, FLT_EPSILON))
-			{
-				if (v3Equal(b, loopVertex))
-					[path closePath];
-				else
-					[path lineToPoint: NSMakePoint(b.farr[0], vertices[2*i+1].farr[1])];
-				lastVertex = b;
-			}
-			else
-			{
-				[path moveToPoint: NSMakePoint(a.farr[0], a.farr[1])];
-				[path lineToPoint: NSMakePoint(b.farr[0], b.farr[1])];
-				loopVertex = a;
-				lastVertex = b;
-			}
-			
-		}
-	}
-	
-	
-	return path;
-}
-
-- (NSBezierPath*) bezierPathFromOffsetSegments: (vector_t*) vs count: (size_t) count
-{
-	return _bezierPathFromOffsetSegments(vs, count);
-}
-
-#endif
 
 
 MPVector2D* PSIntersectSpokes(PSSpoke* spoke0, PSSpoke* spoke1)
@@ -2990,22 +2866,29 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 	{
 		[self runMotorcycles];
 		PolySkelPhase* phase = [[PolySkelPhase alloc] init];
-		phase.motorcyclePaths = [self motorcycleDisplayPaths];
-		phase.outlinePaths = [self outlineDisplayPaths];
 		phase.timeSqr = [MPDecimal zero];
 		
 		phase.nextHandler = ^id(id phase){ return [self prepareSpokePhase: phase]; };
 		
-		phase.motorcyclePaths = [self motorcycleDisplayPaths];
+		if (debugLoggingEnabled)
+		{
+			phase.motorcyclePaths = [self motorcycleDisplayPaths];
+			phase.motorcyclePaths = [self motorcycleDisplayPaths];
+			phase.outlinePaths = [self outlineDisplayPaths];
+		}
+		
 		
 		[doneSteps addObject: phase];
 	}
 	else if ([prevPhase nextHandler])
 	{
 		PolySkelWavePhase* phase = [prevPhase nextHandler](prevPhase);
-		phase.activeSpokePaths = [self displayPathsForSpokes: phase.activeSpokes atTimeSqr: phase.timeSqr];
-		phase.terminatedSpokePaths = [self displayPathsForSpokes: terminatedSpokes.allObjects atTimeSqr: phase.timeSqr];
-		phase.waveFrontPaths = [self displayPathsForWaveFronts: phase.activeWaveFronts atTimeSqr: phase.timeSqr];
+		if (debugLoggingEnabled)
+		{
+			phase.activeSpokePaths = [self displayPathsForSpokes: phase.activeSpokes atTimeSqr: phase.timeSqr];
+			phase.terminatedSpokePaths = [self displayPathsForSpokes: terminatedSpokes.allObjects atTimeSqr: phase.timeSqr];
+			phase.waveFrontPaths = [self displayPathsForWaveFronts: phase.activeWaveFronts atTimeSqr: phase.timeSqr];
+		}
 		[doneSteps addObject: phase];
 	}
 	else
