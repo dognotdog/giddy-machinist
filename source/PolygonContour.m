@@ -12,6 +12,8 @@
 #import "PolygonSkeletizer.h"
 #import "PSWaveFrontSnapshot.h"
 
+#import "FoundationExtensions.h"
+
 @implementation PolygonContour
 
 
@@ -56,6 +58,7 @@
 	[clippingSegment insertVertexAtEnd: clipBounds.max];
 	[clippingSegment insertVertexAtEnd: v3iCreate(clipBounds.min.x, clipBounds.max.y, clipBounds.min.z, clipBounds.min.shift)];
 	
+	[clippingSegment analyzeSegment];
 	
 	PolygonSkeletizer* skeletizer = [[PolygonSkeletizer alloc] init];
 	
@@ -81,7 +84,13 @@
 	
 	[skeletizer generateSkeleton];
 	
-
+	
+	self.toolpath.segments = [self.toolpath.segments select: ^BOOL(FixPolygonSegment* obj) {
+		
+		return [clippingSegment containsPath: obj];
+		
+	}];
+	 
 
 }
 
