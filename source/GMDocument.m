@@ -25,6 +25,9 @@
 #import "ShapeUtilities.h"
 #import "FixPolygon.h"
 #import "PolygonContour.h"
+#import "ModelObject.h"
+
+const NSString* GMDocumentObjectChangedNotification = @"GMDocumentObjectChangedNotification";
 
 
 @implementation GMDocument
@@ -33,12 +36,12 @@
 	
 	NSArray* slicedLayers;
 	
-	NSArray* contourPolygons;
+	NSArray* objects;
 	
 	dispatch_queue_t processingQueue;
 }
 
-@synthesize mainWindowController, slicedLayers, contourPolygons;
+@synthesize mainWindowController, slicedLayers, objects;
 
 - (id)init
 {
@@ -49,7 +52,7 @@
 	
 	slicedLayers = @[];
 	machineCommands = @[];
-	contourPolygons = @[];
+	objects = @[];
 	
 	return self;
 }
@@ -94,14 +97,16 @@
 	// You can also choose to override -readFromFileWrapper:ofType:error: or -readFromURL:ofType:error: instead.
 	// If you override either of these, you should also override -isEntireFileLoaded to return NO if the contents are lazily loaded.
 	
+	NSString* name = self.displayName;
+	
 	if ([typeName isEqual: @"com.elmonkey.stl"])
 	{
-		[self loadSTLFromData: data];
+		[self loadSTLFromData: data named: name];
 		return YES;
 	}
 	else if ([typeName isEqual: @"com.adobe.encapsulated-postscript"])
 	{
-		[self loadEPSFromData: data];
+		[self loadEPSFromData: data named: name];
 		return YES;
 	}
 	
@@ -176,29 +181,47 @@
 	
 }
 
+- (void) modelObjectChanged: (id) object;
+{
+	for (id wc in self.windowControllers)
+	{
+		if ([wc respondsToSelector: @selector(modelObjectChanged:)])
+			[wc modelObjectChanged: object];
+	}
 
+}
 
-- (void) loadEPSFromData: (NSData*) data
+- (void) loadEPSFromData: (NSData*) data named: (NSString*) name
 {
 	NSBezierPath* bpath = [ShapeUtilities createBezierPathFromData: data];
 	
 	FixPolygon* polygon = [FixPolygon polygonFromBezierPath: bpath withTransform: nil flatness: 0.1];
 	
+/*
 	PolygonContour* contour = [[PolygonContour alloc] init];
 	contour.polygon = polygon;
 	[contour generateToolpathWithOffset: 3.0];
+*/
+	
+	[self willChangeValueForKey: @"objects"];
+	
+	ModelObject2D* obj = [[ModelObject2D alloc] init];
+	obj.document = self;
+	obj.name = name;
+	obj.epsData = data;
+	
+	obj.sourcePolygon = polygon;
+//	obj.toolpathPolygon = contour.toolpath;
 	
 	
-	[self willChangeValueForKey: @"contourPolygons"];
 	
 	
-	
-	contourPolygons = [contourPolygons arrayByAddingObject: contour];
+	objects = [objects arrayByAddingObject: obj];
 
-	[self didChangeValueForKey: @"contourPolygons"];
+	[self didChangeValueForKey: @"objects"];
 }
 
-- (void) loadSTLFromData: (NSData*) data
+- (void) loadSTLFromData: (NSData*) data named: (NSString*) dataName
 {
 	
 	STLFile* stl = [[STLFile alloc] initWithData: data scale: 16 transform: mIdentity()];
@@ -248,7 +271,7 @@
 	if (!data)
 		return;
 	
-	[self loadSTLFromData: data];
+	[self loadSTLFromData: data named: [path lastPathComponent]];
 }
 
 - (IBAction) importSTL:(id)sender

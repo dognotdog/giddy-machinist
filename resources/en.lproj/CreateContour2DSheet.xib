@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="4504" systemVersion="13A558" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+    <dependencies>
+        <deployment defaultVersion="1070" identifier="macosx"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="4504"/>
+    </dependencies>
+    <objects>
+        <customObject id="-2" userLabel="File's Owner" customClass="ModelObjectCreateContourProxy">
+            <connections>
+                <outlet property="createContourSheet" destination="1" id="dVf-zY-Ris"/>
+                <outlet property="toolDiameterField" destination="2vs-xP-TKv" id="N6y-Ak-o4F"/>
+                <outlet property="toolOffsetField" destination="njO-ZE-Dti" id="IVc-3u-4aO"/>
+            </connections>
+        </customObject>
+        <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
+        <customObject id="-3" userLabel="Application"/>
+        <window title="Window" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" oneShot="NO" releasedWhenClosed="NO" wantsToBeColor="NO" visibleAtLaunch="NO" animationBehavior="default" id="1">
+            <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
+            <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
+            <rect key="contentRect" x="196" y="240" width="396" height="226"/>
+            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1418"/>
+            <view key="contentView" id="2">
+                <rect key="frame" x="0.0" y="0.0" width="396" height="226"/>
+                <autoresizingMask key="autoresizingMask"/>
+                <subviews>
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="DbU-ts-gyb">
+                        <rect key="frame" x="18" y="186" width="97" height="17"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="Tool Diameter:" id="p25-0b-Bcf">
+                            <font key="font" metaFont="system"/>
+                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                        </textFieldCell>
+                    </textField>
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="2vs-xP-TKv">
+                        <rect key="frame" x="121" y="184" width="100" height="22"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                        <constraints>
+                            <constraint firstAttribute="width" constant="100" id="DLE-zJ-Rfs"/>
+                        </constraints>
+                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" drawsBackground="YES" id="TXc-xZ-GM4">
+                            <font key="font" metaFont="system"/>
+                            <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                            <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                        </textFieldCell>
+                        <connections>
+                            <binding destination="qE6-xK-p96" name="value" keyPath="values.lastUsedContour2DToolDiameter" id="r5v-Um-1Cc"/>
+                        </connections>
+                    </textField>
+                    <button translatesAutoresizingMaskIntoConstraints="NO" id="hii-q0-feR">
+                        <rect key="frame" x="18" y="120" width="139" height="18"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                        <buttonCell key="cell" type="check" title="Auto-Detect Holes" bezelStyle="regularSquare" imagePosition="left" enabled="NO" state="on" inset="2" id="BQK-ya-Kjl">
+                            <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                            <font key="font" metaFont="system"/>
+                        </buttonCell>
+                    </button>
+                    <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="XbK-JE-cOy">
+                        <rect key="frame" x="163" y="13" width="82" height="32"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                        <buttonCell key="cell" type="push" title="Cancel" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="JDM-aU-XU8">
+                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                            <font key="font" metaFont="system"/>
+                            <string key="keyEquivalent" base64-UTF8="YES">
+Gw
+</string>
+                        </buttonCell>
+                        <connections>
+                            <action selector="cancelCreateContourAction:" target="-2" id="Y23-fd-caV"/>
+                        </connections>
+                    </button>
+                    <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="VFd-yY-fes">
+                        <rect key="frame" x="245" y="13" width="137" height="32"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                        <buttonCell key="cell" type="push" title="Create Contour" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="CQm-g2-DSN">
+                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                            <font key="font" metaFont="system"/>
+                            <string key="keyEquivalent" base64-UTF8="YES">
+DQ
+</string>
+                        </buttonCell>
+                        <connections>
+                            <action selector="okCreateContourAction:" target="-2" id="NpR-2K-CXm"/>
+                        </connections>
+                    </button>
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="1ay-cW-6ZO">
+                        <rect key="frame" x="69" y="156" width="46" height="17"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="Offset:" id="ql8-2n-DBi">
+                            <font key="font" metaFont="system"/>
+                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                        </textFieldCell>
+                    </textField>
+                    <comboBox verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="njO-ZE-Dti">
+                        <rect key="frame" x="121" y="152" width="103" height="26"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                        <comboBoxCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" borderStyle="bezel" drawsBackground="YES" completes="NO" usesDataSource="YES" numberOfVisibleItems="5" id="Yrp-8p-7VL">
+                            <font key="font" metaFont="system"/>
+                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                            <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                        </comboBoxCell>
+                        <connections>
+                            <binding destination="qE6-xK-p96" name="value" keyPath="values.lastUsedContour2DToolOffset" id="k0U-jd-u9V"/>
+                            <outlet property="dataSource" destination="-2" id="TYO-cj-oYI"/>
+                            <outlet property="delegate" destination="-2" id="ZiK-an-bUV"/>
+                        </connections>
+                    </comboBox>
+                </subviews>
+                <constraints>
+                    <constraint firstItem="XbK-JE-cOy" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="2" secondAttribute="leading" constant="20" id="461-Em-VyW"/>
+                    <constraint firstItem="2vs-xP-TKv" firstAttribute="leading" secondItem="DbU-ts-gyb" secondAttribute="trailing" constant="8" id="6Dz-wA-NcQ"/>
+                    <constraint firstItem="2vs-xP-TKv" firstAttribute="width" secondItem="njO-ZE-Dti" secondAttribute="width" id="92O-gA-9V1"/>
+                    <constraint firstItem="njO-ZE-Dti" firstAttribute="top" secondItem="2vs-xP-TKv" secondAttribute="bottom" constant="8" id="AdI-fI-AUg"/>
+                    <constraint firstItem="VFd-yY-fes" firstAttribute="baseline" secondItem="XbK-JE-cOy" secondAttribute="baseline" id="Oar-qG-jdX"/>
+                    <constraint firstItem="1ay-cW-6ZO" firstAttribute="baseline" secondItem="njO-ZE-Dti" secondAttribute="baseline" id="PDN-aR-x1K"/>
+                    <constraint firstAttribute="bottom" secondItem="VFd-yY-fes" secondAttribute="bottom" constant="20" id="Q2z-Ad-jOZ"/>
+                    <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="2vs-xP-TKv" secondAttribute="trailing" constant="20" id="Rqq-HP-xlK"/>
+                    <constraint firstItem="2vs-xP-TKv" firstAttribute="leading" secondItem="njO-ZE-Dti" secondAttribute="leading" id="bfG-Zy-sDp"/>
+                    <constraint firstItem="hii-q0-feR" firstAttribute="leading" secondItem="2" secondAttribute="leading" constant="20" id="f1D-vG-NpC"/>
+                    <constraint firstAttribute="trailing" secondItem="VFd-yY-fes" secondAttribute="trailing" constant="20" id="lLW-fg-Yny"/>
+                    <constraint firstItem="VFd-yY-fes" firstAttribute="leading" secondItem="XbK-JE-cOy" secondAttribute="trailing" constant="12" id="pQM-Fm-YvR"/>
+                    <constraint firstItem="2vs-xP-TKv" firstAttribute="top" secondItem="2" secondAttribute="top" constant="20" id="pux-ry-CXk"/>
+                    <constraint firstItem="hii-q0-feR" firstAttribute="top" secondItem="njO-ZE-Dti" secondAttribute="bottom" constant="20" id="tbx-KJ-3WJ"/>
+                    <constraint firstItem="2vs-xP-TKv" firstAttribute="baseline" secondItem="DbU-ts-gyb" secondAttribute="baseline" id="uJE-yW-96t"/>
+                    <constraint firstItem="XbK-JE-cOy" firstAttribute="top" relation="greaterThanOrEqual" secondItem="hii-q0-feR" secondAttribute="bottom" constant="20" id="uuJ-tp-Q9x"/>
+                    <constraint firstItem="DbU-ts-gyb" firstAttribute="leading" secondItem="2" secondAttribute="leading" constant="20" id="y42-bH-zeG"/>
+                    <constraint firstItem="1ay-cW-6ZO" firstAttribute="trailing" secondItem="DbU-ts-gyb" secondAttribute="trailing" id="yLD-FV-z81"/>
+                </constraints>
+            </view>
+        </window>
+        <userDefaultsController id="qE6-xK-p96"/>
+    </objects>
+</document>

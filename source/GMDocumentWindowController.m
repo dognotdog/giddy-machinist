@@ -22,6 +22,7 @@
 #import "PolySkelVideoGenerator.h"
 #import "FixPolygon.h"
 #import "PolygonContour.h"
+#import "ModelObject.h"
 
 #import "FoundationExtensions.h"
 
@@ -39,6 +40,7 @@
 	PolygonSkeletizer* skeletizer;
 }
 
+@dynamic document;
 
 @synthesize layerSelector, layerView;
 
@@ -52,14 +54,12 @@
     return self;
 }
 
-- (void) close
+- (void) dealloc
 {
 	[self removeObserver: self forKeyPath: @"waveFrontPhaseCount"];
 	[self removeObserver: self forKeyPath: @"displayWaveFrontPhaseNumber"];
 	[self.document removeObserver: self forKeyPath: @"contourPolygons"];
 	
-	
-	[super close];
 }
 
 - (void)windowDidLoad
@@ -68,7 +68,7 @@
 	
 	[self addObserver: self forKeyPath: @"waveFrontPhaseCount" options: NSKeyValueObservingOptionNew context: nil];
 	[self addObserver: self forKeyPath: @"displayWaveFrontPhaseNumber" options: NSKeyValueObservingOptionNew context: nil];
-	[self.document addObserver: self forKeyPath: @"contourPolygons" options: NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial context: nil];
+	[self.document addObserver: self forKeyPath: @"objects" options: NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial context: nil];
 
 }
 
@@ -119,12 +119,9 @@
 	}
 	else if (object == self.document)
 	{
-		if ([keyPath isEqualToString: @"contourPolygons"])
-		{
-			NSMutableArray* meshes = [[NSMutableArray alloc] init];
-			for (PolygonContour* obj in [self.document contourPolygons])
-				[meshes addObjectsFromArray: obj.gfxMeshes];
-			self.modelView.contours = meshes;
+		if ([keyPath isEqualToString: @"objects"])
+		{			
+			[self.navigationView reloadItem: nil reloadChildren: YES];
 		}
 
 	}
@@ -365,5 +362,114 @@
 	
 }
 
+- (void) modelObjectChanged: (id) object;
+{
+	[layerView setNeedsDisplay: YES];
+	[self.navigationView reloadItem: object reloadChildren: YES];
+	
+}
+
+#pragma mark - Navigation Outline View
+
+- (NSInteger)outlineView:(NSOutlineView *)outlineView numberOfChildrenOfItem:(id)item
+{
+	if (!item)
+		return self.document.objects.count;
+	else if ([item respondsToSelector: @selector(navChildCount)])
+		return [item navChildCount];
+	else
+		return 0;
+}
+
+- (id)outlineView:(NSOutlineView *)outlineView child:(NSInteger)index ofItem:(id)item
+{
+	if (!item)
+		return [self.document.objects objectAtIndex: index];
+	else if ([item respondsToSelector: @selector(navChildAtIndex:)])
+		return [item navChildAtIndex: index];
+	else
+		return nil;
+}
+
+- (BOOL)outlineView:(NSOutlineView *)outlineView isItemExpandable:(id)item
+{
+	if ([item respondsToSelector: @selector(navChildCount)])
+		return [item navChildCount] != 0;
+	else
+		return NO;
+}
+
+- (NSView *)outlineView:(NSOutlineView *)outlineView viewForTableColumn:(NSTableColumn *)tableColumn item:(id)item
+{
+	NSString* const labelViewIdentifier = @"LabelView";
+	NSString* const labelValueViewIdentifier = @"LabelValueView";
+	
+	if ([item respondsToSelector: @selector(navView)])
+	{
+		NSView* view = [item navView];
+		return view;
+	}
+	if ([item respondsToSelector: @selector(navValue)])
+	{
+		assert([item respondsToSelector: @selector(navLabel)]);
+		
+		NSView* view = [outlineView makeViewWithIdentifier: labelValueViewIdentifier owner: self];
+		if (!view)
+		{
+			NSNib* nib = [[NSNib alloc] initWithNibNamed: @"NavigationLabelValueView" bundle: nil];
+			[nib instantiateWithOwner: self topLevelObjects: nil];
+			view = self.tmpNavOutlineRowView;
+			view.identifier = labelValueViewIdentifier;
+			self.tmpNavOutlineRowView = nil;
+			assert(view);
+		}
+		NSTextField* labelView = [view.subviews objectAtIndex: 0];
+		NSTextField* valueView = [view.subviews objectAtIndex: 1];
+		
+		assert(view);
+		assert(labelView);
+		assert(valueView);
+		
+		labelView.stringValue = [item navLabel];
+		valueView.stringValue = [item navValue];
+		
+		return view;
+
+	}
+	else if ([item respondsToSelector: @selector(navLabel)])
+	{
+		NSTextField* labelView = [outlineView makeViewWithIdentifier: labelViewIdentifier owner: self];
+		if (!labelView)
+		{
+			NSNib* nib = [[NSNib alloc] initWithNibNamed: @"NavigationLabelView" bundle: nil];
+			NSArray* nibObjects = nil;
+			[nib instantiateWithOwner: self topLevelObjects: &nibObjects];
+			labelView = self.tmpNavOutlineRowView;
+			assert(labelView);
+			labelView.identifier = labelViewIdentifier;
+			self.tmpNavOutlineRowView = nil;
+			/*
+			labelView = [[NSTextField alloc] initWithFrame: NSMakeRect(0.0, 0.0, tableColumn.width, outlineView.rowHeight)];
+			labelView.identifier = labelViewIdentifier;
+			labelView.editable = NO;
+			labelView.drawsBackground = NO;
+			[labelView setBordered: NO];
+			 */
+		}
+	
+		labelView.stringValue = [item navLabel];
+		return  labelView;
+	}
+
+	return nil;
+}
+
+- (CGFloat)outlineView:(NSOutlineView *)outlineView heightOfRowByItem:(id)item
+{
+	if ([item respondsToSelector: @selector(navHeightOfRow)])
+		return [item navHeightOfRow];
+	else
+		return outlineView.rowHeight;
+}
 
 @end

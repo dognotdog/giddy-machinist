@@ -111,6 +111,8 @@ static int _divToFloor(int a, int b)
 - (MPVector2D*) divToFloor: (MPDecimal*) b
 {
 	MPVector2D* d = [self div: b];
+	d.x = d.x.abs;
+	d.y = d.y.abs;
 	
 	MPVector2D* ab = [self scale: b];
 	

@@ -13,6 +13,8 @@
 #import "gfx.h"
 #import "GLString.h"
 #import "GLDrawableBuffer.h"
+#import "GMDocument.h"
+#import "ModelObject.h"
 
 #import "RS274Interpreter.h"
 
@@ -264,6 +266,12 @@
 	
 	range3d_t modelsRange = rCreateFromMinMax(vCreatePos(0.0, 0.0, 0.0), vCreatePos(200.0, 200.0, 200.0));
 	
+	NSArray* objects = [[self.window.windowController document] objects];
+	
+	NSArray* meshes = [objects map: ^id(ModelObject* obj) {
+		return obj.gfx;
+	}];
+	
 	for (GfxMesh* model in models)
 	{
 		range3d_t r = [model vertexBounds];
@@ -296,6 +304,11 @@
 	[gfxState submitState];
 
 	
+	for (GfxNode* model in meshes)
+	{
+		[model drawHierarchyWithState: gfxState];
+	}
+
 	for (GfxMesh* model in self.models)
 	{
 		[model drawHierarchyWithState: gfxState];

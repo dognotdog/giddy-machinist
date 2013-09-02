@@ -176,6 +176,11 @@
 
 
 @implementation FixPolygon
+{
+	id gfxMeshCache;
+}
+
+@synthesize segments;
 
 - (id) init
 {
@@ -209,6 +214,7 @@
 	}
 	
 	self.segments = allSegments;
+	
 }
 
 
@@ -295,9 +301,23 @@
 	return polygon;
 }
 
+- (void) setSegments: (NSArray *) array
+{
+	[self willChangeValueForKey: @"segments"];
+	
+	segments = array;
+	gfxMeshCache = nil;
+	
+	[self didChangeValueForKey: @"segments"];
+}
+
 - (GfxMesh*) gfxMesh
 {
+	if (gfxMeshCache)
+		return gfxMeshCache;
+
 	GfxMesh* gfxMesh = [[GfxMesh alloc] init];
+	gfxMeshCache = gfxMesh;
 	
 	size_t vertexCount = 0;
 	
@@ -359,7 +379,6 @@
 	[gfxMesh addDrawArrayIndices: indices count: vertexCount withMode: GL_LINES];
 	
 	free(indices);
-	
 	
 	return gfxMesh;
 }

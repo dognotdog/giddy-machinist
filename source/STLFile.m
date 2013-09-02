@@ -34,6 +34,7 @@ void LoadSTLFileFromDataRaw(NSData* data, size_t* outNumVertices, vector_t** out
 
 @synthesize scaleShift;
 
+/*
 static NSArray* _coalesceVertices(NSArray* vertices, uint32_t* indices, size_t numIndices)
 {
 	
@@ -105,7 +106,7 @@ static NSArray* _coalesceVertices(NSArray* vertices, uint32_t* indices, size_t n
 	
 	return outv;
 }
-
+*/
 /*!
  @param scaleBits number of bits to shift left. 
  */

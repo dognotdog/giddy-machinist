@@ -178,7 +178,13 @@
 		DAAFAF1A1770EE8200FBB343 /* PSSpatialHash.m in Sources */ = {isa = PBXBuildFile; fileRef = DAAFAF191770EE8200FBB343 /* PSSpatialHash.m */; };
 		DABC2F7A17C8EE1C003A9500 /* ShapeUtilities.m in Sources */ = {isa = PBXBuildFile; fileRef = DABC2F7917C8EE1C003A9500 /* ShapeUtilities.m */; };
 		DABC2F7D17C91FDB003A9500 /* PolygonContour.m in Sources */ = {isa = PBXBuildFile; fileRef = DABC2F7C17C91FDB003A9500 /* PolygonContour.m */; };
+		DABC2F8017CE3056003A9500 /* ModelObject.m in Sources */ = {isa = PBXBuildFile; fileRef = DABC2F7F17CE3056003A9500 /* ModelObject.m */; };
 		DAE8303117BD58370098BCE5 /* PolySkelVideoGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = DAE8303017BD58370098BCE5 /* PolySkelVideoGenerator.m */; };
+		DAEF696B17D1087100383D6F /* NavigationLabelView.xib in Resources */ = {isa = PBXBuildFile; fileRef = DAEF696917D1087100383D6F /* NavigationLabelView.xib */; };
+		DAEF696D17D10E4600383D6F /* NavigationLabelValueView.xib in Resources */ = {isa = PBXBuildFile; fileRef = DAEF696C17D10E4600383D6F /* NavigationLabelValueView.xib */; };
+		DAEF697017D2772000383D6F /* NavigationButtonView.xib in Resources */ = {isa = PBXBuildFile; fileRef = DAEF696E17D2772000383D6F /* NavigationButtonView.xib */; };
+		DAEF697317D49EF300383D6F /* CreateContour2DSheet.xib in Resources */ = {isa = PBXBuildFile; fileRef = DAEF697117D49EF300383D6F /* CreateContour2DSheet.xib */; };
+		DAEF697617D4DC1900383D6F /* NSString+MathAndUnits.m in Sources */ = {isa = PBXBuildFile; fileRef = DAEF697517D4DC1900383D6F /* NSString+MathAndUnits.m */; };
 		DAF9B5A6172846B700B8989D /* GMAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = DAF9B5A5172846B700B8989D /* GMAppDelegate.m */; };
 /* End PBXBuildFile section */
 
@@ -433,10 +439,18 @@
 		DABC2F7917C8EE1C003A9500 /* ShapeUtilities.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ShapeUtilities.m; sourceTree = "<group>"; };
 		DABC2F7B17C91FDB003A9500 /* PolygonContour.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolygonContour.h; sourceTree = "<group>"; };
 		DABC2F7C17C91FDB003A9500 /* PolygonContour.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PolygonContour.m; sourceTree = "<group>"; };
+		DABC2F7E17CE3056003A9500 /* ModelObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ModelObject.h; sourceTree = "<group>"; };
+		DABC2F7F17CE3056003A9500 /* ModelObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ModelObject.m; sourceTree = "<group>"; };
 		DAE47E23164818F00036AACF /* PolygonExtender.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolygonExtender.h; sourceTree = "<group>"; };
 		DAE47E24164818F00036AACF /* PolygonExtender.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PolygonExtender.m; sourceTree = "<group>"; };
 		DAE8302F17BD58370098BCE5 /* PolySkelVideoGenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PolySkelVideoGenerator.h; sourceTree = "<group>"; };
 		DAE8303017BD58370098BCE5 /* PolySkelVideoGenerator.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PolySkelVideoGenerator.m; sourceTree = "<group>"; };
+		DAEF696A17D1087100383D6F /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/NavigationLabelView.xib; sourceTree = "<group>"; };
+		DAEF696C17D10E4600383D6F /* NavigationLabelValueView.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; name = NavigationLabelValueView.xib; path = en.lproj/NavigationLabelValueView.xib; sourceTree = "<group>"; };
+		DAEF696F17D2772000383D6F /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/NavigationButtonView.xib; sourceTree = "<group>"; };
+		DAEF697217D49EF300383D6F /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/CreateContour2DSheet.xib; sourceTree = "<group>"; };
+		DAEF697417D4DC1900383D6F /* NSString+MathAndUnits.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSString+MathAndUnits.h"; sourceTree = "<group>"; };
+		DAEF697517D4DC1900383D6F /* NSString+MathAndUnits.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSString+MathAndUnits.m"; sourceTree = "<group>"; };
 		DAF9B5A4172846B700B8989D /* GMAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GMAppDelegate.h; sourceTree = "<group>"; };
 		DAF9B5A5172846B700B8989D /* GMAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GMAppDelegate.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -674,6 +688,10 @@
 				DA50F02C15F0BE930047CEF9 /* InfoPlist.strings */,
 				DA50F03815F0BE930047CEF9 /* GMDocument.xib */,
 				DA50F03B15F0BE930047CEF9 /* MainMenu.xib */,
+				DAEF696917D1087100383D6F /* NavigationLabelView.xib */,
+				DAEF696C17D10E4600383D6F /* NavigationLabelValueView.xib */,
+				DAEF696E17D2772000383D6F /* NavigationButtonView.xib */,
+				DAEF697117D49EF300383D6F /* CreateContour2DSheet.xib */,
 			);
 			path = resources;
 			sourceTree = "<group>";
@@ -736,6 +754,10 @@
 				DAAD9F8A177B50DB00108C86 /* FixPolygon.m */,
 				DABC2F7B17C91FDB003A9500 /* PolygonContour.h */,
 				DABC2F7C17C91FDB003A9500 /* PolygonContour.m */,
+				DABC2F7E17CE3056003A9500 /* ModelObject.h */,
+				DABC2F7F17CE3056003A9500 /* ModelObject.m */,
+				DAEF697417D4DC1900383D6F /* NSString+MathAndUnits.h */,
+				DAEF697517D4DC1900383D6F /* NSString+MathAndUnits.m */,
 			);
 			path = source;
 			sourceTree = "<group>";
@@ -874,8 +896,12 @@
 				DA50F08915F0F8230047CEF9 /* simple.fs in Resources */,
 				DA239D2D163615040035200F /* flat.fs in Resources */,
 				DA239D2E163615050035200F /* flat.vs in Resources */,
+				DAEF696D17D10E4600383D6F /* NavigationLabelValueView.xib in Resources */,
+				DAEF697317D49EF300383D6F /* CreateContour2DSheet.xib in Resources */,
 				DA50F08A15F0F8230047CEF9 /* simple.vs in Resources */,
 				DA50F02E15F0BE930047CEF9 /* InfoPlist.strings in Resources */,
+				DAEF697017D2772000383D6F /* NavigationButtonView.xib in Resources */,
+				DAEF696B17D1087100383D6F /* NavigationLabelView.xib in Resources */,
 				DA50F03415F0BE930047CEF9 /* Credits.rtf in Resources */,
 				DA50F03A15F0BE930047CEF9 /* GMDocument.xib in Resources */,
 				DA50F03D15F0BE930047CEF9 /* MainMenu.xib in Resources */,
@@ -956,6 +982,7 @@
 				DA382B671752621B008C0CB4 /* bn_mp_div_d.c in Sources */,
 				DA382B681752621B008C0CB4 /* bn_mp_dr_is_modulus.c in Sources */,
 				DA382B691752621B008C0CB4 /* bn_mp_dr_reduce.c in Sources */,
+				DABC2F8017CE3056003A9500 /* ModelObject.m in Sources */,
 				DA382B6A1752621B008C0CB4 /* bn_mp_dr_setup.c in Sources */,
 				DA382B6B1752621B008C0CB4 /* bn_mp_exch.c in Sources */,
 				DA382B6C1752621B008C0CB4 /* bn_mp_expt_d.c in Sources */,
@@ -1026,6 +1053,7 @@
 				DA382BAC1752621B008C0CB4 /* bn_mp_sqrmod.c in Sources */,
 				DAE8303117BD58370098BCE5 /* PolySkelVideoGenerator.m in Sources */,
 				DA382BAD1752621B008C0CB4 /* bn_mp_sqrt.c in Sources */,
+				DAEF697617D4DC1900383D6F /* NSString+MathAndUnits.m in Sources */,
 				DA382BAE1752621B008C0CB4 /* bn_mp_sub.c in Sources */,
 				DA382BAF1752621B008C0CB4 /* bn_mp_sub_d.c in Sources */,
 				DA382BB01752621B008C0CB4 /* bn_mp_submod.c in Sources */,
@@ -1089,6 +1117,30 @@
 			);
 			name = MainMenu.xib;
 			path = ../resources;
+			sourceTree = "<group>";
+		};
+		DAEF696917D1087100383D6F /* NavigationLabelView.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				DAEF696A17D1087100383D6F /* en */,
+			);
+			name = NavigationLabelView.xib;
+			sourceTree = "<group>";
+		};
+		DAEF696E17D2772000383D6F /* NavigationButtonView.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				DAEF696F17D2772000383D6F /* en */,
+			);
+			name = NavigationButtonView.xib;
+			sourceTree = "<group>";
+		};
+		DAEF697117D49EF300383D6F /* CreateContour2DSheet.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				DAEF697217D49EF300383D6F /* en */,
+			);
+			name = CreateContour2DSheet.xib;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
