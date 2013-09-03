@@ -364,7 +364,7 @@
 
 - (void) modelObjectChanged: (id) object;
 {
-	[layerView setNeedsDisplay: YES];
+	[self.modelView setNeedsDisplay: YES];
 	[self.navigationView reloadItem: object reloadChildren: YES];
 	
 }
@@ -470,6 +470,31 @@
 		return [item navHeightOfRow];
 	else
 		return outlineView.rowHeight;
+}
+
+- (NSIndexSet*) outlineView: (NSOutlineView *)outlineView selectionIndexesForProposedSelection: (NSIndexSet *)proposedSelectionIndexes
+{
+	NSInteger rowCount = outlineView.numberOfRows;
+	
+	for (NSInteger i = 0; i < rowCount; ++i)
+	{
+		id item = [outlineView itemAtRow: i];
+		if ([item respondsToSelector: @selector(setNavSelection:)])
+		{
+			[item setNavSelection: [proposedSelectionIndexes containsIndex: i]];
+		}
+		
+	}
+	
+	return proposedSelectionIndexes;
+}
+
+- (BOOL) outlineView:(NSOutlineView *)outlineView shouldCollapseItem:(id)item
+{
+	if ([item respondsToSelector: @selector(navSelectChildren:)])
+		[item navSelectChildren: NO];
+	
+	return YES;
 }
 
 @end

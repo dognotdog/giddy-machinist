@@ -11,6 +11,7 @@
 #import "MPInteger.h"
 #import "MPVector2D.h"
 #import "gfx.h"
+#import "ModelObject.h"
 
 
 
@@ -174,6 +175,14 @@
 @end
 
 
+@interface FixPolygon () <ModelObjectNavigation>
+{
+	NSString* navLabel;
+}
+@property(nonatomic, strong) NSString* navLabel;
+
+@end
+
 
 @implementation FixPolygon
 {
@@ -181,6 +190,7 @@
 }
 
 @synthesize segments;
+@synthesize document;
 
 - (id) init
 {
@@ -305,6 +315,11 @@
 {
 	[self willChangeValueForKey: @"segments"];
 	
+	[array enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+		[obj setNavLabel: [NSString stringWithFormat: @"%lu (%lu)", idx, [obj vertexCount]]];
+	}];
+	
+	
 	segments = array;
 	gfxMeshCache = nil;
 	
@@ -395,10 +410,45 @@
 	return bounds;
 }
 
+
+#pragma mark - Model Navigation
+
+@synthesize navLabel, navSelection;
+
+- (NSInteger) navChildCount
+{
+	return segments.count;
+}
+
+- (id) navChildAtIndex:(NSInteger)idx
+{
+	return [segments objectAtIndex: idx];
+}
+
+- (GfxNode*) gfx
+{
+	GfxNode* root = [[GfxNode alloc] init];
+
+	if (self.navSelection)
+		[root addChild: [ModelObject boundingBoxForIntegerRange: self.bounds margin: vCreatePos(1.0, 1.0, 1.0)]];
+	
+	
+	[root addChild: [[GfxTransformNode alloc] initWithMatrix: mIdentity()]];
+	GfxMesh* mesh = self.gfxMesh;
+	
+	[root addChild: mesh];
+	
+	return root;
+}
+
 @end
 
 
+@interface FixPolygonSegment () <ModelObjectNavigation>
 
+@property(nonatomic,strong) NSString* navLabel;
+
+@end
 
 
 @implementation FixPolygonSegment
@@ -409,7 +459,7 @@
 }
 
 @synthesize vertexCount, vertices;
-
+@synthesize document;
 
 - (id) init
 {

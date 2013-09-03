@@ -10,7 +10,7 @@
 
 #import "VectorMath_fixp.h"
 
-@class GfxMesh;
+@class GfxMesh, GfxNode;
 
 @class FixPolygonClosedSegment, NSBezierPath;
 
@@ -27,12 +27,16 @@
 + (FixPolygon*) polygonFromBezierPath: (NSBezierPath*) bpath withTransform: (NSAffineTransform*) transform flatness: (CGFloat) flatness;
 
 - (GfxMesh*) gfxMesh;
+- (GfxNode*) gfx;
 
 - (r3i_t) bounds;
 
 - (void) reviseWinding;
 
 @end
+
+
+
 
 
 @interface FixPolygonSegment : NSObject <NSCopying>

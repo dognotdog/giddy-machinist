@@ -10,18 +10,26 @@
 #import <AppKit/NSComboBox.h>
 
 #import "VectorMath.h"
+#import "VectorMath_fixp.h"
 
-@class FixPolygon, GMDocument, NSView;
+@class FixPolygon, GMDocument, GfxNode, NSView;
 
 @protocol ModelObjectNavigation <NSObject>
 
 @required
 - (NSString*) navLabel;
+@property(nonatomic,weak) GMDocument* document;
 
 @optional
+- (void) setNavLabel: (NSString*) label;
 - (NSImage*) navIcon;
 - (NSString*) navValue;
 - (void) setNavValue: (NSString*) val;
+
+@property(nonatomic) BOOL navSelection;
+- (void) navSelectChildren: (BOOL) selection;
+
+- (GfxNode*) gfx;
 
 @property(nonatomic,strong) IBOutlet NSView* navView; // view to use in outline view for item
 - (CGFloat) navHeightOfRow; // view to use in outline view for item
@@ -35,9 +43,10 @@
 
 @property(nonatomic) matrix_t objectTransform;
 @property(nonatomic,strong) NSString* name;
-@property(nonatomic,weak) GMDocument* document;
 
 @property(nonatomic,strong,readonly) id gfx;
+
++ (GfxNode*) boundingBoxForIntegerRange: (r3i_t) bounds margin: (vector_t) margin;
 
 @end
 
@@ -73,14 +82,6 @@
 @property(nonatomic, strong) NSString* label;
 @property(nonatomic) long fieldnum;
 
-
-@end
-
-
-@interface ModelObjectPolygonProxy : ModelObjectProxy
-
-@property(nonatomic,weak) FixPolygon* polygon;
-@property(nonatomic,strong) NSString* name;
 
 @end
 

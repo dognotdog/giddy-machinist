@@ -17,6 +17,8 @@
 
 @implementation ModelObject
 
+@synthesize document;
+
 - (instancetype) init
 {
 	if (!(self = [super init]))
@@ -37,13 +39,43 @@
 	return [[GfxNode alloc] init];
 }
 
++ (GfxNode*) boundingBoxForIntegerRange: (r3i_t) bounds margin: (vector_t) margin
+{
+	v3i_t origini = bounds.min;
+	v3i_t sizei = v3iSub(bounds.max, bounds.min);
+	
+	vector_t origin = v3Sub(v3iToFloat(origini), margin);
+	vector_t size = v3Add(v3iToFloat(sizei), v3MulScalar(margin, 2.0));
+	
+	matrix_t MT = mTranslationMatrix(origin);
+	matrix_t MS = mScaleMatrix(size);
+	
+	
+	matrix_t bias = mTransform(mScaleMatrix(vCreateDir(0.5, 0.5, 0.5)), mTranslationMatrix(vCreateDir(1.0, 1.0, 1.0)));
+	
+	GfxNode* root = [[GfxNode alloc] init];
+	
+	GfxTransformNode* transform = [[GfxTransformNode alloc] initWithMatrix: mTransform(MT, mTransform(MS, bias))];
+	
+	[root addChild: transform];
+	
+	[root addChild: [GfxMesh cubeLineMesh]];
+	
+	return root;
+}
+
+
+
 @end
 
 
 @implementation ModelObject2D
 {
-	NSArray* navChildren;
+	ModelObjectTransformProxy* transformProxy;
+	ModelObjectCreateContourProxy* createContourProxy;
 }
+
+@synthesize sourcePolygon, toolpathPolygon, navSelection;
 
 - (instancetype) init
 {
@@ -51,49 +83,63 @@
 		return nil;
 	
 	self.objectTransform = mIdentity();
-	
-	NSMutableArray* proxies = [[NSMutableArray alloc] init];
-	
+		
 	{
-		ModelObjectTransformProxy* proxy = [[ModelObjectTransformProxy alloc] init];
-		proxy.object = self;
-		[proxies addObject: proxy];
+		transformProxy = [[ModelObjectTransformProxy alloc] init];
+		transformProxy.object = self;
+		transformProxy.document = self.document;
 	}
 	{
-		ModelObjectPolygonProxy* proxy = [[ModelObjectPolygonProxy alloc] init];
-		proxy.object = self;
-		proxy.polygon = self.sourcePolygon;
-		proxy.name = @"Source Polygon";
-		[proxies addObject: proxy];
-	}
-	{
-		ModelObjectPolygonProxy* proxy = [[ModelObjectPolygonProxy alloc] init];
-		proxy.object = self;
-		proxy.polygon = self.toolpathPolygon;
-		proxy.name = @"Toolpath Polygon";
-		[proxies addObject: proxy];
-	}
-	{
-		ModelObjectCreateContourProxy* proxy = [[ModelObjectCreateContourProxy alloc] init];
-		proxy.object = self;
-		[proxies addObject: proxy];
+		createContourProxy = [[ModelObjectCreateContourProxy alloc] init];
+		createContourProxy.object = self;
+		createContourProxy.document = self.document;
 	}
 
 	
-	
-	navChildren = proxies;
-	
+		
 	return self;
+}
+
+- (void) setNavSelection:(BOOL)sel
+{
+	[self willChangeValueForKey: @"navSelection"];
+	
+	navSelection = sel;
+	[self.document modelObjectChanged: self];
+	
+	[self didChangeValueForKey: @"navSelection"];
 }
 
 - (id) gfx
 {
 	GfxNode* root = [[GfxNode alloc] init];
+	[root addChild: [[GfxTransformNode alloc] initWithMatrix: mIdentity()]];
+
 	id gfx = nil;
-	if ((gfx = self.sourcePolygon.gfxMesh))
+	if ((gfx = self.sourcePolygon.gfx))
 		[root addChild: gfx];
-	if ((gfx = self.toolpathPolygon.gfxMesh))
+	if ((gfx = self.toolpathPolygon.gfx))
 		[root addChild: gfx];
+	if ((gfx = transformProxy.gfx))
+		[root addChild: gfx];
+	if ((gfx = createContourProxy.gfx))
+		[root addChild: gfx];
+	
+	if (self.navSelection)
+	{
+		r3i_t bounds = self.sourcePolygon.bounds;
+		if (self.toolpathPolygon)
+		{
+			bounds = riUnionRange(bounds, self.toolpathPolygon.bounds);
+			
+			
+		}
+		
+		GfxNode* selectRoot = [ModelObject boundingBoxForIntegerRange: bounds margin: vCreatePos(1.0, 1.0, 1.0)];
+				
+		[root addChild: selectRoot];
+
+	}
 	
 	return root;
 }
@@ -102,15 +148,65 @@
 - (NSInteger) navChildCount
 {
 	// Transform, Source Polygon, Toolpath
-	return navChildren.count;
+	return 2 + !!self.sourcePolygon + !!self.toolpathPolygon;
+}
+
+- (NSArray*) navChildren
+{
+	NSMutableArray* children = [[NSMutableArray alloc] init];
+	[children addObject: transformProxy];
+	if (self.sourcePolygon)
+		[children addObject: self.sourcePolygon];
+	if (self.toolpathPolygon)
+		[children addObject: self.toolpathPolygon];
+	[children addObject: createContourProxy];
+	return children;
+
 }
 
 
 
 - (id) navChildAtIndex:(NSInteger)idx
 {
-	return [navChildren objectAtIndex: idx];
+	NSArray* children = [self navChildren];
+	return [children objectAtIndex: idx];
 }
+
+- (void) navSelectChildren:(BOOL)selection
+{
+	for (id child in self.navChildren)
+	{
+		if ([child respondsToSelector: @selector(setNavSelection:)])
+		{
+			[child setNavSelection: selection];
+		}
+	}
+}
+
+- (void) setSourcePolygon:(FixPolygon *)poly
+{
+	[self willChangeValueForKey: @"sourcePolygon"];
+	
+	[(id)poly setNavLabel: @"Source Polygon"];
+	
+	sourcePolygon = poly;
+	[self.document modelObjectChanged: self];
+	
+	[self didChangeValueForKey: @"sourcePolygon"];
+}
+
+- (void) setToolpathPolygon:(FixPolygon *)poly
+{
+	[self willChangeValueForKey: @"toolpathPolygon"];
+	
+	[(id)poly setNavLabel: @"Toolpath Polygon"];
+	
+	toolpathPolygon = poly;
+	[self.document modelObjectChanged: self];
+	
+	[self didChangeValueForKey: @"toolpathPolygon"];
+}
+
 
 @end
 
@@ -122,6 +218,8 @@
 
 
 @implementation ModelObjectProxy
+
+@synthesize document;
 
 - (NSString*) navLabel
 {
@@ -135,6 +233,8 @@
 {
 	NSArray* fields;
 }
+
+@synthesize navSelection;
 
 - (id) init
 {
@@ -186,13 +286,22 @@
 	return [fields objectAtIndex: idx];
 }
 
-@end
-
-@implementation ModelObjectPolygonProxy
-
-- (NSString*) navLabel
+- (id) gfx
 {
-	return self.name;
+	GfxNode* root = [[GfxNode alloc] init];
+	[root addChild: [[GfxTransformNode alloc] initWithMatrix: mIdentity()]];
+		
+	if (self.navSelection)
+	{
+		r3i_t bounds = [self.object sourcePolygon].bounds;
+
+		GfxNode* selectRoot = [ModelObject boundingBoxForIntegerRange: bounds margin: vCreatePos(1.0, 1.0, 1.0)];
+		
+		[root addChild: selectRoot];
+		
+	}
+	
+	return root;
 }
 
 @end
@@ -229,7 +338,7 @@
 	IBOutlet NSComboBox*	toolOffsetField;
 }
 
-@synthesize navView;
+@synthesize navView, navSelection;
 
 - (NSString*) navLabel
 {
@@ -327,6 +436,24 @@
 	NSArray* objects = @[@"inside", @"outside", @"none", lastUsed];
 	
 	return [objects objectAtIndex: index];
+}
+
+- (id) gfx
+{
+	GfxNode* root = [[GfxNode alloc] init];
+	[root addChild: [[GfxTransformNode alloc] initWithMatrix: mIdentity()]];
+	
+	if (self.navSelection)
+	{
+		r3i_t bounds = [self.object sourcePolygon].bounds;
+		
+		GfxNode* selectRoot = [ModelObject boundingBoxForIntegerRange: bounds margin: vCreatePos(1.0, 1.0, 1.0)];
+		
+		[root addChild: selectRoot];
+		
+	}
+	
+	return root;
 }
 
 - (NSView*) navView
