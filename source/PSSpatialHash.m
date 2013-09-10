@@ -292,6 +292,8 @@ static int _divToFloor(int a, int b)
 	long stepx = [r.x compareToZero];
 	long stepy = [r.y compareToZero];
 	
+	assert(stepx || stepy); // one of the two must be non-zero for this to work
+	
 	MPVector2D* pos = [startLoc div: grid];
 	
 	v3i_t starti = [pos toVectorWithShift: 0];

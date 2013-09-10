@@ -168,7 +168,9 @@
 	
 	[self addPathsToSkeletizer: skeleton];
 	
-	[skeleton generateSkeleton];
+	[skeleton generateSkeletonWithCancellationCheck:^BOOL{
+		return NO;
+	}];
 }
 
 /*

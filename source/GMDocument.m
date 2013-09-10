@@ -194,25 +194,12 @@ const NSString* GMDocumentObjectChangedNotification = @"GMDocumentObjectChangedN
 - (void) loadEPSFromData: (NSData*) data named: (NSString*) name
 {
 	NSBezierPath* bpath = [ShapeUtilities createBezierPathFromData: data];
-	
-	FixPolygon* polygon = [FixPolygon polygonFromBezierPath: bpath withTransform: nil flatness: 0.1];
-	
-/*
-	PolygonContour* contour = [[PolygonContour alloc] init];
-	contour.polygon = polygon;
-	[contour generateToolpathWithOffset: 3.0];
-*/
-	
+		
 	[self willChangeValueForKey: @"objects"];
 	
-	ModelObject2D* obj = [[ModelObject2D alloc] init];
+	ModelObject2D* obj = [[ModelObject2D alloc] initWithBezierPath: bpath name: name];
 	obj.document = self;
-	obj.name = name;
-	obj.epsData = data;
-	
-	obj.sourcePolygon = polygon;
-//	obj.toolpathPolygon = contour.toolpath;
-	
+		
 	
 	
 	

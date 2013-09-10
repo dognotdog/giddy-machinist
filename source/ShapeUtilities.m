@@ -28,26 +28,24 @@
 	NSRange prologueEndRange = [dataString rangeOfString: @"%%EndProlog"];
 	NSRange trailerRange = [dataString rangeOfString: @"%%PageTrailer"];
 	NSRange pageSetupEndRange = [dataString rangeOfString: @"%%EndPageSetup"];
+	NSRange setupEndRange = [dataString rangeOfString: @"%%EndSetup"];
 	
-	if (prologueEndRange.location == NSNotFound)
-	{
-		prologueEndRange = [dataString rangeOfString: @"%%EndSetup"];
-	}
+	NSRange endStuffRange = NSMakeRange(0, 0);
 	
+	if (prologueEndRange.location != NSNotFound)
+		endStuffRange = NSUnionRange(prologueEndRange, endStuffRange);
 	if (pageSetupEndRange.location != NSNotFound)
-		if (pageSetupEndRange.location > prologueEndRange.location)
-		{
-			prologueEndRange.location = pageSetupEndRange.location;
-			prologueEndRange.length = prologueEndRange.length;
-		}
+		endStuffRange = NSUnionRange(pageSetupEndRange, endStuffRange);
+	if (setupEndRange.location != NSNotFound)
+		endStuffRange = NSUnionRange(setupEndRange, endStuffRange);
 	
-	assert(prologueEndRange.location != NSNotFound);
+	assert(endStuffRange.location != NSNotFound);
 	
 	
 	if (trailerRange.location == NSNotFound)
 		trailerRange.location = dataString.length;
 	
-	NSString* epsString = [[dataString substringToIndex: trailerRange.location] substringFromIndex: prologueEndRange.location + prologueEndRange.length];
+	NSString* epsString = [[dataString substringToIndex: trailerRange.location] substringFromIndex: endStuffRange.location + endStuffRange.length];
 	
 	return [self createBezierPathFromEPSPageString: epsString];
 }
@@ -72,6 +70,8 @@
 	{
 		NSString* line = _line; // re-assign because enumeration pointer can't be changed
 		@autoreleasepool {
+			
+			line = [line stringByTrimmingCharactersInSet: [NSCharacterSet whitespaceAndNewlineCharacterSet]];
 
 			NSRange commentRange = [line rangeOfString: @"%"];
 			if (commentRange.location != NSNotFound)
@@ -97,20 +97,20 @@
 			
 			NSScanner* lineScanner = [NSScanner scannerWithString: [line substringToIndex: beforeCmdRange.location]];
 			
-			if ([cmdString isEqualToString: @"mo"] || [cmdString isEqualToString: @"m"] || [cmdString isEqualToString: @"M"])
+			if ([cmdString isEqualToString: @"moveto"] || [cmdString isEqualToString: @"mo"] || [cmdString isEqualToString: @"m"] || [cmdString isEqualToString: @"M"])
 			{
 				[lineScanner scanDouble: &currentPoint.x];
 				[lineScanner scanDouble: &currentPoint.y];
 				[bpath moveToPoint: currentPoint];
 
 			}
-			else if ([cmdString isEqualToString: @"li"] || [cmdString isEqualToString: @"l"] || [cmdString isEqualToString: @"L"])
+			else if ([cmdString isEqualToString: @"lineto"] || [cmdString isEqualToString: @"li"] || [cmdString isEqualToString: @"l"] || [cmdString isEqualToString: @"L"])
 			{
 				[lineScanner scanDouble: &currentPoint.x];
 				[lineScanner scanDouble: &currentPoint.y];
 				[bpath lineToPoint: currentPoint];
 			}
-			else if ([cmdString isEqualToString: @"cv"] || [cmdString isEqualToString: @"c"] || [cmdString isEqualToString: @"C"])
+			else if ([cmdString isEqualToString: @"curveto"] || [cmdString isEqualToString: @"cv"] || [cmdString isEqualToString: @"c"] || [cmdString isEqualToString: @"C"])
 			{
 				[lineScanner scanDouble: &controlPoint1.x];
 				[lineScanner scanDouble: &controlPoint1.y];
@@ -136,7 +136,7 @@
 				[lineScanner scanDouble: &currentPoint.y];
 				[bpath curveToPoint: currentPoint controlPoint1: controlPoint1 controlPoint2: currentPoint];
 			}
-			else if ([cmdString isEqualToString: @"cp"])
+			else if ([cmdString isEqualToString: @"closepath"] || [cmdString isEqualToString: @"cp"])
 			{
 				[bpath closePath];
 			}

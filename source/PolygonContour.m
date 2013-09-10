@@ -27,7 +27,7 @@
 	return meshes;
 }
 
-- (void) generateToolpathWithOffset: (double) floatOffset
+- (void) generateToolpathWithOffset: (double) floatOffset cancellationCheck: (BOOL(^)(void)) checkBlock
 {
 	r3i_t polyBounds = self.polygon.bounds;
 	
@@ -68,10 +68,14 @@
 	
 	FixPolygon* poly = self.polygon.copy;
 	
+	
+	[poly.segments enumerateObjectsUsingBlock:^(FixPolygonClosedSegment* obj, NSUInteger idx, BOOL *stop) {
+		if (obj.isClosed)
+			[obj reverse];
+	}];
+
 	poly.segments = [poly.segments arrayByAddingObject: boundary];
-	
-	[poly reviseWinding];
-	
+
 	for (FixPolygonSegment* obj in poly.segments)
 		if (obj.vertexCount > 1)
 			[skeletizer addClosedPolygonWithVertices: obj.vertices count: obj.vertexCount];
@@ -82,7 +86,9 @@
 		self.toolpath = toolpath;
 	};
 	
-	[skeletizer generateSkeleton];
+	[skeletizer generateSkeletonWithCancellationCheck:^BOOL{
+		return NO;
+	}];
 	
 	
 	self.toolpath.segments = [self.toolpath.segments select: ^BOOL(FixPolygonSegment* obj) {

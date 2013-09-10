@@ -608,6 +608,9 @@ static double _lltodouble(vmlongerfix_t a)
 			
 			vmlongfix_t area = v3iCross2D(edge0.edge, edge1.edge);
 			
+			assert(edge0.edge.x || edge0.edge.y);
+			assert(edge1.edge.x || edge1.edge.y);
+			
 			if (area.x <= 0)
 			{
 				PSMotorcycle* cycle = [[PSMotorcycle alloc] init];
@@ -2898,10 +2901,12 @@ static PSSpoke* _continuedSpoke(PSSpoke* spoke, PSWaveFront* leftFront, PSWaveFr
 }
 
 
-- (void) generateSkeleton
+- (void) generateSkeletonWithCancellationCheck: (BOOL(^)(void)) checkBlock
 {
 	while (![doneSteps.lastObject isFinished])
 		@autoreleasepool {
+			if (checkBlock())
+				break;
 			[self doSkeletizationStep];
 		}
 //	[self runMotorcycles];

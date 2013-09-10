@@ -12,21 +12,77 @@
 #import "GMDocument.h"
 #import "gfx.h"
 #import "FixPolygon.h"
+#import "FoundationExtensions.h"
 
 #import <AppKit/AppKit.h>
 
 @implementation ModelObject
+{
+	IBOutlet NSTextField* labelField;
+	IBOutlet NSProgressIndicator* progressIndicator;
+	
+	long progressCounter;
+}
 
-@synthesize document;
+@synthesize document, objectTransform, navView;
 
 - (instancetype) init
 {
 	if (!(self = [super init]))
 		return nil;
 	
-	self.objectTransform = mIdentity();
+	objectTransform = mIdentity();
 	
 	return self;
+}
+
+- (NSView*) navView
+{
+	if (!navView)
+	{
+		NSNib* nib = [[NSNib alloc] initWithNibNamed: @"NavigationModelObjectView" bundle: nil];
+		[nib instantiateWithOwner: self topLevelObjects: NULL];
+		
+		progressIndicator.usesThreadedAnimation = YES;
+		
+	}
+	
+	labelField.stringValue = self.navLabel;
+		
+	assert(navView);
+	return navView;
+}
+
+- (void) asyncProcessStarted
+{
+	assert(dispatch_get_current_queue() == dispatch_get_main_queue());
+	
+	if (!progressCounter)
+	{
+		[self navView]; // call accessor to make sure view is loaded
+		assert(progressIndicator);
+		
+		progressIndicator.hidden = NO;
+		[progressIndicator startAnimation: self];
+		progressCounter++;
+	}
+}
+
+- (void) asyncProcessStopped
+{
+	assert(dispatch_get_current_queue() == dispatch_get_main_queue());
+	progressCounter--;
+	
+	if (!progressCounter)
+	{
+		[self navView];
+		assert(progressIndicator);
+		
+		[progressIndicator stopAnimation: self];
+		progressIndicator.hidden = YES;
+		
+	}
+
 }
 
 - (NSString*) navLabel
@@ -37,6 +93,17 @@
 - (id) gfx
 {
 	return [[GfxNode alloc] init];
+}
+
+- (void) setObjectTransform:(matrix_t)m
+{
+	[self willChangeValueForKey: @"objectTransform"];
+	
+	objectTransform = m;
+	
+	[self didChangeValueForKey: @"objectTransform"];
+	
+	[self.document modelObjectChanged: self];
 }
 
 + (GfxNode*) boundingBoxForIntegerRange: (r3i_t) bounds margin: (vector_t) margin
@@ -72,7 +139,12 @@
 @implementation ModelObject2D
 {
 	ModelObjectTransformProxy* transformProxy;
-	ModelObjectCreateContourProxy* createContourProxy;
+	ModelObjectContourGenerator* createContourProxy;
+	ModelObjectGCodeGenerator* gcodeProxy;
+	
+	dispatch_source_t editCoalesceSource;
+	long toolpathInProgress;
+	
 }
 
 @synthesize sourcePolygon, toolpathPolygon, navSelection;
@@ -82,7 +154,23 @@
 	if (!(self = [super init]))
 		return nil;
 	
+	[self doesNotRecognizeSelector: _cmd];
+		
+	return self;
+}
+
+- (instancetype) initWithBezierPath: (NSBezierPath*) bpath name: (NSString*) name
+{
+	if (!(self = [super init]))
+		return nil;
+
+	editCoalesceSource = dispatch_coalesce_source_create(dispatch_get_main_queue());
+	
 	self.objectTransform = mIdentity();
+	
+	self.name = name;
+	self.sourceBezierPath = bpath;
+	self.sourcePolygon = [FixPolygon polygonFromBezierPath: bpath withTransform: mToAffineTransform(self.objectTransform) flatness: 0.1];
 		
 	{
 		transformProxy = [[ModelObjectTransformProxy alloc] init];
@@ -90,13 +178,16 @@
 		transformProxy.document = self.document;
 	}
 	{
-		createContourProxy = [[ModelObjectCreateContourProxy alloc] init];
+		createContourProxy = [[ModelObjectContourGenerator alloc] init];
 		createContourProxy.object = self;
 		createContourProxy.document = self.document;
 	}
-
+	{
+		gcodeProxy = [[ModelObjectGCodeGenerator alloc] init];
+		gcodeProxy.object = self;
+		gcodeProxy.document = self.document;
+	}
 	
-		
 	return self;
 }
 
@@ -109,6 +200,80 @@
 	
 	[self didChangeValueForKey: @"navSelection"];
 }
+
+- (void) cancelToolpathCreation
+{
+	if (!toolpathInProgress)
+		return;
+	
+	toolpathInProgress = -1;
+	while (toolpathInProgress)
+		usleep(10);
+}
+
+- (void) recreateToolpathAsync
+{
+	PolygonContour* contour = [[PolygonContour alloc] init];
+	contour.polygon = self.sourcePolygon.copy;
+	
+	for (FixPolygonSegment* segment in contour.polygon.segments)
+		[segment cleanupDoubleVertices];
+	
+	double toolOffset = createContourProxy.toolOffset;
+
+	[self asyncProcessStarted];
+
+	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+		
+		[contour generateToolpathWithOffset: toolOffset cancellationCheck: ^BOOL {
+			return toolpathInProgress > 0;
+		}];
+		
+		toolpathInProgress = 0;
+		
+		dispatch_async(dispatch_get_main_queue(), ^{
+			
+			for (FixPolygonClosedSegment* cseg in contour.toolpath.segments)
+			{
+				[cseg cleanupDoubleVertices];
+				[cseg reverse];
+			}
+			
+			//contour.toolpath.segments = contour.toolpath.segments.reverseObjectEnumerator.allObjects;
+			[contour.toolpath reviseWinding];
+			self.toolpathPolygon = contour.toolpath;
+			[self asyncProcessStopped];
+			
+		});
+		
+	});
+	
+	
+
+}
+
+- (void) parametersForToolpathChanged
+{
+	self.toolpathPolygon = nil;
+	
+	dispatch_coalesce(editCoalesceSource, 3.0, ^{
+		[self cancelToolpathCreation];
+		toolpathInProgress = 1;
+		[self recreateToolpathAsync];
+	});
+
+}
+
+- (void) setObjectTransform: (matrix_t) m
+{
+	[super setObjectTransform: m];
+	
+	self.sourcePolygon = [FixPolygon polygonFromBezierPath: self.sourceBezierPath withTransform: mToAffineTransform(self.objectTransform) flatness: 0.1];
+	
+	[self parametersForToolpathChanged];
+}
+
+
 
 - (id) gfx
 {
@@ -145,32 +310,24 @@
 }
 
 
-- (NSInteger) navChildCount
-{
-	// Transform, Source Polygon, Toolpath
-	return 2 + !!self.sourcePolygon + !!self.toolpathPolygon;
-}
 
 - (NSArray*) navChildren
 {
 	NSMutableArray* children = [[NSMutableArray alloc] init];
 	[children addObject: transformProxy];
 	if (self.sourcePolygon)
+	{
 		[children addObject: self.sourcePolygon];
+		[children addObject: createContourProxy];
+		[children addObject: gcodeProxy];
+	}
 	if (self.toolpathPolygon)
 		[children addObject: self.toolpathPolygon];
-	[children addObject: createContourProxy];
 	return children;
 
 }
 
 
-
-- (id) navChildAtIndex:(NSInteger)idx
-{
-	NSArray* children = [self navChildren];
-	return [children objectAtIndex: idx];
-}
 
 - (void) navSelectChildren:(BOOL)selection
 {
@@ -201,6 +358,7 @@
 	
 	[(id)poly setNavLabel: @"Toolpath Polygon"];
 	
+	poly.opacity = 1.0;
 	toolpathPolygon = poly;
 	[self.document modelObjectChanged: self];
 	
@@ -232,9 +390,24 @@
 @implementation ModelObjectTransformProxy
 {
 	NSArray* fields;
+	
+	
+	IBOutlet NSTextField* minXField;
+	IBOutlet NSTextField* minYField;
+	IBOutlet NSTextField* minZField;
+	IBOutlet NSTextField* maxXField;
+	IBOutlet NSTextField* maxYField;
+	IBOutlet NSTextField* maxZField;
+	IBOutlet NSTextField* scaleXField;
+	IBOutlet NSTextField* scaleYField;
+	IBOutlet NSTextField* scaleZField;
+	IBOutlet NSTextField* rotXField;
+	IBOutlet NSTextField* rotYField;
+	IBOutlet NSTextField* rotZField;
+	IBOutlet NSButton* linkScaleButton;
 }
 
-@synthesize navSelection;
+@synthesize navView, navSelection;
 
 - (id) init
 {
@@ -271,19 +444,145 @@
 
 }
 
+- (IBAction) fieldEndEditAction: (id)sender
+{
+	
+	ModelObject2D* obj = self.object;
+
+	r3i_t srcBoundsi	= obj.sourcePolygon.bounds;
+	range3d_t srcBounds = riToFloat(srcBoundsi);
+
+	matrix_t transform = obj.objectTransform;
+	vector_t minv = srcBounds.minv;
+	vector_t maxv = srcBounds.maxv;
+	vector_t delta = vCreatePos(0.0, 0.0, 0.0);
+	vector_t scale = vCreateDir(vLength(transform.varr[0]), vLength(transform.varr[1]), vLength(transform.varr[2]));
+	double rotZ = atan2(transform.varr[0].farr[1], transform.varr[0].farr[0])*(180.0/M_PI);
+
+	if (sender == minXField)
+	{
+		minv.farr[0] = minXField.doubleValue;
+		
+		delta = v3Sub(minv, srcBounds.minv);
+	}
+	if (sender == minYField)
+	{
+		minv.farr[1] = minYField.doubleValue;
+		
+		delta = v3Sub(minv, srcBounds.minv);
+	}
+	if (sender == minZField)
+	{
+		minv.farr[2] = minZField.doubleValue;
+		
+		delta = v3Sub(minv, srcBounds.minv);
+	}
+	
+	if (sender == maxXField)
+	{
+		maxv.farr[0] = maxXField.doubleValue;
+		
+		delta = v3Sub(maxv, srcBounds.maxv);
+	}
+	if (sender == maxYField)
+	{
+		maxv.farr[1] = maxYField.doubleValue;
+		
+		delta = v3Sub(maxv, srcBounds.maxv);
+	}
+	if (sender == maxZField)
+	{
+		maxv.farr[2] = maxZField.doubleValue;
+		
+		delta = v3Sub(maxv, srcBounds.maxv);
+	}
+	
+	if (sender == scaleXField)
+	{
+		scale.farr[0] = scaleXField.doubleValue;
+	}
+	if (sender == scaleYField)
+	{
+		scale.farr[1] = scaleYField.doubleValue;
+	}
+	if (sender == scaleZField)
+	{
+		scale.farr[2] = scaleZField.doubleValue;
+	}
+	if (sender == rotZField)
+	{
+		rotZ = rotZField.doubleValue;
+	}
+
+	vector_t newT = v3Add(delta, transform.varr[3]);
+		
+	
+	obj.objectTransform = mTransform(mTranslationMatrix(newT), mTransform(mRotationMatrixAxisAngle(vCreateDir(0.0, 0.0, 1.0), rotZ*(M_PI/180.0)), mScaleMatrix(scale)));
+	
+	[self updateFields];
+	
+}
+
+- (CGFloat) navHeightOfRow
+{
+	return self.navView.frame.size.height;
+}
+
+- (void) updateFields
+{
+	
+	NSString* formatString = @"%.2f";
+	
+	
+	if ([self.object isKindOfClass: [ModelObject2D class]])
+	{
+		ModelObject2D* obj = self.object;
+		r3i_t srcBoundsi	= obj.sourcePolygon.bounds;
+		matrix_t transform = obj.objectTransform;
+		
+		range3d_t srcBounds = riToFloat(srcBoundsi);
+		
+		minXField.stringValue = [NSString stringWithFormat: formatString, srcBounds.minv.farr[0]];
+		minYField.stringValue = [NSString stringWithFormat: formatString, srcBounds.minv.farr[1]];
+		minZField.stringValue = [NSString stringWithFormat: formatString, srcBounds.minv.farr[2]];
+		maxXField.stringValue = [NSString stringWithFormat: formatString, srcBounds.maxv.farr[0]];
+		maxYField.stringValue = [NSString stringWithFormat: formatString, srcBounds.maxv.farr[1]];
+		maxZField.stringValue = [NSString stringWithFormat: formatString, srcBounds.maxv.farr[2]];
+		
+		scaleXField.stringValue = [NSString stringWithFormat: formatString, vLength(transform.varr[0])];
+		scaleYField.stringValue = [NSString stringWithFormat: formatString, vLength(transform.varr[1])];
+		scaleZField.stringValue = [NSString stringWithFormat: formatString, vLength(transform.varr[2])];
+		
+		rotXField.stringValue = [NSString stringWithFormat: formatString, 0.0];
+		rotYField.stringValue = [NSString stringWithFormat: formatString, 0.0];
+		rotZField.stringValue = [NSString stringWithFormat: formatString, atan2(transform.varr[0].farr[1], transform.varr[0].farr[0])*(180.0/M_PI)];
+
+		rotXField.enabled = NO;
+		rotXField.editable = NO;
+		rotYField.enabled = NO;
+		rotYField.editable = NO;
+		
+	}
+}
+
+- (NSView*) navView
+{
+	if (!navView)
+	{
+		NSNib* nib = [[NSNib alloc] initWithNibNamed: @"NavigationObjectTransformView" bundle: nil];
+		[nib instantiateWithOwner: self topLevelObjects: NULL];
+		
+	}
+	
+	[self updateFields];
+	
+	assert(navView);
+	return navView;
+}
+
 - (NSString*) navLabel
 {
 	return @"Transform";
-}
-
-- (NSInteger) navChildCount
-{
-	return fields.count;
-}
-
-- (id) navChildAtIndex:(NSInteger)idx
-{
-	return [fields objectAtIndex: idx];
 }
 
 - (id) gfx
@@ -399,7 +698,9 @@
 	
 	PolygonContour* contour = [[PolygonContour alloc] init];
 	contour.polygon = [self.object sourcePolygon];
-	[contour generateToolpathWithOffset: toolOffset];
+	[contour generateToolpathWithOffset: toolOffset cancellationCheck:^BOOL{
+		return NO;
+	}];
 
 	ModelObject2D* obj = self.object;
 	obj.toolpathPolygon = contour.toolpath;
@@ -480,4 +781,179 @@
 }
 
 @end
+
+
+@implementation ModelObjectContourGenerator
+{
+	IBOutlet NSTextField* toolDiameterField;
+}
+
+@synthesize navView, navSelection;
+
+- (NSView*) navView
+{
+	if (!navView)
+	{
+		NSNib* nib = [[NSNib alloc] initWithNibNamed: @"NavigationContourGeneratorView" bundle: nil];
+		[nib instantiateWithOwner: self topLevelObjects: NULL];
+		
+		
+	}
+	assert(navView);
+	return navView;
+}
+
+- (CGFloat) navHeightOfRow
+{
+	return self.navView.frame.size.height;
+}
+
+- (NSInteger)numberOfItemsInComboBox:(NSComboBox *)aComboBox
+{
+	return 4;
+}
+
+- (double) toolOffset
+{
+	[self navView];
+	
+	double toolDiameter = toolDiameterField.doubleValue;
+	
+	return toolDiameter/2.0; //FIXME: this is a hack
+	
+}
+
+- (IBAction) doneEditingAction:(id)sender
+{
+	ModelObject2D* obj = self.object;
+	[obj parametersForToolpathChanged];
+}
+
+- (id)comboBox:(NSComboBox *)aComboBox objectValueForItemAtIndex:(NSInteger)index
+{
+	NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+	
+	NSString* lastUsed = [defaults objectForKey: @"LastUsedContour2DToolOffset"];
+	if (!lastUsed)
+		lastUsed = @"";
+	
+	NSArray* objects = @[@"inside", @"outside", @"none", lastUsed];
+	
+	return [objects objectAtIndex: index];
+}
+
+- (id) gfx
+{
+	return [[GfxNode alloc] init];
+}
+
+@end
+
+
+@implementation ModelObjectGCodeGenerator
+{
+	IBOutlet NSTextField* cutDepthField;
+}
+
+@synthesize navView, navSelection;
+
+
+- (NSView*) navView
+{
+	if (!navView)
+	{
+		NSNib* nib = [[NSNib alloc] initWithNibNamed: @"NavigationGCodeGeneratorView" bundle: nil];
+		[nib instantiateWithOwner: self topLevelObjects: NULL];
+		
+		
+	}
+	assert(navView);
+	return navView;
+}
+- (CGFloat) navHeightOfRow
+{
+	return self.navView.frame.size.height;
+}
+
+
+- (NSString*) generateGCode
+{
+	NSString* preamble = [NSString stringWithContentsOfFile: [[NSBundle mainBundle] pathForResource: @"preamble" ofType: @"gcode"] encoding: NSASCIIStringEncoding error: NULL];
+	
+	double cutDepth = -cutDepthField.doubleValue;
+	double safeDepth = 0.0;
+	
+	NSString* tool = @"T1";
+	
+	NSString* spindleOn = @"M3";
+	NSString* spindleOff = @"M5";
+	
+	NSMutableArray* toolpathStrings = @[preamble, tool, @"G0 Z0", spindleOn, @"G4 P3000"].mutableCopy;
+	
+	ModelObject2D* obj = self.object;
+	assert(obj);
+	
+	
+	for (FixPolygonSegment* segment in obj.toolpathPolygon.segments)
+	{
+		v3i_t* vertices = segment.vertices;
+		
+		vector_t start = v3iToFloat(vertices[0]);
+		
+		[toolpathStrings addObject: [NSString stringWithFormat: @"G0 X%.3f Y%.3f", start.farr[0], start.farr[1]]];
+		[toolpathStrings addObject: [NSString stringWithFormat: @"G1 Z%.3f", cutDepth]];
+
+		
+		for (size_t i = 0; i < segment.vertexCount; ++i)
+		{
+			vector_t v = v3iToFloat(vertices[i]);
+			{
+				[toolpathStrings addObject: [NSString stringWithFormat: @"G1 X%.3f Y%.3f", v.farr[0], v.farr[1]]];
+			}
+		}
+		
+		if (segment.isClosed)
+		{
+			[toolpathStrings addObject: [NSString stringWithFormat: @"G1 X%.3f Y%.3f", start.farr[0], start.farr[1]]];
+		
+		}
+
+		[toolpathStrings addObject: [NSString stringWithFormat: @"G1 Z%.3f", safeDepth]];
+	}
+	
+	
+	[toolpathStrings addObject: spindleOff];
+
+	
+	return [toolpathStrings componentsJoinedByString:@"\n"];
+}
+
+- (IBAction) exportGCodeAction: (id) sender
+{
+	int result = 0;
+	
+	NSSavePanel*	panel = [NSSavePanel savePanel];
+	[panel setTitle: @"Export G-Code"];
+	[panel setAllowedFileTypes: @[@"gcode"]];
+	
+	
+	result = [panel runModal];
+	if (result == NSOKButton)
+	{
+		NSString* gcode = [self generateGCode];
+		
+		[gcode writeToURL: panel.URL atomically: YES encoding: NSASCIIStringEncoding error: NULL];
+		
+	}
+	
+
+}
+
+@end
+
+
+
+
+
+
 

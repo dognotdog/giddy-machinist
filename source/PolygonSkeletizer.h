@@ -34,7 +34,7 @@ typedef void (^SkeletizerEmitCallback)(PolygonSkeletizer* skeletizer, PSWaveFron
 @property(nonatomic,strong) SkeletizerEmitCallback emitCallback;
 
 - (void) addClosedPolygonWithVertices: (v3i_t*) vv count: (size_t) vcount;
-- (void) generateSkeleton;
+- (void) generateSkeletonWithCancellationCheck: (BOOL(^)(void)) checkBlock;
 
 - (GfxMesh*) skeletonMesh;
 - (NSArray*) offsetMeshes;

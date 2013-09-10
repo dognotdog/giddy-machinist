@@ -28,6 +28,8 @@
 
 - (GfxMesh*) gfxMesh;
 - (GfxNode*) gfx;
+@property(nonatomic) vector_t openStartColor, openEndColor, ccwStartColor, ccwEndColor, cwStartColor, cwEndColor;
+@property(nonatomic) double opacity;
 
 - (r3i_t) bounds;
 
@@ -47,7 +49,9 @@
 @property(nonatomic, readonly) v3i_t begin;
 @property(nonatomic, readonly) v3i_t end;
 
-@property(nonatomic, readonly) r3i_t bounds;
+- (r3i_t) bounds;
+
+@property(nonatomic) long nestingLevel;
 
 - (BOOL) isClosed;
 
@@ -68,6 +72,7 @@
 
 @interface FixPolygonOpenSegment : FixPolygonSegment
 
+
 - (BOOL) isSelfIntersecting;
 
 - (FixPolygonOpenSegment*) joinSegment: (FixPolygonOpenSegment*) seg atEnd: (BOOL) atEnd reverse: (BOOL) reverse;
@@ -81,7 +86,7 @@
 @interface FixPolygonClosedSegment : FixPolygonSegment
 
 @property(nonatomic, readonly) BOOL isConvex;
-@property(nonatomic, readonly) BOOL isCCW;
+ -(BOOL) isCCW;
 
 - (double) area;
 

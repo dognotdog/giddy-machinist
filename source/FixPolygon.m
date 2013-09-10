@@ -44,6 +44,7 @@
 - (void) recursivelySortSegments;
 
 - (void) recursivelyAdjustWindigs: (BOOL) startCCW;
+//- (void) recursivelyAdjustLevels: (BOOL) startCCW;
 
 - (NSArray*) allSegments;
 
@@ -71,9 +72,9 @@
 		if (obj.isClosed)
 		{
 			FixPolygonClosedSegment* cseg = (id) obj;
-			[cseg analyzeSegment];
 			if (!cseg.isCCW)
 				[cseg reverse];
+			assert(cseg.isCCW);
 		}
 		
 		poly.segment = obj;
@@ -154,7 +155,9 @@
 	{
 		FixPolygonClosedSegment* cseg = (id) self.segment;
 		if (cseg.isCCW != startCCW)
+		{
 			[cseg reverse];
+		}
 	}
 	
 	for (FixPolygonRecursive* child in self.children)
@@ -163,12 +166,14 @@
 
 - (NSArray*) allSegments
 {
-	NSMutableArray* all = @[self.segment].mutableCopy;
+	NSMutableArray* all = [NSMutableArray array];
 	
 	for (FixPolygonRecursive* child in self.children)
 	{
 		[all addObjectsFromArray: [child allSegments]];
 	}
+	
+	[all addObject: self.segment];
 	return all;
 }
 
@@ -189,6 +194,7 @@
 	id gfxMeshCache;
 }
 
+@synthesize openStartColor, openEndColor, ccwStartColor, ccwEndColor, cwStartColor, cwEndColor, opacity;
 @synthesize segments;
 @synthesize document;
 
@@ -197,6 +203,13 @@
 	if (!(self = [super init]))
 		return nil;
 	
+	openStartColor = vCreate(1.0, 0.0, 0.0, 1.0);
+	openEndColor = vCreate(1.0, 0.5, 0.0, 1.0);
+	ccwStartColor = vCreate(0.0, 1.0, 0.0, 1.0);
+	ccwEndColor = vCreate(1.0, 1.0, 0.0, 1.0);
+	cwStartColor = vCreate(0.0, 0.5, 1.0, 1.0);
+	cwEndColor = vCreate(0.5, 0.0, 1.0, 1.0);
+	opacity = 0.5;
 	
 	return self;
 }
@@ -249,7 +262,6 @@
 	NSMutableArray* segments = [[NSMutableArray alloc] init];
 	
 	id (^attemptClose)(id) = ^id(FixPolygonOpenSegment* segment){
-		[segment cleanupDoubleVertices];
 
 		if (!segment.isClosed)
 		{
@@ -258,7 +270,9 @@
 			
 			
 			if (csegment)
+			{
 				return csegment;
+			}
 		}
 		return segment;
 	};
@@ -303,10 +317,15 @@
 	}
 	
 	if (currentSegment)
+	{
+		[currentSegment cleanupDoubleVertices];
 		[segments addObject: attemptClose(currentSegment)];
+	}
 	
 	FixPolygon* polygon = [[FixPolygon alloc] init];
 	polygon.segments = segments;
+	
+	[polygon reviseWinding];
 	
 	return polygon;
 }
@@ -360,17 +379,33 @@
 	
 	for (FixPolygonSegment* segment in self.segments)
 	{
+		vector_t startColor = openStartColor;
+		vector_t endColor = openEndColor;
+		
 		if (segment.isClosed)
 		{
+			if (((FixPolygonClosedSegment*)segment).isCCW)
+			{
+				startColor = ccwStartColor;
+				endColor = ccwEndColor;
+			}
+			else
+			{
+				startColor = cwStartColor;
+				endColor = cwEndColor;
+			}
 			//vector_t color = vCreate(0.0, 0.5+0.5*(segment.isCCW), segment.isSelfIntersecting, 1.0);
 			for (size_t i = 0; i < segment.vertexCount; ++i)
 			{
 				double fa = (double)i/segment.vertexCount;
 				double fb = (double)(i+1)/segment.vertexCount;
 				
-				colors[k] = (vCreate(fa, 1.0, 0.0, 1.0));
+				vector_t colorA = vScaleRaw(vAddRaw(vScaleRaw(startColor, 1.0-fa), vScaleRaw(endColor, fa)), opacity);
+				vector_t colorB = vScaleRaw(vAddRaw(vScaleRaw(startColor, 1.0-fb), vScaleRaw(endColor, fb)), opacity);
+								
+				colors[k] = colorA;
 				vertices[k++] = v3iToFloat(segment.vertices[i]);
-				colors[k] = (vCreate(fb, 1.0, 0.0, 1.0));
+				colors[k] = colorB;
 				vertices[k++] = v3iToFloat(segment.vertices[(i+1)%segment.vertexCount]);
 			}
 		}
@@ -378,9 +413,15 @@
 		{
 			for (size_t i = 0; i+1 < segment.vertexCount; ++i)
 			{
-				colors[k] = vCreate(1.0, 0.0, 0.0, 1.0);
+				double fa = (double)i/segment.vertexCount;
+				double fb = (double)(i+1)/segment.vertexCount;
+				
+				vector_t colorA = vScaleRaw(vAddRaw(vScaleRaw(startColor, 1.0-fa), vScaleRaw(endColor, fa)), opacity);
+				vector_t colorB = vScaleRaw(vAddRaw(vScaleRaw(startColor, 1.0-fb), vScaleRaw(endColor, fb)), opacity);
+
+				colors[k] = colorA;
 				vertices[k++] = v3iToFloat(segment.vertices[i]);
-				colors[k] = vCreate(1.0, 0.0, 0.0, 1.0);
+				colors[k] = colorB;
 				vertices[k++] = v3iToFloat(segment.vertices[i+1]);
 			}
 		}
@@ -546,7 +587,7 @@
 
 - (double) area
 {	
-	MPDecimal* crossSum = [MPDecimal decimalWithInt64: 0 shift: 0];
+	MPDecimal* crossSum = [MPDecimal zero];
 	
 	for (long i = 0; i < vertexCount; ++i)
 	{
@@ -556,7 +597,7 @@
 		
 		crossSum = [crossSum add: [MPDecimal decimalWithInt64: cross.x shift: cross.shift]];
 	}
-	return [crossSum mul: [MPDecimal decimalWithInt64: 1 shift: 1]].toDouble;
+	return [crossSum mul: [MPDecimal oneHalf]].toDouble;
 }
 
 
@@ -814,8 +855,20 @@ static NSString* _verticesToSVG(v3i_t* vertices, size_t numVertices)
 
 
 @implementation FixPolygonClosedSegment
+{
+}
+@synthesize isConvex;
 
-@synthesize isCCW, isConvex;
+- (instancetype) copyWithZone:(NSZone *)zone
+{
+	FixPolygonClosedSegment* poly = [super copyWithZone: zone];
+	
+	poly->isConvex = isConvex;
+	
+	return poly;
+}
+
+
 
 - (BOOL) isClosed
 {
@@ -830,6 +883,22 @@ static NSString* _verticesToSVG(v3i_t* vertices, size_t numVertices)
 	return path;
 }
 
+- (BOOL) isCCW
+{
+	MPDecimal* area = [MPDecimal zero];
+	
+	for (long i = 0; i < vertexCount; ++i)
+	{
+		v3i_t a = vertices[i];
+		v3i_t b = vertices[(i+1)%vertexCount];
+		vmlongfix_t cross = v3iCross2D(a, b);
+		area = [area add: [MPDecimal decimalWithInt64: cross.x shift: cross.shift]];
+		
+	}
+	
+	BOOL isCCW = area.isPositive && !area.isZero;
+	return isCCW;
+}
 
 - (void) analyzeSegment
 {
@@ -838,7 +907,7 @@ static NSString* _verticesToSVG(v3i_t* vertices, size_t numVertices)
 	//	isSelfIntersecting = [self checkSelfIntersection];
 	
 	
-	MPDecimal* area = [MPDecimal decimalWithInt64: 0 shift: 0];
+	MPDecimal* area = [MPDecimal zero];
 	
 	for (long i = 0; i < vertexCount; ++i)
 	{
@@ -850,7 +919,7 @@ static NSString* _verticesToSVG(v3i_t* vertices, size_t numVertices)
 		signCounter += (cross.x > 0 ? 1 : (cross.x < 0 ? -1 : 0));
 	}
 	
-	isCCW = area.isPositive && !area.isZero;
+	//isCCW = area.isPositive && !area.isZero;
 	
 	
 	if (ABS(signCounter) == vertexCount)

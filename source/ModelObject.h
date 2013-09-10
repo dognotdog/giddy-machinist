@@ -12,7 +12,7 @@
 #import "VectorMath.h"
 #import "VectorMath_fixp.h"
 
-@class FixPolygon, GMDocument, GfxNode, NSView;
+@class FixPolygon, GMDocument, GfxNode, NSView, NSBezierPath;
 
 @protocol ModelObjectNavigation <NSObject>
 
@@ -34,8 +34,7 @@
 @property(nonatomic,strong) IBOutlet NSView* navView; // view to use in outline view for item
 - (CGFloat) navHeightOfRow; // view to use in outline view for item
 
-- (NSInteger) navChildCount;
-- (id) navChildAtIndex: (NSInteger) idx;
+- (NSArray*) navChildren;
 
 @end
 
@@ -44,8 +43,6 @@
 @property(nonatomic) matrix_t objectTransform;
 @property(nonatomic,strong) NSString* name;
 
-@property(nonatomic,strong,readonly) id gfx;
-
 + (GfxNode*) boundingBoxForIntegerRange: (r3i_t) bounds margin: (vector_t) margin;
 
 @end
@@ -53,7 +50,9 @@
 
 @interface ModelObject2D : ModelObject
 
-@property(nonatomic, strong) NSData* epsData;
+- (instancetype) initWithBezierPath: (NSBezierPath*) bpath name: (NSString*) name;
+
+@property(nonatomic, strong) NSBezierPath* sourceBezierPath;
 @property(nonatomic, strong) FixPolygon* sourcePolygon;
 @property(nonatomic, strong) FixPolygon* toolpathPolygon;
 
@@ -74,6 +73,8 @@
 
 @interface ModelObjectTransformProxy : ModelObjectProxy
 
+@property(nonatomic, strong) NSView* navView;
+
 @end
 
 
@@ -90,4 +91,20 @@
 @property(nonatomic, strong) NSView* navView;
 
 @end
+
+@interface ModelObjectContourGenerator : ModelObjectProxy <NSComboBoxDataSource, NSComboBoxDelegate>
+
+@property(nonatomic, strong) NSView* navView;
+
+@property(nonatomic) double toolOffset;
+
+@end
+
+@interface ModelObjectGCodeGenerator : ModelObjectProxy
+
+@property(nonatomic, strong) NSView* navView;
+
+
+@end
+
 

@@ -273,7 +273,9 @@
 	
 	[self willChangeValueForKey: @"waveFrontPhaseCount"];
 
-	[skeletizer generateSkeleton];
+	[skeletizer generateSkeletonWithCancellationCheck:^BOOL{
+		return NO;
+	}];
 	
 	[self didChangeValueForKey: @"waveFrontPhaseCount"];
 
@@ -365,7 +367,8 @@
 - (void) modelObjectChanged: (id) object;
 {
 	[self.modelView setNeedsDisplay: YES];
-	[self.navigationView reloadItem: object reloadChildren: YES];
+	for (id child in [object navChildren])
+		[self.navigationView reloadItem: child reloadChildren: YES];
 	
 }
 
@@ -375,8 +378,8 @@
 {
 	if (!item)
 		return self.document.objects.count;
-	else if ([item respondsToSelector: @selector(navChildCount)])
-		return [item navChildCount];
+	else if ([item respondsToSelector: @selector(navChildren)])
+		return [item navChildren].count;
 	else
 		return 0;
 }
@@ -385,16 +388,16 @@
 {
 	if (!item)
 		return [self.document.objects objectAtIndex: index];
-	else if ([item respondsToSelector: @selector(navChildAtIndex:)])
-		return [item navChildAtIndex: index];
+	else if ([item respondsToSelector: @selector(navChildren)])
+		return [[item navChildren] objectAtIndex: index];
 	else
 		return nil;
 }
 
 - (BOOL)outlineView:(NSOutlineView *)outlineView isItemExpandable:(id)item
 {
-	if ([item respondsToSelector: @selector(navChildCount)])
-		return [item navChildCount] != 0;
+	if ([item respondsToSelector: @selector(navChildren)])
+		return [item navChildren].count != 0;
 	else
 		return NO;
 }
@@ -476,6 +479,8 @@
 {
 	NSInteger rowCount = outlineView.numberOfRows;
 	
+	NSMutableIndexSet* outIndices = proposedSelectionIndexes.mutableCopy;
+	
 	for (NSInteger i = 0; i < rowCount; ++i)
 	{
 		id item = [outlineView itemAtRow: i];
@@ -483,10 +488,34 @@
 		{
 			[item setNavSelection: [proposedSelectionIndexes containsIndex: i]];
 		}
+		else if ([proposedSelectionIndexes containsIndex: i])
+		{
+			[outIndices removeIndex: i];
+			if ([[outlineView parentForItem: item] respondsToSelector: @selector(setNavSelection:)])
+			{
+				[[outlineView parentForItem: item] setNavSelection: [proposedSelectionIndexes containsIndex: i]];
+				[outIndices addIndex: [outlineView rowForItem: [outlineView parentForItem: item]]];
+			}
+		}
 		
 	}
 	
-	return proposedSelectionIndexes;
+	[outIndices enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL *stop) {
+		[[outlineView itemAtRow: idx] setNavSelection: YES];
+	}];
+	
+	return outIndices;
+}
+
+/*
+- (NSTableRowView*) outlineView:(NSOutlineView *)outlineView rowViewForItem:(id)item
+{
+}
+*/
+- (void)outlineView:(NSOutlineView *)outlineView didAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row
+{
+	if ([[outlineView itemAtRow: row] isKindOfClass: [ModelObjectTransformProxy class]])
+		rowView.selectionHighlightStyle = NSTableViewSelectionHighlightStyleNone;
 }
 
 - (BOOL) outlineView:(NSOutlineView *)outlineView shouldCollapseItem:(id)item
@@ -496,5 +525,10 @@
 	
 	return YES;
 }
-
+/*
+- (BOOL)outlineView:(NSOutlineView *)outlineView shouldEditTableColumn:(NSTableColumn *)tableColumn item:(id)item
+{
+	if (
+}
+ */
 @end

@@ -12,7 +12,7 @@
 
 @interface PolygonContour : NSObject
 
-- (void) generateToolpathWithOffset: (double) floatOffset;
+- (void) generateToolpathWithOffset: (double) floatOffset cancellationCheck: (BOOL(^)(void)) checkBlock;
 
 @property(strong, nonatomic) FixPolygon* polygon;
 @property(strong, nonatomic) FixPolygon* toolpath;

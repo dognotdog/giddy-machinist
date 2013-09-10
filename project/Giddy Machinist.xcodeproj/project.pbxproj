@@ -185,6 +185,11 @@
 		DAEF697017D2772000383D6F /* NavigationButtonView.xib in Resources */ = {isa = PBXBuildFile; fileRef = DAEF696E17D2772000383D6F /* NavigationButtonView.xib */; };
 		DAEF697317D49EF300383D6F /* CreateContour2DSheet.xib in Resources */ = {isa = PBXBuildFile; fileRef = DAEF697117D49EF300383D6F /* CreateContour2DSheet.xib */; };
 		DAEF697617D4DC1900383D6F /* NSString+MathAndUnits.m in Sources */ = {isa = PBXBuildFile; fileRef = DAEF697517D4DC1900383D6F /* NSString+MathAndUnits.m */; };
+		DAEF697D17D67CC000383D6F /* NavigationContourGeneratorView.xib in Resources */ = {isa = PBXBuildFile; fileRef = DAEF697B17D67CC000383D6F /* NavigationContourGeneratorView.xib */; };
+		DAEF698017DE287400383D6F /* NavigationGCodeGeneratorView.xib in Resources */ = {isa = PBXBuildFile; fileRef = DAEF697E17DE287400383D6F /* NavigationGCodeGeneratorView.xib */; };
+		DAEF698217DE2B1B00383D6F /* NavigationObjectTransformView.xib in Resources */ = {isa = PBXBuildFile; fileRef = DAEF698117DE2B1B00383D6F /* NavigationObjectTransformView.xib */; };
+		DAEF698517DF2D7900383D6F /* NavigationModelObjectView.xib in Resources */ = {isa = PBXBuildFile; fileRef = DAEF698417DF2D7900383D6F /* NavigationModelObjectView.xib */; };
+		DAEF698717DF3B8A00383D6F /* preamble.gcode in Resources */ = {isa = PBXBuildFile; fileRef = DAEF698617DF3B8A00383D6F /* preamble.gcode */; };
 		DAF9B5A6172846B700B8989D /* GMAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = DAF9B5A5172846B700B8989D /* GMAppDelegate.m */; };
 /* End PBXBuildFile section */
 
@@ -451,6 +456,11 @@
 		DAEF697217D49EF300383D6F /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/CreateContour2DSheet.xib; sourceTree = "<group>"; };
 		DAEF697417D4DC1900383D6F /* NSString+MathAndUnits.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSString+MathAndUnits.h"; sourceTree = "<group>"; };
 		DAEF697517D4DC1900383D6F /* NSString+MathAndUnits.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSString+MathAndUnits.m"; sourceTree = "<group>"; };
+		DAEF697C17D67CC000383D6F /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/NavigationContourGeneratorView.xib; sourceTree = "<group>"; };
+		DAEF697F17DE287400383D6F /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/NavigationGCodeGeneratorView.xib; sourceTree = "<group>"; };
+		DAEF698117DE2B1B00383D6F /* NavigationObjectTransformView.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = NavigationObjectTransformView.xib; sourceTree = "<group>"; };
+		DAEF698417DF2D7900383D6F /* NavigationModelObjectView.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = NavigationModelObjectView.xib; sourceTree = "<group>"; };
+		DAEF698617DF3B8A00383D6F /* preamble.gcode */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = preamble.gcode; sourceTree = "<group>"; };
 		DAF9B5A4172846B700B8989D /* GMAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GMAppDelegate.h; sourceTree = "<group>"; };
 		DAF9B5A5172846B700B8989D /* GMAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GMAppDelegate.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -689,9 +699,14 @@
 				DA50F03815F0BE930047CEF9 /* GMDocument.xib */,
 				DA50F03B15F0BE930047CEF9 /* MainMenu.xib */,
 				DAEF696917D1087100383D6F /* NavigationLabelView.xib */,
+				DAEF698417DF2D7900383D6F /* NavigationModelObjectView.xib */,
 				DAEF696C17D10E4600383D6F /* NavigationLabelValueView.xib */,
 				DAEF696E17D2772000383D6F /* NavigationButtonView.xib */,
 				DAEF697117D49EF300383D6F /* CreateContour2DSheet.xib */,
+				DAEF697B17D67CC000383D6F /* NavigationContourGeneratorView.xib */,
+				DAEF697E17DE287400383D6F /* NavigationGCodeGeneratorView.xib */,
+				DAEF698117DE2B1B00383D6F /* NavigationObjectTransformView.xib */,
+				DAEF698617DF3B8A00383D6F /* preamble.gcode */,
 			);
 			path = resources;
 			sourceTree = "<group>";
@@ -891,6 +906,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DAEF697D17D67CC000383D6F /* NavigationContourGeneratorView.xib in Resources */,
+				DAEF698517DF2D7900383D6F /* NavigationModelObjectView.xib in Resources */,
 				DA2F14A6163559A9008BC99F /* model.fs in Resources */,
 				DA2F14A4163559A5008BC99F /* model.vs in Resources */,
 				DA50F08915F0F8230047CEF9 /* simple.fs in Resources */,
@@ -902,9 +919,12 @@
 				DA50F02E15F0BE930047CEF9 /* InfoPlist.strings in Resources */,
 				DAEF697017D2772000383D6F /* NavigationButtonView.xib in Resources */,
 				DAEF696B17D1087100383D6F /* NavigationLabelView.xib in Resources */,
+				DAEF698217DE2B1B00383D6F /* NavigationObjectTransformView.xib in Resources */,
+				DAEF698717DF3B8A00383D6F /* preamble.gcode in Resources */,
 				DA50F03415F0BE930047CEF9 /* Credits.rtf in Resources */,
 				DA50F03A15F0BE930047CEF9 /* GMDocument.xib in Resources */,
 				DA50F03D15F0BE930047CEF9 /* MainMenu.xib in Resources */,
+				DAEF698017DE287400383D6F /* NavigationGCodeGeneratorView.xib in Resources */,
 				DA2F149B16330C0F008BC99F /* white.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1141,6 +1161,22 @@
 				DAEF697217D49EF300383D6F /* en */,
 			);
 			name = CreateContour2DSheet.xib;
+			sourceTree = "<group>";
+		};
+		DAEF697B17D67CC000383D6F /* NavigationContourGeneratorView.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				DAEF697C17D67CC000383D6F /* en */,
+			);
+			name = NavigationContourGeneratorView.xib;
+			sourceTree = "<group>";
+		};
+		DAEF697E17DE287400383D6F /* NavigationGCodeGeneratorView.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				DAEF697F17DE287400383D6F /* en */,
+			);
+			name = NavigationGCodeGeneratorView.xib;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */

@@ -250,8 +250,11 @@
 
 - (void) drawModelsWithState: (GfxStateStack*) gfxState
 {
+	gfxState.blendingEnabled = YES;
+	gfxState.blendingSrcMode = GL_ONE;
+	gfxState.blendingDstMode = GL_ONE_MINUS_SRC_ALPHA;
 	NSSize size = [self bounds].size;
-	matrix_t projMatrix = mPerspective(60.0*M_PI/180.0, size.width/size.height, 1.0, 1000.0);
+	matrix_t projMatrix = mPerspective(60.0*M_PI/180.0, size.width/size.height, 1.0, 10000.0);
 	
 	vector_t up = vCreateDir(0.0, 0.0, 1.0);
 
@@ -273,6 +276,12 @@
 	}];
 	
 	for (GfxMesh* model in models)
+	{
+		range3d_t r = [model vertexBounds];
+		modelsRange = rUnionRange(modelsRange, r);
+	}
+	
+	for (GfxMesh* model in meshes)
 	{
 		range3d_t r = [model vertexBounds];
 		modelsRange = rUnionRange(modelsRange, r);

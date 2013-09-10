@@ -878,6 +878,11 @@ static long _locationOnEdge_boxTest(v3i_t A, v3i_t B, v3i_t x)
 
 @implementation PSSourceEdge
 
+- (NSString*) description
+{
+	vector_t e = v3iToFloat(self.edge);
+	return [NSString stringWithFormat: @"%p %@ (%f, %f)", self, self.class, e.farr[0], e.farr[1]];
+}
 
 @end
 
