@@ -236,11 +236,25 @@
 			for (FixPolygonClosedSegment* cseg in contour.toolpath.segments)
 			{
 				[cseg cleanupDoubleVertices];
-				[cseg reverse];
+				if (cseg.isClosed)
+					[cseg reverse];
 			}
 			
 			//contour.toolpath.segments = contour.toolpath.segments.reverseObjectEnumerator.allObjects;
-			[contour.toolpath reviseWinding];
+			if (toolOffset != 0.0)
+				[contour.toolpath nestPolygonWithOptions: PolygonNestingOptionSortY];
+			else
+			{
+				
+			}
+
+			if (toolOffset < 0.0)
+				for (FixPolygonClosedSegment* cseg in contour.toolpath.segments)
+				{
+					if (cseg.isClosed)
+						[cseg reverse];
+				}
+			
 			self.toolpathPolygon = contour.toolpath;
 			[self asyncProcessStopped];
 			
@@ -885,10 +899,12 @@
 	
 	NSString* tool = @"T1";
 	
+	NSString* feedrate = @"G1 F1000.0";
+
 	NSString* spindleOn = @"M3";
 	NSString* spindleOff = @"M5";
 	
-	NSMutableArray* toolpathStrings = @[preamble, tool, @"G0 Z0", spindleOn, @"G4 P3000"].mutableCopy;
+	NSMutableArray* toolpathStrings = @[preamble, feedrate, @"S1000", tool, @"G0 Z0", spindleOn, @"G4 P3000"].mutableCopy;
 	
 	ModelObject2D* obj = self.object;
 	assert(obj);
@@ -901,7 +917,7 @@
 		vector_t start = v3iToFloat(vertices[0]);
 		
 		[toolpathStrings addObject: [NSString stringWithFormat: @"G0 X%.3f Y%.3f", start.farr[0], start.farr[1]]];
-		[toolpathStrings addObject: [NSString stringWithFormat: @"G1 Z%.3f", cutDepth]];
+		[toolpathStrings addObject: [NSString stringWithFormat: @"G0 Z%.3f", cutDepth]];
 
 		
 		for (size_t i = 0; i < segment.vertexCount; ++i)
@@ -918,7 +934,7 @@
 		
 		}
 
-		[toolpathStrings addObject: [NSString stringWithFormat: @"G1 Z%.3f", safeDepth]];
+		[toolpathStrings addObject: [NSString stringWithFormat: @"G0 Z%.3f", safeDepth]];
 	}
 	
 	

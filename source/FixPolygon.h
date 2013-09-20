@@ -10,6 +10,13 @@
 
 #import "VectorMath_fixp.h"
 
+typedef enum {
+	PolygonNestingOptionsNone,
+	PolygonNestingOptionSortX = 1,
+	PolygonNestingOptionSortY = 2
+} PolygonNestingOptions;
+
+
 @class GfxMesh, GfxNode;
 
 @class FixPolygonClosedSegment, NSBezierPath;
@@ -33,7 +40,7 @@
 
 - (r3i_t) bounds;
 
-- (void) reviseWinding;
+- (void) nestPolygonWithOptions: (PolygonNestingOptions) options;
 
 @end
 

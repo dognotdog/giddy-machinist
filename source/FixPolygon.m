@@ -85,28 +85,76 @@
 	NSMutableArray* unsortedPolys = inputList.mutableCopy;
 	NSMutableArray* rootPolys = [[NSMutableArray alloc] init];
 	
-	while (unsortedPolys.count)
+	
+	
+	for (FixPolygonRecursive* poly in unsortedPolys)
 	{
-		FixPolygonRecursive* poly = [unsortedPolys lastObject];
-		[unsortedPolys removeLastObject];
-		for (FixPolygonRecursive* poly2 in unsortedPolys.copy)
+		BOOL isRoot = YES;
+		for (FixPolygonRecursive* poly2 in unsortedPolys)
 		{
+			if (poly == poly2)
+				continue;
+			
 			if (poly2.segment.isClosed)
 			{
 				FixPolygonClosedSegment* cseg = (id)poly2.segment;
-			
+				assert(cseg.isCCW);
+				
 				if ([cseg containsPath: poly.segment])
 				{
-					poly2.children = [poly2.children arrayByAddingObject: poly];
-					poly = nil;
+					isRoot = NO;
+					NSLog(@"%p contains %p", poly2, poly);
 					break;
 				}
 			}
 		}
-		if (poly)
+		if (isRoot)
 			[rootPolys addObject: poly];
-		
 	}
+	
+	[unsortedPolys removeObjectsInArray: rootPolys];
+
+	for (FixPolygonRecursive* poly in unsortedPolys.copy)
+	{
+		BOOL foundParent = NO;
+		for (FixPolygonRecursive* rootPoly in rootPolys)
+		{
+			
+			if (rootPoly.segment.isClosed)
+			{
+				FixPolygonClosedSegment* cseg = (id)rootPoly.segment;
+				
+				if ([cseg containsPath: poly.segment])
+				{
+					rootPoly.children = [rootPoly.children arrayByAddingObject: poly];
+					foundParent = YES;
+					NSLog(@"again %p contains %p", rootPoly, poly);
+					[unsortedPolys removeObject: poly];
+					break;
+				}
+			}
+		}
+		if (foundParent)
+		{
+			continue;
+		}
+		assert(0); // we should never get here
+	}
+	
+	if (unsortedPolys.count)
+		[rootPolys map: ^id(FixPolygonRecursive* obj) {
+			assert(obj);
+			NSBezierPath* bpath =  obj.segment.bezierPath;
+			return bpath;
+		}];
+	if (unsortedPolys.count)
+		[unsortedPolys map: ^id(FixPolygonRecursive* obj) {
+			assert(obj);
+			NSBezierPath* bpath =  obj.segment.bezierPath;
+			return bpath;
+		}];
+	
+	assert(!unsortedPolys.count);
 	
 	for (FixPolygonRecursive* poly in rootPolys)
 		[poly recursivelySortSegments];
@@ -120,27 +168,52 @@
 	NSMutableArray* unsortedPolys = self.children.mutableCopy;
 	NSMutableArray* rootPolys = [[NSMutableArray alloc] init];
 	
-	while (unsortedPolys.count)
+	for (FixPolygonRecursive* poly in unsortedPolys)
 	{
-		FixPolygonRecursive* poly = [unsortedPolys lastObject];
-		[unsortedPolys removeLastObject];
-		for (FixPolygonRecursive* poly2 in unsortedPolys.copy)
+		BOOL isRoot = YES;
+		for (FixPolygonRecursive* poly2 in unsortedPolys)
 		{
+			if (poly == poly2)
+				continue;
+			
 			if (poly2.segment.isClosed)
 			{
 				FixPolygonClosedSegment* cseg = (id)poly2.segment;
 				
 				if ([cseg containsPath: poly.segment])
 				{
-					poly2.children = [poly2.children arrayByAddingObject: poly];
-					poly = nil;
+					isRoot = NO;
 					break;
 				}
 			}
 		}
-		if (poly)
+		if (isRoot)
 			[rootPolys addObject: poly];
-		
+	}
+	
+	[unsortedPolys removeObjectsInArray: rootPolys];
+	
+	for (FixPolygonRecursive* poly in unsortedPolys)
+	{
+		BOOL foundParent = NO;
+		for (FixPolygonRecursive* rootPoly in rootPolys)
+		{
+			
+			if (rootPoly.segment.isClosed)
+			{
+				FixPolygonClosedSegment* cseg = (id)rootPoly.segment;
+				
+				if ([cseg containsPath: poly.segment])
+				{
+					rootPoly.children = [rootPoly.children arrayByAddingObject: poly];
+					foundParent = YES;
+					break;
+				}
+			}
+		}
+		if (foundParent)
+			continue;
+		assert(0); // we should never get here
 	}
 	
 	for (FixPolygonRecursive* poly in rootPolys)
@@ -225,9 +298,23 @@
 	return poly;
 }
 
-- (void) reviseWinding
+- (void) nestPolygonWithOptions: (PolygonNestingOptions) options
 {
 	NSArray* polys = [FixPolygonRecursive recursivelySortSegments: self.segments];
+	
+	if (options & PolygonNestingOptionSortY)
+	{
+		polys = [polys sortedArrayWithOptions: NSSortStable usingComparator:^NSComparisonResult(FixPolygonRecursive* poly0, FixPolygonRecursive* poly1) {
+			return -lcompare(poly0.segment.bounds.max.y, poly1.segment.bounds.max.y); // sort in descending order
+		}];
+	}
+	if (options & PolygonNestingOptionSortX)
+	{
+		polys = [polys sortedArrayWithOptions: NSSortStable usingComparator:^NSComparisonResult(FixPolygonRecursive* poly0, FixPolygonRecursive* poly1) {
+			return -lcompare(poly0.segment.bounds.max.x, poly1.segment.bounds.max.x); // sort in descending order
+		}];
+	}
+	
 	NSMutableArray* allSegments = [[NSMutableArray alloc] init];
 	
 	for (FixPolygonRecursive* poly in polys)
@@ -277,7 +364,7 @@
 		return segment;
 	};
 	
-	for (NSInteger i = 0; i < count; ++i)
+	for (NSInteger i = 0; i < count-1; ++i)
 	{
 		NSPoint pa[3];
 		NSBezierPathElement element = [flatPath elementAtIndex: i associatedPoints: pa];
@@ -325,7 +412,7 @@
 	FixPolygon* polygon = [[FixPolygon alloc] init];
 	polygon.segments = segments;
 	
-	[polygon reviseWinding];
+//	[polygon nestPolygonWithOptions: PolygonNestingOptionsNone];
 	
 	return polygon;
 }
@@ -993,7 +1080,7 @@ static MPVector2D* _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
 	MPVector2D* num = [rqs sub: spr];
 	MPDecimal* den = [MPDecimal decimalWithInt64: rxs.x shift: rxs.shift];
 	
-	MPVector2D* X = [num scaleNum: [MPDecimal one] den: den];
+	MPVector2D* X = [num scaleNum: [[MPDecimal longOne] mul: [MPDecimal longOne]] den: den];
 	
 	if (X.minIntegerBits > 15)
 		return nil;
@@ -1034,6 +1121,80 @@ static MPVector2D* _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
 	return NO;
 }
 
+// check path containment via simple method
+- (BOOL) containsPath2: (FixPolygonSegment*) other
+{
+	if (vertexCount < 3)
+		return NO;
+
+	PolygonIntersection* firstIntersection = _findNextIntersection(self.vertices, 0, self.vertexCount, self.vertexCount, other.vertices, 0, other.vertexCount, other.vertexCount);
+	
+	if (firstIntersection)
+		return NO;
+	
+	
+	
+	assert(self.isCCW);
+	
+	v3i_t sc = other.begin;
+	r3i_t bounds = self.bounds;
+	
+	//	if (!rRangeContainsPointXYInclusiveMinExclusiveMax(bounds, sc))
+	//		return NO;
+	
+	// ray is going along X
+	v3i_t ray = v3iCreate(bounds.max.x+1, 0, 0, bounds.max.shift);
+	v3i_t se = v3iAdd(sc, ray);
+	
+	r3i_t rr = riCreateFromVectors(sc, se);
+	
+	MPVector2D* R = [MPVector2D vectorWith3i: ray];
+	MPVector2D* SC = [MPVector2D vectorWith3i: sc];
+	
+	
+	NSMutableArray* intersects = [[NSMutableArray alloc] init];
+
+	for (long i = 0; i < vertexCount; ++i)
+	{
+		v3i_t p0 = vertices[i];
+		v3i_t p1 = vertices[(i+1) % vertexCount];
+		
+		r3i_t rp = riCreateFromVectors(p0, p1);
+		
+		if (!riCheckIntersection2D(rr, rp))
+			continue;
+		
+		MPVector2D* X = _checkIntersection(p0, p1, sc, se);
+
+		MPVector2D* P0 = [MPVector2D vectorWith3i: p0];
+		MPVector2D* P1 = [MPVector2D vectorWith3i: p1];
+		
+		
+		if (X)
+		{
+			MPVector2D* DX = [X sub: SC];
+			[intersects addObject: @[ [DX dot: DX], X, [P1 sub: P0] ]];
+		}
+		
+	}
+	
+	[intersects sortedArrayWithOptions: NSSortStable usingComparator:^NSComparisonResult(NSArray* obj0, NSArray* obj1) {
+		MPDecimal* A = [obj0 firstObject];
+		MPDecimal* B = [obj1 firstObject];
+		
+		return [A compare: B];
+	}];
+	
+	if (!intersects.count)
+		return NO;
+	
+	
+	MPVector2D* E = [[intersects firstObject] lastObject];
+	
+	return [E cross: R].isNegative;
+}
+
+
 /*! Checks via ray casting if a single vertex of self is contained in segment.
  
  */
@@ -1042,6 +1203,8 @@ static MPVector2D* _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
 	//assert(isCCW && segment.isCCW); // FIXME: assertion no longer necessary?
 	
 	v3i_t sc = segment.begin;
+	MPVector2D* SC = [MPVector2D vectorWith3i: sc];
+
 	r3i_t bounds = self.bounds;
 	
 	if (vertexCount < 3)
@@ -1051,7 +1214,7 @@ static MPVector2D* _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
 	//		return NO;
 	
 	// ray is going along X
-	v3i_t ray = v3iCreate(bounds.max.x, 0, 0, bounds.max.shift);
+	v3i_t ray = v3iCreate(bounds.max.x+1, 0, 0, bounds.max.shift);
 	v3i_t se = v3iAdd(sc, ray);
 	
 	r3i_t rr = riCreateFromVectors(sc, se);
@@ -1079,29 +1242,28 @@ static MPVector2D* _checkIntersection(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
 		MPVector2D* P1 = [MPVector2D vectorWith3i: p1];
 		
 		
-		v3i_t e = v3iSub(p1, p0);
+		MPVector2D* E = [P1 sub: P0];
 		
 		// as the test ray propagates in +X
 		// for edges going +Y, [0,den) is valid
 		// for edges going -Y, (0, den] is valid
 		
-		BOOL goingY = e.y > 0;
+		BOOL goingY = E.y.isPositive;
 		
 		if (goingY && [P0 isEqualToVector: X])
 			continue;
 		else if (!goingY && [P1 isEqualToVector: X])
 			continue;
 		
-		v3i_t d = v3iSub(sc, p0);
+		MPVector2D* D = [SC sub: X];
 		
-		if (!d.x && !d.y)
+		if (D.x.isZero && D.y.isZero)
 			continue;
 		
-		assert(e.z == 0);
-		v3i_t n = {-e.y, e.x, e.z, e.shift};
-		vmlong_t f = v3iDot(n, d).x;
-		assert(f != 0);
-		windingCounter += (f > 0 ? 1 : -1);
+		NSComparisonResult fs = [E cross: D].compareToZero;
+		
+		assert(fs != 0);
+		windingCounter += fs;
 	}
 	assert(ABS(windingCounter) < 2);
 	if (windingCounter != 0)

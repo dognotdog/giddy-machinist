@@ -366,7 +366,7 @@ static double mp_get_double(mp_int *a)
 {
 	static MPDecimal* one = nil;
 	if (!one)
-		one = [[MPDecimal alloc] initWithInt64: 1L << 48 shift: 48];
+		one = [[[MPDecimal alloc] initWithInt64: 1L << 32 shift: 32] mul: [[MPDecimal alloc] initWithInt64: 1L << 32 shift: 32]];
 	return one;
 }
 

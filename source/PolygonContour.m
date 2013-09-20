@@ -31,13 +31,27 @@
 {
 	r3i_t polyBounds = self.polygon.bounds;
 	
+	if (floatOffset == 0.0)
+	{
+		self.toolpath = self.polygon.copy;
+		//[self.toolpath nestPolygonWithOptions: PolygonNestingOptionSortY];
+		return;
+	}
+	else
+	{
+		[self.polygon nestPolygonWithOptions: PolygonNestingOptionSortY];
+	}
+	
+	BOOL insertExtendedBounds = (floatOffset > 0.0);
+
+	
 	vmintfix_t offset = iFixCreateFromFloat(2.0*floatOffset, 16);
 	
 	r3i_t extendedBounds = polyBounds;
-	extendedBounds.min.x -= 2*offset.x+2;
-	extendedBounds.min.y -= 2*offset.x+2;
-	extendedBounds.max.x += 2*offset.x+2;
-	extendedBounds.max.y += 2*offset.x+2;
+	extendedBounds.min.x -= 2*offset.x+10;
+	extendedBounds.min.y -= 2*offset.x+10;
+	extendedBounds.max.x += 2*offset.x+10;
+	extendedBounds.max.y += 2*offset.x+10;
 
 	FixPolygonClosedSegment* boundary = [[FixPolygonClosedSegment alloc] init];
 	
@@ -47,10 +61,10 @@
 	[boundary insertVertexAtEnd: v3iCreate(extendedBounds.min.x, extendedBounds.max.y, extendedBounds.min.z, extendedBounds.min.shift)];
 	
 	r3i_t clipBounds = polyBounds;
-	clipBounds.min.x -= offset.x+1;
-	clipBounds.min.y -= offset.x+1;
-	clipBounds.max.x += offset.x+1;
-	clipBounds.max.y += offset.x+1;
+	clipBounds.min.x -= offset.x+2;
+	clipBounds.min.y -= offset.x+2;
+	clipBounds.max.x += offset.x+2;
+	clipBounds.max.y += offset.x+2;
 	
 	FixPolygonClosedSegment* clippingSegment = [[FixPolygonClosedSegment alloc] init];
 	[clippingSegment insertVertexAtEnd: clipBounds.min];
@@ -62,20 +76,22 @@
 	
 	PolygonSkeletizer* skeletizer = [[PolygonSkeletizer alloc] init];
 	
-	skeletizer.extensionLimit = 2.0*floatOffset;
+	skeletizer.extensionLimit = 1.1*floatOffset;
 	
 	skeletizer.emissionTimes = @[[NSNumber numberWithDouble: floatOffset]];
 	
 	FixPolygon* poly = self.polygon.copy;
 	
 	
-	[poly.segments enumerateObjectsUsingBlock:^(FixPolygonClosedSegment* obj, NSUInteger idx, BOOL *stop) {
-		if (obj.isClosed)
-			[obj reverse];
-	}];
+	if (insertExtendedBounds)
+	{
+		[poly.segments enumerateObjectsUsingBlock:^(FixPolygonClosedSegment* obj, NSUInteger idx, BOOL *stop) {
+			if (obj.isClosed)
+				[obj reverse];
+		}];
 
-	poly.segments = [poly.segments arrayByAddingObject: boundary];
-
+		poly.segments = [poly.segments arrayByAddingObject: boundary];
+	}
 	for (FixPolygonSegment* obj in poly.segments)
 		if (obj.vertexCount > 1)
 			[skeletizer addClosedPolygonWithVertices: obj.vertices count: obj.vertexCount];
@@ -91,12 +107,14 @@
 	}];
 	
 	
-	self.toolpath.segments = [self.toolpath.segments select: ^BOOL(FixPolygonSegment* obj) {
-		
-		return [clippingSegment containsPath: obj];
-		
-	}];
-	 
+	if (insertExtendedBounds)
+	{
+		self.toolpath.segments = [self.toolpath.segments select: ^BOOL(FixPolygonSegment* obj) {
+			
+			return [clippingSegment containsPath: obj];
+			
+		}];
+	}
 
 }
 

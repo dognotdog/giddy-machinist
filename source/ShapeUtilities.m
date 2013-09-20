@@ -4,8 +4,12 @@
 //
 
 #import "ShapeUtilities.h"
+#import "CGGeometryExtensions.h"
+
 #import <AppKit/AppKit.h>
 
+
+static NSString* const FlexSignIdentifier = @"FlexiEXPERT";
 
 @implementation ShapeUtilities
 
@@ -23,7 +27,14 @@
 {	
 	//  Created by Dömötör Gulyás on 2013-08-24. Copyright 2013.
 
+	double scale = 1.0;
+
+	
 	NSString* dataString = [[NSString alloc] initWithData: data encoding: NSASCIIStringEncoding];
+	
+//	if ([dataString rangeOfString: FlexSignIdentifier].location != NSNotFound)
+		scale = 25.4/72.0; // unit is pica -> convert to mm
+	
 	
 	NSRange prologueEndRange = [dataString rangeOfString: @"%%EndProlog"];
 	NSRange trailerRange = [dataString rangeOfString: @"%%PageTrailer"];
@@ -47,10 +58,10 @@
 	
 	NSString* epsString = [[dataString substringToIndex: trailerRange.location] substringFromIndex: endStuffRange.location + endStuffRange.length];
 	
-	return [self createBezierPathFromEPSPageString: epsString];
+	return [self createBezierPathFromEPSPageString: epsString withScale: scale];
 }
 
-+ (NSBezierPath*)createBezierPathFromEPSPageString:(NSString *)epsString
++ (NSBezierPath*)createBezierPathFromEPSPageString:(NSString *)epsString withScale: (double) scale
 {
 	//  Created by Dömötör Gulyás on 2013-08-24. Copyright 2013.
 
@@ -101,6 +112,8 @@
 			{
 				[lineScanner scanDouble: &currentPoint.x];
 				[lineScanner scanDouble: &currentPoint.y];
+				currentPoint = CGPointScale(currentPoint,scale);
+				
 				[bpath moveToPoint: currentPoint];
 
 			}
@@ -108,6 +121,8 @@
 			{
 				[lineScanner scanDouble: &currentPoint.x];
 				[lineScanner scanDouble: &currentPoint.y];
+				currentPoint = CGPointScale(currentPoint,scale);
+
 				[bpath lineToPoint: currentPoint];
 			}
 			else if ([cmdString isEqualToString: @"curveto"] || [cmdString isEqualToString: @"cv"] || [cmdString isEqualToString: @"c"] || [cmdString isEqualToString: @"C"])
@@ -118,6 +133,10 @@
 				[lineScanner scanDouble: &controlPoint2.y];
 				[lineScanner scanDouble: &currentPoint.x];
 				[lineScanner scanDouble: &currentPoint.y];
+				currentPoint = CGPointScale(currentPoint,scale);
+				controlPoint1 = CGPointScale(controlPoint1,scale);
+				controlPoint2 = CGPointScale(controlPoint2,scale);
+
 				[bpath curveToPoint: currentPoint controlPoint1: controlPoint1 controlPoint2: controlPoint2];
 			}
 			else if ([cmdString isEqualToString: @"v"] || [cmdString isEqualToString: @"V"])
@@ -126,6 +145,9 @@
 				[lineScanner scanDouble: &controlPoint1.y];
 				[lineScanner scanDouble: &currentPoint.x];
 				[lineScanner scanDouble: &currentPoint.y];
+				currentPoint = CGPointScale(currentPoint,scale);
+				controlPoint1 = CGPointScale(controlPoint1,scale);
+
 				[bpath curveToPoint: currentPoint controlPoint1: prevPoint controlPoint2: controlPoint2];
 			}
 			else if ([cmdString isEqualToString: @"y"] || [cmdString isEqualToString: @"Y"])
@@ -134,6 +156,9 @@
 				[lineScanner scanDouble: &controlPoint1.y];
 				[lineScanner scanDouble: &currentPoint.x];
 				[lineScanner scanDouble: &currentPoint.y];
+				currentPoint = CGPointScale(currentPoint,scale);
+				controlPoint1 = CGPointScale(controlPoint1,scale);
+
 				[bpath curveToPoint: currentPoint controlPoint1: controlPoint1 controlPoint2: currentPoint];
 			}
 			else if ([cmdString isEqualToString: @"closepath"] || [cmdString isEqualToString: @"cp"])

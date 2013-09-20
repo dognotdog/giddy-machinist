@@ -713,8 +713,18 @@ static MPVector2D* _mpLinePointDistanceNum(MPVector2D* A, MPVector2D* B, MPVecto
 	if (cachedNumerator)
 		return cachedNumerator;
 	
+	if (v3iEqual(self.leftEdge.edge, self.rightEdge.edge))
+		return [MPVector2D vectorWith3i: self.leftEdge.edge].rotateCCW;
+	
 	MPVector2D* E_AB = [MPVector2D vectorWith3i: self.leftEdge.edge];
 	MPVector2D* E_BC = [MPVector2D vectorWith3i: self.rightEdge.edge];
+	
+	MPDecimal* E_ABxBC = [E_AB cross: E_BC];
+
+	if (E_ABxBC.isZero && ([E_AB dot: E_BC].isPositive))
+	{
+		return [E_AB add: E_BC].rotateCCW;
+	}
 		
 	MPDecimal* l_E_AB = [E_AB longLength];
 	MPDecimal* l_E_BC = [E_BC longLength];
@@ -723,11 +733,17 @@ static MPVector2D* _mpLinePointDistanceNum(MPVector2D* A, MPVector2D* B, MPVecto
 		
 	cachedNumerator = RU;
 	
+	assert(RU.x.decimalShift > 0);
+	
+	assert(!RU.x.isZero || !RU.y.isZero);
+	
 	return RU;
 }
 
 - (MPVector2D*) mpDirection
 {
+
+	
 	MPVector2D* E_AB = [MPVector2D vectorWith3i: self.leftEdge.edge];
 	MPVector2D* E_BC = [MPVector2D vectorWith3i: self.rightEdge.edge];
 	
@@ -743,6 +759,7 @@ static MPVector2D* _mpLinePointDistanceNum(MPVector2D* A, MPVector2D* B, MPVecto
 	assert(!isinf(RU.x.toDouble));
 	assert(!isinf(RU.y.toDouble));
 	
+	assert(!RU.x.isZero || !RU.y.isZero);
 	
 	
 	return RU;
@@ -753,8 +770,17 @@ static MPVector2D* _mpLinePointDistanceNum(MPVector2D* A, MPVector2D* B, MPVecto
 	MPVector2D* E_BC = [MPVector2D vectorWith3i: self.rightEdge.edge];
 	
 	MPDecimal* E_ABxBC = [E_AB cross: E_BC];
+	
+	if (v3iEqual(self.leftEdge.edge, self.rightEdge.edge))
+		E_ABxBC = E_AB.length;
 		
 	MPVector2D* RU = self.mpNumerator;
+	
+	if (E_ABxBC.isZero)
+	{
+		E_ABxBC = [E_AB add: E_BC].length;
+	}
+	
 	
 	MPVector2D* R = [RU scaleNum: [MPDecimal longOne] den: E_ABxBC];
 	
@@ -1220,7 +1246,8 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	assert(!isinf(R.y.toDouble));
 	
 	
-	
+	assert(!R.x.isZero || !R.y.isZero);
+	assert(R.x.decimalShift >= 0);
 	return R;
 }
 
@@ -1287,6 +1314,8 @@ static double _angle2d_cw(v3i_t from, v3i_t to)
 	
 	assert(!isinf(R.x.toDouble));
 	assert(!isinf(R.y.toDouble));
+	
+	assert(!R.x.isZero || !R.y.isZero);
 	
 	cachedNumerator = R;
 	
